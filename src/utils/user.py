@@ -22,11 +22,3 @@ def schema_validation(schema):
             return jsonify({'error': 'Invalid data', 'details': validator.errors}), 400
         return decorated_function
     return decorator
-
-
-def set_uuid(data, uuid_key='uuid'):
-    if data:
-        import uuid
-        key = uuid_key if uuid_key else 'uuid'
-        data.update({key: f'user::{uuid.uuid1()}'})
-    return data

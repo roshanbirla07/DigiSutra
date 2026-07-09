@@ -1,4 +1,4 @@
-from controllers.user import SignUp
+from controllers.user import SignUp, Login
 
 
 class AuthenticationRoutes(object):
@@ -11,4 +11,9 @@ class AuthenticationRoutes(object):
                         view_func=SignUp.as_view('signup'),
                         methods=['POST'],
                         endpoint='should_be_v1_only_signup'
+                        )
+        v1.add_url_rule('users/login/',
+                        view_func=Login.as_view('login'),
+                        methods=['POST'],
+                        endpoint='should_be_v1_only_login'
                         )

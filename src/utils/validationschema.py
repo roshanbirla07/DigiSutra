@@ -5,6 +5,12 @@ UserCreateSchema = {
     'password': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
 }
 
+UserLoginSchema = {
+    'username': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'password': {'type': 'string', 'maxlength': 128, 'nullable': False, 'required': True},
+}
+
 validationschema = {
-    'UserCreate': UserCreateSchema
+    'UserCreate': UserCreateSchema,
+    'UserLogin': UserLoginSchema,
 }
