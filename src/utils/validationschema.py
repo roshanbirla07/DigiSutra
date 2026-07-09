@@ -1,7 +1,10 @@
-
 UserCreateSchema = {
+    'firstname': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'lastname': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': False},
+    'email': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
+    'password': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+}
 
-    'firstname': {'type': 'string', 'maxlength': 50, 'nullable':False, 'required': True},
-    'lastname': {'type': 'string', 'maxlength': 50, 'nullable':False, 'required': False},
-    'email': {'type': 'string', 'maxlength': 100, 'nullable':False, 'required': True},
+validationschema = {
+    'UserCreate': UserCreateSchema
 }
