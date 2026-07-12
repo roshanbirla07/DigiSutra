@@ -82,6 +82,98 @@ The analytics surface will eventually show:
 - seller suspension and moderation status
 - webhook and payment failure logs
 
+## Roadmap
+
+### Phase 1: Core marketplace foundation
+- user signup and login
+- seller/customer/admin role model
+- product listing model
+- product ownership rules
+- basic catalog and listing visibility
+
+### Phase 2: Payment and transaction ledger
+- Razorpay payment collection
+- payment verification
+- internal order records
+- transaction history
+- webhook-based payment confirmation
+- failure and retry handling
+
+### Phase 3: Seller earnings and payouts
+- commission calculation
+- seller balance tracking
+- payout ledger
+- payout batch workflow
+- manual or semi-manual payout execution
+- payout failure tracking
+
+### Phase 4: Digital delivery and access control
+- purchase-based content access
+- signed download URLs
+- download and re-download policy
+- access revocation on refund
+- purchase history for buyers
+
+### Phase 5: Support, refunds, and trust
+- refund requests
+- dispute management
+- seller moderation
+- admin override tools
+- support issue tracking
+- fraud and abuse signals
+
+### Phase 6: Seller dashboard and analytics
+- sales overview
+- payout overview
+- refund overview
+- product analytics
+- transaction reporting
+- support status
+
+### Phase 7: Platform hardening
+- test/live environment separation
+- logging and alerting
+- reconciliation reports
+- compliance review for payouts and taxes
+- operational dashboards
+
+## Contribution Guide
+
+This project should be contributed to with the following rules in mind:
+- payment and ledger data must be treated as source-of-truth data
+- webhook events must be idempotent
+- all money-related state changes must be stored in the database
+- provider-specific logic must stay behind a service or adapter layer
+- seller payout logic must not be mixed with buyer payment collection logic
+- dashboard views must read from internal records, not from client-side assumptions
+- access to digital content must be tied to an order, not just a session
+- auth and role checks should be added before exposing seller or admin operations
+
+### What should remain stable
+- user model and role names
+- order and transaction identifiers
+- payment status transitions
+- payout status transitions
+- refund history
+- audit trail records
+
+### What can change later
+- payment gateway providers
+- payout execution method
+- dashboard layout
+- notification channel
+- moderation workflow detail
+
+## Operational Rules
+
+- Razorpay is the first payment provider.
+- Seller payouts start manual or semi-manual.
+- The platform should maintain an internal ledger even if Razorpay is the gateway.
+- Tax and invoice support should be designed early.
+- Test mode and live mode must never be mixed.
+- Logs should capture payment failures, webhook failures, and payout failures.
+- Admin tools should be able to suspend creators and hold payouts if needed.
+
 ## Current Backend State
 
 The current codebase includes:
@@ -182,3 +274,4 @@ docker logs -f digisutra-postgres
 - The app uses PostgreSQL and Flask-SQLAlchemy.
 - Docker Compose starts `digisutra-postgres` and `digisutra-api`.
 - User onboarding and login are implemented; marketplace, payments, payouts, delivery, moderation, and dashboard work are planned next.
+- The README is intended to serve as a contributor-facing project guide, not only a setup note.
