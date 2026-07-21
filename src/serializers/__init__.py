@@ -1,2 +1,0 @@
-from serializers.userSerializers import UserSerializer
-from serializers.productSerializers import ProductSerializer

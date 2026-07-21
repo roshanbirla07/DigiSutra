@@ -209,8 +209,27 @@ Run the Flask app directly only if PostgreSQL is available locally and `POSTGRES
 Start the app:
 
 ```bash
-python src/runserver.py
+python apps/api/src/runserver.py
 ```
+
+The Flask backend now lives under `apps/api/src/`, so use that path for
+local execution and Docker entrypoints.
+
+## Frontend Web App
+
+The frontend lives under `apps/web/` and is a static client that calls the
+existing Flask API.
+
+Current frontend endpoints:
+
+- `POST /v1/users/`
+- `POST /v1/users/login/`
+- `GET /v1/users/`
+- `GET /v1/products/`
+- `POST /v1/products/`
+
+Open `apps/web/index.html` in a browser or serve `apps/web/` with any static
+server.
 
 ## Docker Setup
 
@@ -235,6 +254,7 @@ docker compose down
 ## Service URLs
 
 - API: `http://localhost:5000`
+- Web: `http://localhost:3000`
 - PostgreSQL: `localhost:5432`
 
 ## Database Checks

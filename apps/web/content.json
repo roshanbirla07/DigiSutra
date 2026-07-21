@@ -1,0 +1,51 @@
+{
+  "brand": {
+    "name": "DigiSutra",
+    "tagline": "Creator dashboard",
+    "authTitle": "Ledger-minded workspace for creator operations.",
+    "authLede": "Sign in or create an account to enter a persistent dashboard for products and settings.",
+    "footnote": "The dashboard uses a single persistent shell after authentication."
+  },
+  "navigation": {
+    "home": "Home",
+    "addProduct": "Add Product",
+    "productList": "Product List",
+    "settings": "Settings"
+  },
+  "home": {
+    "title": "Home",
+    "lede": "A quick overview of what DigiSutra provides.",
+    "cards": [
+      {
+        "title": "Creator operations workspace",
+        "body": "DigiSutra is a dashboard for managing digital products such as courses, templates, downloads, and other catalogue items from one persistent workspace."
+      },
+      {
+        "title": "What it provides",
+        "items": [
+          "Create and manage product listings",
+          "View catalogue rows with product status and ownership",
+          "Adjust API connection settings from the dashboard"
+        ]
+      },
+      {
+        "title": "How to use it",
+        "items": [
+          "Sign in or create an account",
+          "Use the sidebar to move between sections",
+          "Add products, review them, and save settings without leaving the app shell"
+        ]
+      }
+    ]
+  },
+  "placeholders": {
+    "emptyOwner": "Guest",
+    "emptySession": "No session",
+    "emptyEmail": "—",
+    "emptyProductCategory": "—",
+    "emptyProductOwner": "—",
+    "emptyDescription": "No description provided.",
+    "homeButton": "Add Product",
+    "deleteButton": "Delete"
+  }
+}

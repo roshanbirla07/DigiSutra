@@ -53,7 +53,14 @@ class Login(View):
             response=json.dumps({
                 'uuid': user.uuid,
                 'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'phone_number': user.phone_number,
                 'user_type': user.user_type,
+                'is_active': user.is_active,
+                'created_on': user.created_on.isoformat() if user.created_on else None,
+                'modified_on': user.modified_on.isoformat() if user.modified_on else None,
             }),
             status=200,
             mimetype='application/json'

@@ -88,3 +88,14 @@ class ProductSerializer(object):
         if not product:
             raise ProductInputError("Product not found")
         return product
+
+    @session_rollback(db)
+    def delete(self, product_uuid):
+        product = self.get_by_uuid(product_uuid)
+        db.session.delete(product)
+        try:
+            db.session.commit()
+        except Exception as e:
+            logging.error(f"Exception in Product Delete Serializer :: {e}")
+            abort(400)
+        return True

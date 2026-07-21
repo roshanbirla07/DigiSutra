@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DigiSutra Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="toast-host" id="toastHost" aria-live="polite" aria-atomic="true"></div>
+
+    <div class="app">
+      <section id="authScreen" class="auth-screen">
+        <div class="auth-card">
+          <div class="seal seal-lg">DS</div>
+          <div class="auth-copy">
+            <p class="eyebrow" id="brandName">DigiSutra</p>
+            <h1 id="authTitle">Ledger-minded workspace for creator operations.</h1>
+            <p class="lede" id="authLede">Sign in or create an account to enter a persistent dashboard for products and settings.</p>
+          </div>
+
+          <div class="segmented" role="tablist" aria-label="Authentication mode">
+            <button class="segmented-btn active" data-auth-tab="login" type="button">Log In</button>
+            <button class="segmented-btn" data-auth-tab="signup" type="button">Sign Up</button>
+          </div>
+
+          <form id="loginForm" class="auth-form active" novalidate>
+            <label class="field">
+              <span>Username</span>
+              <input id="loginUsername" type="text" autocomplete="username" />
+              <small id="loginUsernameError" class="error"></small>
+            </label>
+            <label class="field">
+              <span>Password</span>
+              <input id="loginPassword" type="password" autocomplete="current-password" />
+              <small id="loginPasswordError" class="error"></small>
+            </label>
+            <button class="btn primary" type="submit">Log In</button>
+          </form>
+
+          <form id="signupForm" class="auth-form" novalidate>
+            <div class="grid-2">
+              <label class="field">
+                <span>Username</span>
+                <input id="signupUsername" type="text" autocomplete="username" />
+                <small id="signupUsernameError" class="error"></small>
+              </label>
+              <label class="field">
+                <span>User type</span>
+                <select id="signupUserType">
+                  <option value="customer">customer</option>
+                  <option value="creator">creator</option>
+                  <option value="admin">admin</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>First name</span>
+                <input id="signupFirstName" type="text" autocomplete="given-name" />
+                <small id="signupFirstNameError" class="error"></small>
+              </label>
+              <label class="field">
+                <span>Last name</span>
+                <input id="signupLastName" type="text" autocomplete="family-name" />
+              </label>
+              <label class="field">
+                <span>Email</span>
+                <input id="signupEmail" type="email" autocomplete="email" />
+                <small id="signupEmailError" class="error"></small>
+              </label>
+              <label class="field">
+                <span>Password</span>
+                <input id="signupPassword" type="password" autocomplete="new-password" />
+                <small id="signupPasswordError" class="error"></small>
+              </label>
+            </div>
+            <button class="btn primary" type="submit">Create Account</button>
+          </form>
+
+          <div class="thread-divider"></div>
+          <p class="footnote" id="authFootnote">The dashboard uses a single persistent shell after authentication.</p>
+        </div>
+      </section>
+
+      <section id="dashboardScreen" class="dashboard-screen hidden">
+        <aside class="sidebar">
+            <div class="brand-row">
+              <div class="seal">DS</div>
+              <div>
+              <div class="brand" id="sidebarBrand">DigiSutra</div>
+              <div class="muted" id="sidebarTagline">Creator dashboard</div>
+              </div>
+            </div>
+
+          <nav class="nav">
+            <button class="nav-item active" data-view="addProductView" type="button" id="navAddProduct">Add Product</button>
+            <button class="nav-item" data-view="productsView" type="button" id="navProductList">Product List</button>
+            <button class="nav-item nav-bottom" data-view="settingsView" type="button" id="navSettings">Settings</button>
+          </nav>
+        </aside>
+
+        <div class="main-shell">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow" id="dashboardLabel">Home Dashboard</p>
+              <h1 id="pageTitle">Home</h1>
+            </div>
+
+            <div class="profile-wrap">
+              <button id="profileButton" class="profile-button" type="button" aria-haspopup="true" aria-expanded="false">
+                <span class="avatar" id="profileAvatar">U</span>
+                <span class="profile-copy">
+                  <strong id="profileName">Guest</strong>
+                  <span id="profileRole">No session</span>
+                </span>
+              </button>
+
+              <div id="profileMenu" class="profile-menu hidden" role="menu">
+                <div class="profile-header">
+                  <strong id="profileMenuName">Guest</strong>
+                  <span id="profileMenuEmail">—</span>
+                </div>
+                <button id="accountSettingsAction" class="menu-item" type="button">Account settings</button>
+                <button id="logoutAction" class="menu-item danger" type="button">Log out</button>
+              </div>
+            </div>
+          </header>
+
+          <main class="content">
+            <section id="homeView" class="panel view active">
+              <div class="panel-head">
+                <div>
+                  <h2 id="homeTitle">Home</h2>
+                  <p class="muted" id="homeLede">A quick overview of what DigiSutra provides.</p>
+                </div>
+              </div>
+
+              <div class="home-grid">
+                <article class="home-card">
+                  <h3 id="homeCardTitle0">Creator operations workspace</h3>
+                  <p id="homeCardBody0"></p>
+                </article>
+                <article class="home-card">
+                  <h3 id="homeCardTitle1">What it provides</h3>
+                  <ul id="homeCardItems1"></ul>
+                </article>
+                <article class="home-card">
+                  <h3 id="homeCardTitle2">How to use it</h3>
+                  <ol id="homeCardItems2"></ol>
+                </article>
+              </div>
+            </section>
+
+            <section id="addProductView" class="panel view">
+              <div class="panel-head">
+                <div>
+                  <h2>Add Product</h2>
+                  <p class="muted">Products are sealed into the catalogue from here.</p>
+                </div>
+                <button id="createProductAction" class="btn primary" type="button">Create product</button>
+              </div>
+
+              <div class="owner-chip">
+                <span class="seal seal-sm" id="ownerSeal">DS</span>
+                <div>
+                  <span class="muted">Owner</span>
+                  <strong id="ownerName">Guest</strong>
+                </div>
+              </div>
+
+              <form id="productForm" class="form-grid" novalidate>
+                <label class="field full">
+                  <span>Title</span>
+                  <input id="productTitle" type="text" />
+                  <small id="productTitleError" class="error"></small>
+                </label>
+                <label class="field full">
+                  <span>Description</span>
+                  <textarea id="productDescription" rows="5"></textarea>
+                </label>
+                <label class="field">
+                  <span>Price</span>
+                  <input id="productPrice" type="text" inputmode="decimal" />
+                </label>
+                <label class="field">
+                  <span>Currency</span>
+                  <input id="productCurrency" type="text" value="INR" />
+                </label>
+                <label class="field">
+                  <span>Category</span>
+                  <input id="productCategory" type="text" />
+                </label>
+                <label class="switch-row">
+                  <span>Active</span>
+                  <input id="productActive" type="checkbox" checked />
+                </label>
+                <label class="switch-row">
+                  <span>Public</span>
+                  <input id="productPublic" type="checkbox" checked />
+                </label>
+              </form>
+            </section>
+
+            <section id="productsView" class="panel view">
+              <div class="panel-head">
+                <div>
+                  <h2>Product List</h2>
+                  <p class="muted">Rows show catalogue entries with status stamps and creation time.</p>
+                </div>
+                <button id="refreshProductsAction" class="btn secondary" type="button">Refresh</button>
+              </div>
+              <div id="productsEmpty" class="empty-state hidden">
+                <div class="seal seal-lg">DS</div>
+                <h3>No products yet</h3>
+                <p class="muted">Create the first product to seal it into the catalogue.</p>
+                <button id="emptyBackToAdd" class="btn primary" type="button">Add Product</button>
+              </div>
+              <div id="productsList" class="product-list"></div>
+            </section>
+
+            <section id="settingsView" class="panel view">
+              <div class="panel-head">
+                <div>
+                  <h2>Settings</h2>
+                  <p class="muted">API base URL is retained from the prototype and can be changed here.</p>
+                </div>
+              </div>
+              <form id="settingsForm" class="settings-form" novalidate>
+                <label class="field full">
+                  <span>API Base URL</span>
+                  <input id="apiBaseUrl" type="text" />
+                  <small id="apiBaseUrlError" class="error"></small>
+                </label>
+                <button class="btn primary" type="submit">Save</button>
+              </form>
+            </section>
+          </main>
+        </div>
+      </section>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

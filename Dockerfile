@@ -2,7 +2,7 @@ FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app/src
+    PYTHONPATH=/app/apps/api/src
 
 WORKDIR /app
 
@@ -10,8 +10,8 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY src ./src
+COPY apps ./apps
 
 EXPOSE 5000
 
-CMD ["python", "src/runserver.py"]
+CMD ["python", "apps/api/src/runserver.py"]

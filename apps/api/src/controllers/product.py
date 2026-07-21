@@ -59,7 +59,7 @@ class ProductCollection(View):
 
 
 class ProductDetail(View):
-    methods = ["GET"]
+    methods = ["GET", "DELETE"]
 
     def dispatch_request(self, product_uuid, *args, **kwargs):
         serializer = ProductSerializer()
@@ -76,6 +76,21 @@ class ProductDetail(View):
             return Response(
                 response=json.dumps({"error": "Product not found"}),
                 status=404,
+                mimetype="application/json",
+            )
+
+        if request.method == "DELETE":
+            try:
+                serializer.delete(product_uuid)
+            except Exception as e:
+                return Response(
+                    response=json.dumps({"error": str(e)}),
+                    status=400,
+                    mimetype="application/json",
+                )
+            return Response(
+                response=json.dumps({"deleted": True, "uuid": product_uuid}),
+                status=200,
                 mimetype="application/json",
             )
 

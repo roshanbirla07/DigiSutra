@@ -1,9 +1,0 @@
-POSTGRES_DB = "digisutra"
-POSTGRES_USER = "postgres"
-POSTGRES_PASSWORD = "postgres"
-POSTGRES_HOST = "localhost"
-POSTGRES_DB_PORT = "5432"
-POSTGRES_DB_URI = (
-    f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
-    f"@{POSTGRES_HOST}:{POSTGRES_DB_PORT}/{POSTGRES_DB}"
-)

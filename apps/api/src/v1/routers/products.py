@@ -15,6 +15,6 @@ class ProductRoutes(object):
         v1.add_url_rule(
             "products/<string:product_uuid>/",
             view_func=ProductDetail.as_view("product_detail"),
-            methods=["GET"],
+            methods=["GET", "DELETE"],
             endpoint="should_be_v1_only_product_detail",
         )

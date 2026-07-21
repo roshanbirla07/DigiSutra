@@ -5,11 +5,12 @@ UserCreateSchema = {
     'lastname': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': False},
     'email': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
     'password': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
-    'user_type': {'type': 'string', 'allowed': USER_TYPE.values(), 'nullable': True, 'required': False},
+    'user_type': {'type': 'string', 'allowed': USER_TYPE.values() + ['creator'], 'nullable': True, 'required': False},
 }
 
 UserLoginSchema = {
-    'username': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'username': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
+    'email': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
     'password': {'type': 'string', 'maxlength': 128, 'nullable': False, 'required': True},
 }
 

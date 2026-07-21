@@ -41,7 +41,24 @@ services:
       - "5000:5000"
 
     volumes:
-      - ./src:/app/src
+      - ./apps/api/src:/app/apps/api/src
+
+  web:
+    image: python:3.13-slim
+    container_name: digisutra-web
+    restart: unless-stopped
+
+    working_dir: /app/apps/web
+    command: ["python", "-m", "http.server", "3000", "--bind", "0.0.0.0"]
+
+    depends_on:
+      - app
+
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - ./apps/web:/app/apps/web
 
 volumes:
   postgres_data:

@@ -71,6 +71,8 @@ class UserSerializer(object):
         user_type = validated_data.get('user_type')
         if user_type:
             user_type = str(user_type).lower()
+            if user_type == 'creator':
+                user_type = USER_TYPE.SELLER.value
             if user_type not in USER_TYPE.values():
                 raise IndefiniteUserProfileData('Invalid user_type')
             validated_data['user_type'] = user_type
@@ -148,14 +150,19 @@ class UserSerializer(object):
     def login(self, validated_data=None):
         validated_data = dict(validated_data or self.data)
         username = validated_data.get('username')
+        email = validated_data.get('email')
         password = validated_data.get('password')
 
-        if not username:
-            raise IndefiniteUserProfileData('username is required')
+        if not username and not email:
+            raise IndefiniteUserProfileData('username or email is required')
         if not password:
             raise IndefiniteUserProfileData('password is required')
 
-        user = User.query.filter(func.lower(User.username) == func.lower(username)).first()
+        user = None
+        if username:
+            user = User.query.filter(func.lower(User.username) == func.lower(username)).first()
+        if not user and email:
+            user = User.query.filter(func.lower(User.email) == func.lower(email)).first()
         if not user:
             raise IndefiniteUserProfileData('Invalid username or password')
 
