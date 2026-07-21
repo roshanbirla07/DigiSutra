@@ -1,4 +1,5 @@
-from controllers.user import SignUp, Login
+from controllers.user import SignUp, Login, UserList
+from v1.routers.products import ProductRoutes
 
 
 class AuthenticationRoutes(object):
@@ -17,3 +18,9 @@ class AuthenticationRoutes(object):
                         methods=['POST'],
                         endpoint='should_be_v1_only_login'
                         )
+        v1.add_url_rule('users/',
+                        view_func=UserList.as_view('user_list'),
+                        methods=['GET'],
+                        endpoint='should_be_v1_only_user_list'
+                        )
+        ProductRoutes.router()

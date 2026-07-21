@@ -91,6 +91,13 @@ The analytics surface will eventually show:
 - product ownership rules
 - basic catalog and listing visibility
 
+Phase 1 is now implemented in the current codebase through:
+- `POST /v1/users/`
+- `POST /v1/users/login/`
+- `GET /v1/products/`
+- `POST /v1/products/`
+- `GET /v1/products/<product_uuid>/`
+
 ### Phase 2: Payment and transaction ledger
 - Razorpay payment collection
 - payment verification
@@ -268,6 +275,10 @@ docker logs -f digisutra-postgres
 
 - `POST /v1/users/` - create a user
 - `POST /v1/users/login/` - login with username and password
+- `GET /v1/users/` - list users
+- `GET /v1/products/` - list public active products
+- `POST /v1/products/` - create a product for a seller or admin owner
+- `GET /v1/products/<product_uuid>/` - fetch a public active product by uuid
 
 ## Notes
 
@@ -275,3 +286,8 @@ docker logs -f digisutra-postgres
 - Docker Compose starts `digisutra-postgres` and `digisutra-api`.
 - User onboarding and login are implemented; marketplace, payments, payouts, delivery, moderation, and dashboard work are planned next.
 - The README is intended to serve as a contributor-facing project guide, not only a setup note.
+
+## TODO
+
+- Add `image_uri` to the product model and product APIs.
+- Fetch `owner_uuid` from the auth token once the authentication layer is added.

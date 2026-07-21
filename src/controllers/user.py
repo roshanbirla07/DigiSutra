@@ -58,3 +58,32 @@ class Login(View):
             status=200,
             mimetype='application/json'
         )
+
+
+def serialize_user(user):
+    return {
+        'uuid': user.uuid,
+        'username': user.username,
+        'email': user.email,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'phone_number': user.phone_number,
+        'user_type': user.user_type,
+        'is_active': user.is_active,
+        'created_on': user.created_on.isoformat() if user.created_on else None,
+        'modified_on': user.modified_on.isoformat() if user.modified_on else None,
+    }
+
+
+class UserList(View):
+    methods = ['GET']
+
+    def dispatch_request(self, *args, **kwargs):
+        serializer = UserSerializer()
+        users = serializer.list_users()
+
+        return Response(
+            response=json.dumps([serialize_user(user) for user in users]),
+            status=200,
+            mimetype='application/json'
+        )

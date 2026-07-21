@@ -6,11 +6,7 @@ from utils.constants import USER_TYPE
 class User(db.Model):
     __tablename__ = 'user'
     
-    USER_TYPES = [
-        ('CS', USER_TYPE.CUSTOMER),
-        ('SL', USER_TYPE.SELLER),
-        ('AD', USER_TYPE.ADMIN)
-    ]
+    USER_TYPES = USER_TYPE.choices()
     
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)

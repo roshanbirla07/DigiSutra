@@ -3,10 +3,12 @@ from flask import request, jsonify
 from cerberus import Validator
 from utils.validationschema import validationschema
 
-def schema_validation(schema):
+def schema_validation(schema, methods=None):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            if methods and request.method not in methods:
+                return f(*args, **kwargs)
             data = request.get_json() if request.method != 'GET' else request.args.to_dict()
 
             if not data and request.method != 'GET':

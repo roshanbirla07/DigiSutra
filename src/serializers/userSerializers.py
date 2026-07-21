@@ -68,7 +68,14 @@ class UserSerializer(object):
             validated_data['last_name'] = validated_data.pop('lastname')
 
         validated_data['email'] = str(email).lower()
-        validated_data['user_type'] = validated_data.get('user_type') or USER_TYPE.CUSTOMER
+        user_type = validated_data.get('user_type')
+        if user_type:
+            user_type = str(user_type).lower()
+            if user_type not in USER_TYPE.values():
+                raise IndefiniteUserProfileData('Invalid user_type')
+            validated_data['user_type'] = user_type
+        else:
+            validated_data['user_type'] = USER_TYPE.CUSTOMER
         validated_data['password'] = generate_password_hash(password)
 
         return validated_data
@@ -121,6 +128,11 @@ class UserSerializer(object):
             validated_data['password'] = generate_password_hash(validated_data['password'])
         if not validated_data.get('user_type'):
             validated_data['user_type'] = user.user_type or USER_TYPE.CUSTOMER
+        else:
+            user_type = str(validated_data['user_type']).lower()
+            if user_type not in USER_TYPE.values():
+                raise IndefiniteUserProfileData('Invalid user_type')
+            validated_data['user_type'] = user_type
 
         for key, value in validated_data.items():
             if key != 'uuid' and hasattr(user, key):
@@ -151,3 +163,6 @@ class UserSerializer(object):
             raise IndefiniteUserProfileData('Invalid username or password')
 
         return user
+
+    def list_users(self):
+        return User.query.order_by(User.created_on.desc()).all()
