@@ -10,7 +10,7 @@ Current UI is a static client that talks to the existing Flask API:
 - `GET /v1/products/`
 - `POST /v1/products/`
 
-Open `index.html` in a browser or serve this directory with any static server.
+Serve this directory with a static server so ES modules can load correctly.
 In Docker Compose, the web app runs on `http://localhost:3000` and the API runs on `http://localhost:5000`.
 
 Rules:
