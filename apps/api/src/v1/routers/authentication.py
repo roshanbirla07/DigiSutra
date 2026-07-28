@@ -1,5 +1,6 @@
 from controllers.user import SignUp, Login, UserList
 from v1.routers.products import ProductRoutes
+from v1.routers.ledger import LedgerRoutes
 
 
 class AuthenticationRoutes(object):
@@ -24,3 +25,4 @@ class AuthenticationRoutes(object):
                         endpoint='should_be_v1_only_user_list'
                         )
         ProductRoutes.router()
+        LedgerRoutes.router()
