@@ -9,7 +9,7 @@ class LedgerRoutes(object):
         v1.add_url_rule(
             "ledger/orders/",
             view_func=LedgerCollection.as_view("ledger_collection"),
-            methods=["GET"],
+            methods=["GET", "POST"],
             endpoint="should_be_v1_only_ledger_collection",
         )
         v1.add_url_rule(
