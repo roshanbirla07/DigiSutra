@@ -7,7 +7,7 @@ from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 
 from configuration.db_routing import db, session_rollback
-from models.ledger import MarketplaceOrder
+from models.ledger import MarketplaceOrder, SellerBalance
 from models.product import Product
 from models.user import User
 from utils.constants import USER_TYPE
@@ -51,6 +51,20 @@ class LedgerSerializer(object):
 
     def list_orders(self):
         return MarketplaceOrder.query.order_by(MarketplaceOrder.created_on.desc()).all()
+
+    def get_or_create_seller_balance(self, seller):
+        seller_balance = SellerBalance.query.filter_by(seller_id=seller.id).first()
+        if seller_balance:
+            return seller_balance
+
+        seller_balance = SellerBalance(
+            seller_id=seller.id,
+            available_for_payout=Decimal("0"),
+            pending_payout=Decimal("0"),
+            currency="INR",
+        )
+        db.session.add(seller_balance)
+        return seller_balance
 
     def validate_user(self, user_uuid, field_name):
         user = User.query.filter_by(uuid=user_uuid).first()
@@ -119,6 +133,12 @@ class LedgerSerializer(object):
 
         order = MarketplaceOrder(**validated_data)
         db.session.add(order)
+
+        seller_balance = self.get_or_create_seller_balance(order.seller)
+        seller_balance.pending_payout = Decimal(str(seller_balance.pending_payout or 0)) + Decimal(
+            str(order.net_seller_amount)
+        )
+        seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
 
         try:
             db.session.commit()
