@@ -189,6 +189,10 @@ The current codebase includes:
 - PostgreSQL-backed Flask API
 - Docker-based local development setup
 - buyer/customer, seller, and admin role definitions
+- marketplace ledger models for internal order, payout, refund, and access tracking
+- Razorpay payment integration for order creation, checkout verification, and webhooks
+- seller pending balance tracking on successful ledger orders
+- refund bookkeeping with seller balance reversal and access revocation hooks
 
 ## Roles
 
@@ -227,6 +231,13 @@ Current frontend endpoints:
 - `GET /v1/users/`
 - `GET /v1/products/`
 - `POST /v1/products/`
+- `GET /v1/ledger/orders/`
+- `GET /v1/ledger/orders/<order_uuid>/`
+- `POST /v1/ledger/orders/`
+- `POST /v1/ledger/orders/<order_uuid>/`
+- `POST /v1/payments/orders/`
+- `POST /v1/payments/confirm/`
+- `POST /v1/payments/webhook/razorpay/`
 
 Open `apps/web/index.html` in a browser or serve `apps/web/` with any static
 server.
@@ -299,12 +310,20 @@ docker logs -f digisutra-postgres
 - `GET /v1/products/` - list public active products
 - `POST /v1/products/` - create a product for a seller or admin owner
 - `GET /v1/products/<product_uuid>/` - fetch a public active product by uuid
+- `GET /v1/ledger/orders/` - list marketplace ledger orders
+- `GET /v1/ledger/orders/<order_uuid>/` - fetch a marketplace ledger order by uuid
+- `POST /v1/ledger/orders/` - create a marketplace ledger order
+- `POST /v1/ledger/orders/<order_uuid>/` - create a refund for an order
+- `POST /v1/payments/orders/` - create a Razorpay order for an internal ledger order
+- `POST /v1/payments/confirm/` - verify checkout signature and mark payment paid
+- `POST /v1/payments/webhook/razorpay/` - process Razorpay payment webhooks idempotently
 
 ## Notes
 
 - The app uses PostgreSQL and Flask-SQLAlchemy.
 - Docker Compose starts `digisutra-postgres` and `digisutra-api`.
-- User onboarding and login are implemented; marketplace, payments, payouts, delivery, moderation, and dashboard work are planned next.
+- User onboarding and login are implemented; marketplace ledger, payment integration, refunds, and internal balance tracking are now in place. Payout batches, signed download URLs, moderation, and dashboard work are planned next.
+- Set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET` in the environment for payment flow integration.
 - The README is intended to serve as a contributor-facing project guide, not only a setup note.
 
 ## TODO
