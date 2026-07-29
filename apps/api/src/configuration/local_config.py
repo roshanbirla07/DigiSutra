@@ -1,3 +1,5 @@
+import os
+
 POSTGRES_DB = "digisutra"
 POSTGRES_USER = "postgres"
 POSTGRES_PASSWORD = "postgres"
@@ -7,3 +9,7 @@ POSTGRES_DB_URI = (
     f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
     f"@{POSTGRES_HOST}:{POSTGRES_DB_PORT}/{POSTGRES_DB}"
 )
+
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")

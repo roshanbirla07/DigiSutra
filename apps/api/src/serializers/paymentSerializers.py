@@ -1,0 +1,142 @@
+from decimal import Decimal
+
+from werkzeug.exceptions import HTTPException
+
+from configuration.db_routing import db, session_rollback
+from models.ledger import MarketplaceOrder, ProductAccess, SellerBalance
+from services.razorpay_gateway import RazorpayGateway
+from utils.constants import USER_TYPE
+
+
+class PaymentInputError(HTTPException):
+    code = 400
+    description = "Payment data is invalid"
+
+    def __init__(self, msg=None):
+        super().__init__()
+        self.description = msg if msg else self.description
+
+
+class PaymentSerializer(object):
+    def __init__(self, data=None):
+        self.data = data or {}
+        self.gateway = RazorpayGateway()
+
+    def _serialize_order(self, order):
+        return {
+            "uuid": order.uuid,
+            "provider": order.provider,
+            "provider_order_id": order.provider_order_id,
+            "provider_payment_id": order.provider_payment_id,
+            "payment_status": order.payment_status,
+            "delivery_status": order.delivery_status,
+            "refund_status": order.refund_status,
+            "created_on": order.created_on.isoformat() if order.created_on else None,
+            "modified_on": order.modified_on.isoformat() if order.modified_on else None,
+        }
+
+    def get_order(self, order_uuid):
+        order = MarketplaceOrder.query.filter_by(uuid=order_uuid).first()
+        if not order:
+            raise PaymentInputError("Marketplace order not found")
+        return order
+
+    @session_rollback(db)
+    def create_provider_order(self, order_uuid):
+        order = self.get_order(order_uuid)
+        if order.provider == "razorpay" and order.provider_order_id:
+            return order, None
+
+        created = self.gateway.create_order(
+            amount=int(Decimal(str(order.gross_amount)) * 100),
+            currency=order.product.currency or "INR",
+            receipt=order.uuid,
+            notes={
+                "marketplace_order_uuid": order.uuid,
+                "seller_uuid": order.seller.uuid if order.seller else "",
+                "buyer_uuid": order.buyer.uuid if order.buyer else "",
+                "product_uuid": order.product.uuid if order.product else "",
+            },
+        )
+        order.provider = "razorpay"
+        order.provider_order_id = created["id"]
+        db.session.commit()
+        return order, created
+
+    def _grant_access_if_needed(self, order):
+        access = ProductAccess.query.filter_by(order_id=order.id).first()
+        if access:
+            access.access_status = "granted"
+            return access
+        access = ProductAccess(
+            uuid=f"access::{order.uuid}",
+            order_id=order.id,
+            access_status="granted",
+            download_count=0,
+        )
+        db.session.add(access)
+        return access
+
+    @session_rollback(db)
+    def confirm_checkout_payment(self, payload):
+        provider_order_id = payload.get("razorpay_order_id")
+        payment_id = payload.get("razorpay_payment_id")
+        signature = payload.get("razorpay_signature")
+        if not provider_order_id or not payment_id or not signature:
+            raise PaymentInputError("razorpay_order_id, razorpay_payment_id and razorpay_signature are required")
+
+        order = MarketplaceOrder.query.filter_by(provider_order_id=provider_order_id).first()
+        if not order:
+            raise PaymentInputError("Marketplace order not found for provider order id")
+        if order.provider_payment_id == payment_id and order.payment_status == "paid":
+            return order
+
+        if not self.gateway.verify_checkout_signature(order.provider_order_id, payment_id, signature):
+            raise PaymentInputError("Signature mismatch")
+
+        order.provider = "razorpay"
+        order.provider_payment_id = payment_id
+        order.payment_status = "paid"
+        order.delivery_status = "ready"
+        self._grant_access_if_needed(order)
+
+        seller_balance = SellerBalance.query.filter_by(seller_id=order.seller_id).first()
+        if seller_balance:
+            seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
+
+        db.session.commit()
+        return order
+
+    @session_rollback(db)
+    def process_webhook_event(self, payload, raw_body):
+        event = payload.get("event")
+        if event not in {"payment.captured", "order.paid"}:
+            return None
+
+        signature = payload.get("x_razorpay_signature") or self.data.get("x_razorpay_signature")
+        if signature and not self.gateway.verify_webhook_signature(raw_body, signature):
+            raise PaymentInputError("Webhook signature mismatch")
+
+        entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
+        provider_order_id = entity.get("order_id")
+        payment_id = entity.get("id")
+        if not provider_order_id or not payment_id:
+            raise PaymentInputError("Webhook payload missing payment identifiers")
+
+        order = MarketplaceOrder.query.filter_by(provider_order_id=provider_order_id).first()
+        if not order:
+            raise PaymentInputError("Marketplace order not found for webhook payment")
+
+        if order.payment_status == "paid" and order.provider_payment_id == payment_id:
+            return order
+
+        order.provider = "razorpay"
+        order.provider_payment_id = payment_id
+        order.payment_status = "paid"
+        order.delivery_status = "ready"
+        self._grant_access_if_needed(order)
+        db.session.commit()
+        return order
+
+    def serialize_order(self, order):
+        return self._serialize_order(order)

@@ -48,10 +48,29 @@ LedgerRefundCreateSchema = {
     'status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
 }
 
+PaymentOrderCreateSchema = {
+    'order_uuid': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+}
+
+PaymentConfirmSchema = {
+    'razorpay_order_id': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
+    'razorpay_payment_id': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
+    'razorpay_signature': {'type': 'string', 'maxlength': 256, 'nullable': False, 'required': True},
+}
+
+PaymentWebhookSchema = {
+    'entity': {'type': 'string', 'maxlength': 20, 'nullable': False, 'required': True},
+    'event': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'payload': {'type': 'dict', 'nullable': False, 'required': True},
+}
+
 validationschema = {
     'UserCreate': UserCreateSchema,
     'UserLogin': UserLoginSchema,
     'ProductCreate': ProductCreateSchema,
     'LedgerOrderCreate': LedgerOrderCreateSchema,
     'LedgerRefundCreate': LedgerRefundCreateSchema,
+    'PaymentOrderCreate': PaymentOrderCreateSchema,
+    'PaymentConfirm': PaymentConfirmSchema,
+    'PaymentWebhook': PaymentWebhookSchema,
 }

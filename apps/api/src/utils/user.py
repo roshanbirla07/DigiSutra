@@ -3,7 +3,7 @@ from flask import request, jsonify
 from cerberus import Validator
 from utils.validationschema import validationschema
 
-def schema_validation(schema, methods=None):
+def schema_validation(schema, methods=None, allow_unknown=False):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -18,7 +18,7 @@ def schema_validation(schema, methods=None):
             if not schema_dict:
                 return jsonify({'error': f'Schema {schema} not found'}), 500
                 
-            validator = Validator(schema_dict)
+            validator = Validator(schema_dict, allow_unknown=allow_unknown)
             if validator.validate(data):
                 return f(*args, **kwargs)
             return jsonify({'error': 'Invalid data', 'details': validator.errors}), 400
