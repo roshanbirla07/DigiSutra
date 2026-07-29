@@ -43,10 +43,29 @@ class LedgerCollection(View):
 
 
 class LedgerDetail(View):
-    methods = ["GET"]
+    methods = ["GET", "POST"]
 
+    @schema_validation("LedgerRefundCreate", methods=["POST"])
     def dispatch_request(self, order_uuid, *args, **kwargs):
         serializer = LedgerSerializer()
+        if request.method == "POST":
+            payload = request.get_json(silent=True) or {}
+            try:
+                refund = serializer.create_refund(order_uuid, payload)
+            except Exception as e:
+                logging.error(f"Ledger refund create error :: {e} :: {payload} :: {order_uuid}")
+                return Response(
+                    response=json.dumps({"error": f"Error creating refund {str(e)}"}),
+                    status=400,
+                    mimetype="application/json",
+                )
+
+            return Response(
+                response=json.dumps(serializer.serialize_refund(refund)),
+                status=201,
+                mimetype="application/json",
+            )
+
         try:
             order = serializer.get_by_uuid(order_uuid)
         except Exception as e:

@@ -15,6 +15,6 @@ class LedgerRoutes(object):
         v1.add_url_rule(
             "ledger/orders/<string:order_uuid>/",
             view_func=LedgerDetail.as_view("ledger_detail"),
-            methods=["GET"],
+            methods=["GET", "POST"],
             endpoint="should_be_v1_only_ledger_detail",
         )

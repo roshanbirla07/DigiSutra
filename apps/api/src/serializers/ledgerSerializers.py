@@ -7,7 +7,7 @@ from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 
 from configuration.db_routing import db, session_rollback
-from models.ledger import MarketplaceOrder, SellerBalance
+from models.ledger import MarketplaceOrder, ProductAccess, RefundRecord, SellerBalance
 from models.product import Product
 from models.user import User
 from utils.constants import USER_TYPE
@@ -49,8 +49,36 @@ class LedgerSerializer(object):
             "modified_on": order.modified_on.isoformat() if order.modified_on else None,
         }
 
+    def _serialize_refund(self, refund):
+        return {
+            "uuid": refund.uuid,
+            "order_uuid": refund.order.uuid if refund.order else None,
+            "amount": str(refund.amount),
+            "status": refund.status,
+            "reason": refund.reason,
+            "created_on": refund.created_on.isoformat() if refund.created_on else None,
+            "modified_on": refund.modified_on.isoformat() if refund.modified_on else None,
+            "resolved_on": refund.resolved_on.isoformat() if refund.resolved_on else None,
+        }
+
     def list_orders(self):
         return MarketplaceOrder.query.order_by(MarketplaceOrder.created_on.desc()).all()
+
+    def validate_refund_request(self, order, validated_data):
+        if order.refund_status in {"requested", "approved", "processed"}:
+            raise LedgerInputError("Refund already exists for this order")
+
+        try:
+            refund_amount = Decimal(str(validated_data.get("amount") or order.net_seller_amount))
+        except (InvalidOperation, TypeError, ValueError):
+            raise LedgerInputError("amount must be numeric")
+
+        if refund_amount <= 0:
+            raise LedgerInputError("amount must be greater than zero")
+        if refund_amount > Decimal(str(order.gross_amount)):
+            raise LedgerInputError("amount cannot exceed order gross amount")
+
+        return refund_amount
 
     def get_or_create_seller_balance(self, seller):
         seller_balance = SellerBalance.query.filter_by(seller_id=seller.id).first()
@@ -65,6 +93,18 @@ class LedgerSerializer(object):
         )
         db.session.add(seller_balance)
         return seller_balance
+
+    def get_by_uuid(self, order_uuid):
+        order = MarketplaceOrder.query.filter_by(uuid=order_uuid).first()
+        if not order:
+            raise ValueError("Marketplace order not found")
+        return order
+
+    def get_refund_by_uuid(self, refund_uuid):
+        refund = RefundRecord.query.filter_by(uuid=refund_uuid).first()
+        if not refund:
+            raise ValueError("Refund record not found")
+        return refund
 
     def validate_user(self, user_uuid, field_name):
         user = User.query.filter_by(uuid=user_uuid).first()
@@ -148,11 +188,51 @@ class LedgerSerializer(object):
 
         return order
 
-    def get_by_uuid(self, order_uuid):
-        order = MarketplaceOrder.query.filter_by(uuid=order_uuid).first()
-        if not order:
-            raise ValueError("Marketplace order not found")
-        return order
+    @session_rollback(db)
+    def create_refund(self, order_uuid, validated_data=None):
+        validated_data = dict(validated_data or self.data)
+        order = self.get_by_uuid(order_uuid)
+        refund_amount = self.validate_refund_request(order, validated_data)
+
+        existing_refund = RefundRecord.query.filter_by(order_id=order.id).first()
+        if existing_refund:
+            raise LedgerInputError("Refund already exists for this order")
+
+        refund = RefundRecord(
+            uuid=validated_data.get("uuid") or f"refund::{uuid.uuid4()}",
+            order_id=order.id,
+            amount=refund_amount,
+            status=validated_data.get("status") or "processed",
+            reason=validated_data.get("reason"),
+            resolved_on=datetime.datetime.utcnow(),
+        )
+        db.session.add(refund)
+
+        seller_balance = self.get_or_create_seller_balance(order.seller)
+        current_pending = Decimal(str(seller_balance.pending_payout or 0))
+        current_available = Decimal(str(seller_balance.available_for_payout or 0))
+
+        if refund_amount <= current_pending:
+            seller_balance.pending_payout = current_pending - refund_amount
+        else:
+            seller_balance.pending_payout = Decimal("0")
+            remaining_refund = refund_amount - current_pending
+            seller_balance.available_for_payout = max(current_available - remaining_refund, Decimal("0"))
+
+        seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
+        order.refund_status = "processed"
+        order.payment_status = "refunded"
+        order.delivery_status = "revoked"
+
+        for access_record in order.product_access_records.all():
+            access_record.access_status = "revoked"
+            access_record.revoked_at = datetime.datetime.utcnow()
+
+        db.session.commit()
+        return refund
 
     def serialize_order(self, order):
         return self._serialize_order(order)
+
+    def serialize_refund(self, refund):
+        return self._serialize_refund(refund)

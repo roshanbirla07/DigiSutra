@@ -41,9 +41,17 @@ LedgerOrderCreateSchema = {
     'provider_payment_id': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
 }
 
+LedgerRefundCreateSchema = {
+    'uuid': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
+    'amount': {'type': ['string', 'integer', 'float'], 'nullable': True, 'required': False},
+    'reason': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
+    'status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
+}
+
 validationschema = {
     'UserCreate': UserCreateSchema,
     'UserLogin': UserLoginSchema,
     'ProductCreate': ProductCreateSchema,
     'LedgerOrderCreate': LedgerOrderCreateSchema,
+    'LedgerRefundCreate': LedgerRefundCreateSchema,
 }
