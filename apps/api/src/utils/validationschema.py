@@ -21,8 +21,25 @@ ProductCreateSchema = {
     'price': {'type': ['string', 'integer', 'float'], 'nullable': False, 'required': True},
     'currency': {'type': 'string', 'maxlength': 10, 'nullable': True, 'required': False},
     'category': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
+    'image_uri': {'type': 'string', 'maxlength': 2048, 'nullable': True, 'required': False},
+    'image_alt': {'type': 'string', 'maxlength': 255, 'nullable': True, 'required': False},
+    'image_provider': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
+    'image_key': {'type': 'string', 'maxlength': 255, 'nullable': True, 'required': False},
+    'image_mime_type': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
+    'image_size_bytes': {'type': ['string', 'integer'], 'nullable': True, 'required': False},
+    'image_width': {'type': ['string', 'integer'], 'nullable': True, 'required': False},
+    'image_height': {'type': ['string', 'integer'], 'nullable': True, 'required': False},
+    'image_sort_order': {'type': ['string', 'integer'], 'nullable': True, 'required': False},
+    'image_is_primary': {'type': 'boolean', 'nullable': True, 'required': False},
     'is_active': {'type': 'boolean', 'nullable': True, 'required': False},
     'is_public': {'type': 'boolean', 'nullable': True, 'required': False},
+}
+
+ProductAssetCreateSchema = {
+    'product_uuid': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'original_filename': {'type': 'string', 'maxlength': 255, 'nullable': True, 'required': False},
+    'content_type': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
+    'size_bytes': {'type': ['string', 'integer'], 'nullable': True, 'required': False},
 }
 
 LedgerOrderCreateSchema = {
@@ -68,6 +85,7 @@ validationschema = {
     'UserCreate': UserCreateSchema,
     'UserLogin': UserLoginSchema,
     'ProductCreate': ProductCreateSchema,
+    'ProductAssetCreate': ProductAssetCreateSchema,
     'LedgerOrderCreate': LedgerOrderCreateSchema,
     'LedgerRefundCreate': LedgerRefundCreateSchema,
     'PaymentOrderCreate': PaymentOrderCreateSchema,

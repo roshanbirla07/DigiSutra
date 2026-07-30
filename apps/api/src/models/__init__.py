@@ -1,2 +1,2 @@
 from models.user import User, SELLERUser
-from models.product import Product
+from models.product import Product, ProductAsset, ProductAssetDownload

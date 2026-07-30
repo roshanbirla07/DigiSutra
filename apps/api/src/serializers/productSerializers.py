@@ -24,6 +24,26 @@ class ProductSerializer(object):
     def __init__(self, data=None):
         self.data = data or {}
 
+    @staticmethod
+    def _normalize_optional_int(value):
+        if value in (None, ""):
+            return None
+        return int(value)
+
+    @staticmethod
+    def _normalize_optional_bool(value, default=False):
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "1", "yes", "on"}:
+                return True
+            if normalized in {"false", "0", "no", "off"}:
+                return False
+        return bool(value)
+
     def validate_owner(self, validated_data):
         owner_uuid = validated_data.get("owner_uuid")
         if not owner_uuid:
@@ -54,8 +74,18 @@ class ProductSerializer(object):
         validated_data["description"] = validated_data.get("description")
         validated_data["currency"] = validated_data.get("currency") or "INR"
         validated_data["category"] = validated_data.get("category")
-        validated_data["is_active"] = bool(validated_data.get("is_active", True))
-        validated_data["is_public"] = bool(validated_data.get("is_public", True))
+        validated_data["image_uri"] = validated_data.get("image_uri")
+        validated_data["image_alt"] = validated_data.get("image_alt")
+        validated_data["image_provider"] = validated_data.get("image_provider")
+        validated_data["image_key"] = validated_data.get("image_key")
+        validated_data["image_mime_type"] = validated_data.get("image_mime_type")
+        validated_data["image_size_bytes"] = self._normalize_optional_int(validated_data.get("image_size_bytes"))
+        validated_data["image_width"] = self._normalize_optional_int(validated_data.get("image_width"))
+        validated_data["image_height"] = self._normalize_optional_int(validated_data.get("image_height"))
+        validated_data["image_sort_order"] = self._normalize_optional_int(validated_data.get("image_sort_order")) or 0
+        validated_data["image_is_primary"] = self._normalize_optional_bool(validated_data.get("image_is_primary"), True)
+        validated_data["is_active"] = self._normalize_optional_bool(validated_data.get("is_active"), True)
+        validated_data["is_public"] = self._normalize_optional_bool(validated_data.get("is_public"), True)
         validated_data["owner_id"] = owner.id
         validated_data.pop("owner_uuid", None)
         return validated_data

@@ -1,0 +1,57 @@
+import json
+import logging
+
+from flask import Response, request
+from flask.views import View
+
+from serializers.assetSerializers import AssetSerializer
+from utils.user import schema_validation
+
+
+class AssetUploadTarget(View):
+    methods = ["POST"]
+
+    @schema_validation("ProductAssetCreate", methods=["POST"])
+    def dispatch_request(self, *args, **kwargs):
+        payload = request.get_json(silent=True) or {}
+        serializer = AssetSerializer(payload)
+        try:
+            asset, presigned = serializer.create_upload_target(payload)
+        except Exception as e:
+            logging.error(f"Asset upload target error :: {e} :: {payload}")
+            return Response(
+                response=json.dumps({"error": f"Error creating upload target {str(e)}"}),
+                status=400,
+                mimetype="application/json",
+            )
+
+        response_data = serializer.serialize_asset(asset)
+        response_data["presigned_upload"] = presigned
+        return Response(
+            response=json.dumps(response_data),
+            status=201,
+            mimetype="application/json",
+        )
+
+
+class AssetDownloadLog(View):
+    methods = ["POST"]
+
+    def dispatch_request(self, asset_uuid, *args, **kwargs):
+        payload = request.get_json(silent=True) or {}
+        serializer = AssetSerializer(payload)
+        try:
+            download = serializer.log_download(asset_uuid, payload)
+        except Exception as e:
+            logging.error(f"Asset download log error :: {e} :: {payload}")
+            return Response(
+                response=json.dumps({"error": f"Error logging download {str(e)}"}),
+                status=400,
+                mimetype="application/json",
+            )
+
+        return Response(
+            response=json.dumps(serializer.serialize_download(download)),
+            status=201,
+            mimetype="application/json",
+        )

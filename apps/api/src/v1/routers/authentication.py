@@ -1,5 +1,6 @@
 from controllers.user import SignUp, Login, UserList
 from v1.routers.products import ProductRoutes
+from v1.routers.assets import AssetRoutes
 from v1.routers.ledger import LedgerRoutes
 from v1.routers.payments import PaymentRoutes
 
@@ -26,5 +27,6 @@ class AuthenticationRoutes(object):
                         endpoint='should_be_v1_only_user_list'
                         )
         ProductRoutes.router()
+        AssetRoutes.router()
         LedgerRoutes.router()
         PaymentRoutes.router()
