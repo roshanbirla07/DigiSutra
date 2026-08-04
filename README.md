@@ -1,86 +1,132 @@
-﻿# DigiSutra
+# DigiSutra
 
-DigiSutra is a digital marketplace for selling downloadable or consumable digital products such as PDFs, prompts, templates, and other information products.
+DigiSutra is a digital marketplace for downloadable or consumable products such as PDFs, prompts, templates, and other information products.
 
-The product is designed around trust, payment safety, and creator monetization:
-- creators can list digital products
-- buyers can purchase and access content securely
-- the platform tracks orders, payments, payouts, refunds, and support issues
-- the dashboard will later show sales, analytics, and settlement status
+The codebase is organized as a small monorepo:
+- `apps/api/` contains the Flask backend
+- `apps/web/` contains the static frontend
+- `packages/shared/` is reserved for shared code
 
-## Product Plan
+## Current State
 
-### Who uses the platform
+The current backend already includes:
+- user signup and login
+- PostgreSQL-backed Flask API
+- product listing and product fetch endpoints
+- marketplace ledger models for orders, refunds, payouts, and access tracking
+- Razorpay order creation, checkout verification, and webhook handling
+- seller pending-balance tracking
+- explicit ledger state checks for payment, delivery, and refund transitions
+- refund bookkeeping with access revocation hooks
+- product image and asset metadata
+- S3 presigned upload target generation
+- CloudFront URL generation for public delivery
+- download logging and asset status tracking
 
-#### Seller / Creator
-Creators upload and sell digital products.
-They will be able to:
-- create product listings
-- update product details
-- track sales and revenue
-- see pending payouts and paid payouts
-- handle customer issues and refunds where allowed
-- view analytics for products and transactions
+The current frontend is a static client that talks to the Flask API.
 
-#### Buyer / Customer
-Buyers purchase digital content from sellers.
-They will be able to:
-- sign up and log in
-- browse products
-- pay securely
-- access purchased content
-- view order history
-- request help for failed delivery or refund issues
+## Roles
 
-#### Admin / Platform Operator
-Admins manage trust and platform health.
-They will be able to:
-- review users and sellers
-- moderate listings
-- approve or block content where needed
-- review disputes and refund requests
-- manage seller payout issues
-- monitor failed payments, webhook issues, and fraud signals
+Current role types in the codebase:
+- `customer`
+- `seller`
+- `admin`
 
-## What the platform will provide
+Role intent:
+- customers buy content
+- sellers create and manage listings
+- admins handle moderation, disputes, and trust operations
 
-### Payments and trust
-- Razorpay-based payment collection first
-- payment verification through backend logic
-- order and transaction tracking in the database
-- seller balance and payout tracking
-- refund and dispute records
-- secure handling of payment states
-- audit trail for every important money-related action
+## Current API Surface
 
-### Seller dashboard
-The seller dashboard will eventually show:
-- total sales
-- completed orders
-- pending payments
-- payout balance
-- payout history
-- refund count
-- product performance
-- customer issues and support status
+- `POST /v1/users/` - create a user
+- `POST /v1/users/login/` - login with username and password
+- `GET /v1/users/` - list users
+- `GET /v1/products/` - list public active products
+- `POST /v1/products/` - create a product for a seller or admin owner
+- `GET /v1/products/<product_uuid>/` - fetch a public active product by uuid
+- `POST /v1/assets/upload-target/` - create a product asset and return a presigned upload URL
+- `POST /v1/assets/<asset_uuid>/downloads/` - log a product asset download
+- `GET /v1/ledger/orders/` - list marketplace ledger orders
+- `GET /v1/ledger/orders/<order_uuid>/` - fetch a marketplace ledger order by uuid
+- `POST /v1/ledger/orders/` - create a marketplace ledger order
+- `POST /v1/ledger/orders/<order_uuid>/` - create a refund for an order
+- `POST /v1/payments/orders/` - create a Razorpay order for an internal ledger order
+- `POST /v1/payments/confirm/` - verify checkout signature and mark payment paid
+- `POST /v1/payments/webhook/razorpay/` - process Razorpay payment webhooks idempotently
 
-### Analytics dashboard
-The analytics surface will eventually show:
-- daily and monthly sales trends
-- conversion and checkout performance
-- top-selling products
-- refund trends
-- payout summaries
-- failed payment trends
-- buyer activity patterns
+## Local Development
 
-### Support and trust tools
-- order lookup
-- payment status lookup
-- access status lookup
-- refund/dispute history
-- seller suspension and moderation status
-- webhook and payment failure logs
+Run the Flask app directly only if PostgreSQL is available locally and `POSTGRES_DB_URI` or `local_config.py` points to the correct host.
+
+Start the backend:
+
+```bash
+python apps/api/src/runserver.py
+```
+
+Serve the frontend:
+
+```bash
+python apps/web/server.py
+```
+
+## Docker
+
+Start the full stack:
+
+```bash
+docker compose up --build
+```
+
+Start in detached mode:
+
+```bash
+docker compose up -d --build
+```
+
+Stop the stack:
+
+```bash
+docker compose down
+```
+
+Service URLs:
+- API: `http://localhost:5000`
+- Web: `http://localhost:3000`
+- PostgreSQL: `localhost:5432`
+
+## Asset Storage
+
+Original product files are stored in private S3 buckets.
+Canonical asset metadata is stored in PostgreSQL.
+Public delivery happens through CloudFront URLs.
+Uploads use presigned S3 `PUT` URLs generated by the API.
+Downloads are logged in the database and each asset keeps a status field.
+
+Required environment values for asset delivery:
+- `AWS_REGION`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_S3_BUCKET_NAME`
+- `AWS_CLOUDFRONT_DOMAIN`
+- `AWS_S3_PRESIGN_EXPIRES_IN`
+- `AWS_S3_UPLOAD_PREFIX`
+
+## Payments
+
+Razorpay is the first payment provider.
+The platform keeps its own internal ledger for:
+- payment verification
+- order state
+- seller balance tracking
+- refund tracking
+- webhook idempotency
+
+Required environment values for payment flow integration:
+- `RAZORPAY_KEY_ID`
+- `RAZORPAY_KEY_SECRET`
+- `RAZORPAY_WEBHOOK_SECRET`
 
 ## Roadmap
 
@@ -89,14 +135,7 @@ The analytics surface will eventually show:
 - seller/customer/admin role model
 - product listing model
 - product ownership rules
-- basic catalog and listing visibility
-
-Phase 1 is now implemented in the current codebase through:
-- `POST /v1/users/`
-- `POST /v1/users/login/`
-- `GET /v1/products/`
-- `POST /v1/products/`
-- `GET /v1/products/<product_uuid>/`
+- catalog and listing visibility
 
 ### Phase 2: Payment and transaction ledger
 - Razorpay payment collection
@@ -105,6 +144,8 @@ Phase 1 is now implemented in the current codebase through:
 - transaction history
 - webhook-based payment confirmation
 - failure and retry handling
+- explicit state transition validation
+- refund lifecycle clarity
 
 ### Phase 3: Seller earnings and payouts
 - commission calculation
@@ -147,157 +188,26 @@ Phase 1 is now implemented in the current codebase through:
 - compliance review for payouts and taxes
 - operational dashboards
 
-## Contribution Guide
+## Contribution Rules
 
-This project should be contributed to with the following rules in mind:
 - payment and ledger data must be treated as source-of-truth data
 - webhook events must be idempotent
 - all money-related state changes must be stored in the database
 - provider-specific logic must stay behind a service or adapter layer
 - seller payout logic must not be mixed with buyer payment collection logic
-- dashboard views must read from internal records, not from client-side assumptions
+- dashboard views must read from internal records, not client-side assumptions
 - access to digital content must be tied to an order, not just a session
 - auth and role checks should be added before exposing seller or admin operations
+- ledger transitions should be validated centrally, not inferred in controllers
 
-### What should remain stable
-- user model and role names
-- order and transaction identifiers
-- payment status transitions
-- payout status transitions
-- refund history
-- audit trail records
+## Operational Notes
 
-### What can change later
-- payment gateway providers
-- payout execution method
-- dashboard layout
-- notification channel
-- moderation workflow detail
-
-## Operational Rules
-
-- Razorpay is the first payment provider.
 - Seller payouts start manual or semi-manual.
 - The platform should maintain an internal ledger even if Razorpay is the gateway.
 - Tax and invoice support should be designed early.
 - Test mode and live mode must never be mixed.
 - Logs should capture payment failures, webhook failures, and payout failures.
 - Admin tools should be able to suspend creators and hold payouts if needed.
-
-## Current Backend State
-
-The current codebase includes:
-- user signup
-- user login
-- PostgreSQL-backed Flask API
-- Docker-based local development setup
-- buyer/customer, seller, and admin role definitions
-- marketplace ledger models for internal order, payout, refund, and access tracking
-- Razorpay payment integration for order creation, checkout verification, and webhooks
-- seller pending balance tracking on successful ledger orders
-- refund bookkeeping with seller balance reversal and access revocation hooks
-- product image metadata fields
-- product asset metadata in PostgreSQL
-- S3 presigned upload target generation
-- CloudFront URL generation for public asset delivery
-- asset download logging and status tracking
-
-## Roles
-
-Current role types in the codebase:
-- `customer`
-- `seller`
-- `admin`
-
-These roles are the base for future permissions:
-- customers buy content
-- sellers create and manage listings
-- admins manage trust, disputes, and moderation
-
-## Local Development
-
-Run the Flask app directly only if PostgreSQL is available locally and `POSTGRES_DB_URI` or `local_config.py` points to the correct host.
-
-Start the app:
-
-```bash
-python apps/api/src/runserver.py
-```
-
-The Flask backend now lives under `apps/api/src/`, so use that path for
-local execution and Docker entrypoints.
-
-## Asset Storage
-
-Original product files are stored in private S3 buckets.
-Canonical asset metadata is stored in PostgreSQL.
-Public delivery happens through CloudFront URLs.
-Uploads use presigned S3 `PUT` URLs generated by the API.
-Downloads are logged in the database and each asset keeps a status field.
-
-Current asset-related endpoints:
-
-- `POST /v1/assets/upload-target/` - create a product asset record and return a presigned upload target
-- `POST /v1/assets/<asset_uuid>/downloads/` - log a download event for an asset
-
-Required environment values for asset delivery:
-
-- `AWS_REGION`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_S3_BUCKET_NAME`
-- `AWS_CLOUDFRONT_DOMAIN`
-- `AWS_S3_PRESIGN_EXPIRES_IN`
-- `AWS_S3_UPLOAD_PREFIX`
-
-## Frontend Web App
-
-The frontend lives under `apps/web/` and is a static client that calls the
-existing Flask API.
-
-Current frontend endpoints:
-
-- `POST /v1/users/`
-- `POST /v1/users/login/`
-- `GET /v1/users/`
-- `GET /v1/products/`
-- `POST /v1/products/`
-- `GET /v1/ledger/orders/`
-- `GET /v1/ledger/orders/<order_uuid>/`
-- `POST /v1/ledger/orders/`
-- `POST /v1/ledger/orders/<order_uuid>/`
-- `POST /v1/payments/orders/`
-- `POST /v1/payments/confirm/`
-- `POST /v1/payments/webhook/razorpay/`
-
-Open `apps/web/index.html` in a browser or serve `apps/web/` with any static
-server.
-
-## Docker Setup
-
-Start the full stack:
-
-```bash
-docker compose up --build
-```
-
-Start in detached mode:
-
-```bash
-docker compose up -d --build
-```
-
-Stop the stack:
-
-```bash
-docker compose down
-```
-
-## Service URLs
-
-- API: `http://localhost:5000`
-- Web: `http://localhost:3000`
-- PostgreSQL: `localhost:5432`
 
 ## Database Checks
 
@@ -332,35 +242,3 @@ Check database logs:
 ```bash
 docker logs -f digisutra-postgres
 ```
-
-## Current Endpoints
-
-- `POST /v1/users/` - create a user
-- `POST /v1/users/login/` - login with username and password
-- `GET /v1/users/` - list users
-- `GET /v1/products/` - list public active products
-- `POST /v1/products/` - create a product for a seller or admin owner
-- `GET /v1/products/<product_uuid>/` - fetch a public active product by uuid
-- `POST /v1/assets/upload-target/` - create a product asset and return a presigned upload URL
-- `POST /v1/assets/<asset_uuid>/downloads/` - log a product asset download
-- `GET /v1/ledger/orders/` - list marketplace ledger orders
-- `GET /v1/ledger/orders/<order_uuid>/` - fetch a marketplace ledger order by uuid
-- `POST /v1/ledger/orders/` - create a marketplace ledger order
-- `POST /v1/ledger/orders/<order_uuid>/` - create a refund for an order
-- `POST /v1/payments/orders/` - create a Razorpay order for an internal ledger order
-- `POST /v1/payments/confirm/` - verify checkout signature and mark payment paid
-- `POST /v1/payments/webhook/razorpay/` - process Razorpay payment webhooks idempotently
-
-## Notes
-
-- The app uses PostgreSQL and Flask-SQLAlchemy.
-- Docker Compose starts `digisutra-postgres` and `digisutra-api`.
-- User onboarding and login are implemented; marketplace ledger, payment integration, refunds, internal balance tracking, and asset metadata are now in place. Payout batches, moderation, and dashboard work are planned next.
-- Set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET` for payment flow integration.
-- Set the AWS asset variables for upload target generation and CloudFront delivery.
-- The README is intended to serve as a contributor-facing project guide, not only a setup note.
-
-## TODO
-
-- Replace direct product image fields with a dedicated image relation if multiple images per product are needed.
-- Fetch `owner_uuid` from the auth token once the authentication layer is added.

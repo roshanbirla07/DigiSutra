@@ -25,5 +25,6 @@ docs/
 ## Migration Status
 
 - API app: moved under `apps/api/src/`.
-- Web app: not started.
-- Shared package: not started.
+- Web app: present under `apps/web/`.
+- Shared package: present under `packages/shared/`.
+- Current state matches the intended monorepo split for deployable apps and shared code.
