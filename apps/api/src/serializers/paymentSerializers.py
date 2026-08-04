@@ -5,7 +5,6 @@ from werkzeug.exceptions import HTTPException
 from configuration.db_routing import db, session_rollback
 from models.ledger import MarketplaceOrder, ProductAccess, SellerBalance
 from services.razorpay_gateway import RazorpayGateway
-from utils.constants import USER_TYPE
 
 
 class PaymentInputError(HTTPException):
@@ -93,7 +92,7 @@ class PaymentSerializer(object):
 
     def _mark_order_paid(self, order, payment_id):
         if order.payment_status == "paid" and order.provider_payment_id == payment_id:
-            return order
+            return order, False
 
         order.provider = "razorpay"
         order.provider_payment_id = payment_id
@@ -101,7 +100,7 @@ class PaymentSerializer(object):
         order.delivery_status = "ready"
         self._grant_access_if_needed(order)
         self._move_funds_to_available(order)
-        return order
+        return order, True
 
     @session_rollback(db)
     def confirm_checkout_payment(self, payload):
@@ -116,8 +115,9 @@ class PaymentSerializer(object):
             raise PaymentInputError("Marketplace order not found for provider order id")
         if not self.gateway.verify_checkout_signature(order.provider_order_id, payment_id, signature):
             raise PaymentInputError("Signature mismatch")
-        self._mark_order_paid(order, payment_id)
-        db.session.commit()
+        order, changed = self._mark_order_paid(order, payment_id)
+        if changed:
+            db.session.commit()
         return order
 
     @session_rollback(db)
@@ -139,8 +139,9 @@ class PaymentSerializer(object):
         order = MarketplaceOrder.query.filter_by(provider_order_id=provider_order_id).first()
         if not order:
             raise PaymentInputError("Marketplace order not found for webhook payment")
-        self._mark_order_paid(order, payment_id)
-        db.session.commit()
+        order, changed = self._mark_order_paid(order, payment_id)
+        if changed:
+            db.session.commit()
         return order
 
     def serialize_order(self, order):

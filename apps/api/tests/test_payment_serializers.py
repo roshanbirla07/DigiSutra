@@ -103,5 +103,59 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
             db_mock.session.commit.assert_not_called()
 
 
+class LedgerRefundTransitionTests(unittest.TestCase):
+    def test_create_refund_processed_updates_order_and_access(self):
+        order = MagicMock()
+        order.id = 1
+        order.uuid = "order::abc"
+        order.payment_status = "paid"
+        order.delivery_status = "ready"
+        order.refund_status = "none"
+        order.gross_amount = "100.00"
+        order.net_seller_amount = "85.00"
+        order.seller = MagicMock()
+        order.seller.id = 10
+        order.seller.uuid = "user::seller"
+        order.product = MagicMock()
+        order.product.currency = "INR"
+        access_record = MagicMock()
+        order.product_access_records.all.return_value = [access_record]
+
+        with patch("serializers.ledgerSerializers.MarketplaceOrder") as marketplace_order, \
+                patch("serializers.ledgerSerializers.RefundRecord") as refund_record, \
+                patch("serializers.ledgerSerializers.SellerBalance") as seller_balance_model, \
+                patch("serializers.ledgerSerializers.db") as db_mock:
+            marketplace_order.query.filter_by.return_value.first.return_value = order
+            refund_record.query.filter_by.return_value.first.return_value = None
+            seller_balance = MagicMock()
+            seller_balance.pending_payout = 85
+            seller_balance.available_for_payout = 10
+            seller_balance.currency = "INR"
+            seller_balance_model.query.filter_by.return_value.first.return_value = seller_balance
+            db_mock.session.add = MagicMock()
+            db_mock.session.commit = MagicMock()
+
+            from serializers.ledgerSerializers import LedgerSerializer
+
+            ledger = LedgerSerializer()
+            result = ledger.create_refund("order::abc", {"status": "processed", "amount": "25.00"})
+
+            self.assertIsNotNone(result)
+            self.assertEqual(order.payment_status, "refunded")
+            self.assertEqual(order.delivery_status, "revoked")
+            self.assertEqual(order.refund_status, "processed")
+            self.assertEqual(access_record.access_status, "revoked")
+            self.assertEqual(seller_balance.pending_payout, 60)
+            self.assertEqual(seller_balance.available_for_payout, 10)
+            self.assertTrue(db_mock.session.commit.called)
+
+    def test_create_refund_rejects_invalid_status(self):
+        from serializers.ledgerSerializers import LedgerSerializer, LedgerInputError
+
+        ledger = LedgerSerializer()
+        with self.assertRaises(LedgerInputError):
+            ledger._validate_order_state("pending", "pending", "bogus")
+
+
 if __name__ == "__main__":
     unittest.main()

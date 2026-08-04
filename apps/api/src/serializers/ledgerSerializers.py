@@ -1,3 +1,4 @@
+import datetime
 import logging
 import uuid
 from decimal import Decimal, InvalidOperation
@@ -23,8 +24,73 @@ class LedgerInputError(HTTPException):
 
 
 class LedgerSerializer(object):
+    ORDER_PAYMENT_STATES = {"pending", "paid", "refunded", "failed"}
+    ORDER_DELIVERY_STATES = {"pending", "ready", "revoked"}
+    REFUND_STATES = {"none", "requested", "approved", "processed", "rejected"}
+
     def __init__(self, data=None):
         self.data = data or {}
+
+    def _validate_order_state(self, payment_status, delivery_status, refund_status):
+        if payment_status not in self.ORDER_PAYMENT_STATES:
+            raise LedgerInputError("Invalid payment_status")
+        if delivery_status not in self.ORDER_DELIVERY_STATES:
+            raise LedgerInputError("Invalid delivery_status")
+        if refund_status not in self.REFUND_STATES:
+            raise LedgerInputError("Invalid refund_status")
+        if payment_status == "paid" and delivery_status == "pending":
+            raise LedgerInputError("Paid orders must have a ready delivery status")
+        if payment_status == "refunded" and delivery_status != "revoked":
+            raise LedgerInputError("Refunded orders must have revoked delivery")
+        if refund_status == "processed" and payment_status != "refunded":
+            raise LedgerInputError("Processed refunds require refunded orders")
+
+    def _grant_access_for_order(self, order):
+        access_record = ProductAccess.query.filter_by(order_id=order.id).first()
+        if access_record:
+            access_record.access_status = "granted"
+            access_record.revoked_at = None
+            return access_record
+
+        access_record = ProductAccess(
+            uuid=f"access::{order.uuid}",
+            order_id=order.id,
+            access_status="granted",
+            download_count=0,
+        )
+        db.session.add(access_record)
+        return access_record
+
+    def _revoke_access_for_order(self, order):
+        for access_record in order.product_access_records.all():
+            access_record.access_status = "revoked"
+            access_record.revoked_at = datetime.datetime.utcnow()
+
+    def _sync_seller_balance_on_payment(self, order):
+        seller_balance = self.get_or_create_seller_balance(order.seller)
+        current_pending = Decimal(str(seller_balance.pending_payout or 0))
+        current_available = Decimal(str(seller_balance.available_for_payout or 0))
+        net_amount = Decimal(str(order.net_seller_amount))
+
+        seller_balance.pending_payout = max(current_pending - net_amount, Decimal("0"))
+        seller_balance.available_for_payout = current_available + net_amount
+        seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
+        return seller_balance
+
+    def _sync_seller_balance_on_refund(self, order, refund_amount):
+        seller_balance = self.get_or_create_seller_balance(order.seller)
+        current_pending = Decimal(str(seller_balance.pending_payout or 0))
+        current_available = Decimal(str(seller_balance.available_for_payout or 0))
+
+        if refund_amount <= current_pending:
+            seller_balance.pending_payout = current_pending - refund_amount
+        else:
+            seller_balance.pending_payout = Decimal("0")
+            remaining_refund = refund_amount - current_pending
+            seller_balance.available_for_payout = max(current_available - remaining_refund, Decimal("0"))
+
+        seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
+        return seller_balance
 
     def _serialize_order(self, order):
         return {
@@ -129,6 +195,18 @@ class LedgerSerializer(object):
             raise LedgerInputError("Product is inactive")
         return product
 
+    def _prepare_order_state(self, validated_data):
+        payment_status = validated_data.get("payment_status") or "pending"
+        delivery_status = validated_data.get("delivery_status") or "pending"
+        refund_status = validated_data.get("refund_status") or "none"
+        if payment_status == "refunded" and refund_status == "none":
+            refund_status = "processed"
+        self._validate_order_state(payment_status, delivery_status, refund_status)
+        validated_data["payment_status"] = payment_status
+        validated_data["delivery_status"] = delivery_status
+        validated_data["refund_status"] = refund_status
+        return validated_data
+
     def prepare_create_data(self, validated_data):
         buyer = self.validate_user(validated_data.get("buyer_uuid"), "Buyer")
         seller = self.validate_seller(self.validate_user(validated_data.get("seller_uuid"), "Seller"))
@@ -149,9 +227,7 @@ class LedgerSerializer(object):
         validated_data["platform_fee"] = platform_fee
         validated_data["tax_amount"] = tax_amount
         validated_data["net_seller_amount"] = gross_amount - platform_fee - tax_amount
-        validated_data["payment_status"] = validated_data.get("payment_status") or "pending"
-        validated_data["delivery_status"] = validated_data.get("delivery_status") or "pending"
-        validated_data["refund_status"] = validated_data.get("refund_status") or "none"
+        validated_data = self._prepare_order_state(validated_data)
         validated_data.pop("buyer_uuid", None)
         validated_data.pop("seller_uuid", None)
         validated_data.pop("product_uuid", None)
@@ -192,6 +268,12 @@ class LedgerSerializer(object):
     def create_refund(self, order_uuid, validated_data=None):
         validated_data = dict(validated_data or self.data)
         order = self.get_by_uuid(order_uuid)
+        refund_status = validated_data.get("status") or "processed"
+        if refund_status not in self.REFUND_STATES:
+            raise LedgerInputError("Invalid refund status")
+        if refund_status == "none":
+            raise LedgerInputError("Refund status cannot be none")
+
         refund_amount = self.validate_refund_request(order, validated_data)
 
         existing_refund = RefundRecord.query.filter_by(order_id=order.id).first()
@@ -202,31 +284,24 @@ class LedgerSerializer(object):
             uuid=validated_data.get("uuid") or f"refund::{uuid.uuid4()}",
             order_id=order.id,
             amount=refund_amount,
-            status=validated_data.get("status") or "processed",
+            status=refund_status,
             reason=validated_data.get("reason"),
             resolved_on=datetime.datetime.utcnow(),
         )
         db.session.add(refund)
 
-        seller_balance = self.get_or_create_seller_balance(order.seller)
-        current_pending = Decimal(str(seller_balance.pending_payout or 0))
-        current_available = Decimal(str(seller_balance.available_for_payout or 0))
-
-        if refund_amount <= current_pending:
-            seller_balance.pending_payout = current_pending - refund_amount
+        if refund_status == "processed":
+            order.payment_status = "refunded"
+            order.delivery_status = "revoked"
+            self._sync_seller_balance_on_refund(order, refund_amount)
+            order.refund_status = "processed"
+            self._revoke_access_for_order(order)
+        elif refund_status == "approved":
+            order.refund_status = "approved"
         else:
-            seller_balance.pending_payout = Decimal("0")
-            remaining_refund = refund_amount - current_pending
-            seller_balance.available_for_payout = max(current_available - remaining_refund, Decimal("0"))
+            order.refund_status = "requested"
 
-        seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
-        order.refund_status = "processed"
-        order.payment_status = "refunded"
-        order.delivery_status = "revoked"
-
-        for access_record in order.product_access_records.all():
-            access_record.access_status = "revoked"
-            access_record.revoked_at = datetime.datetime.utcnow()
+        self._validate_order_state(order.payment_status, order.delivery_status, order.refund_status)
 
         db.session.commit()
         return refund
