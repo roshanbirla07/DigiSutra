@@ -77,6 +77,32 @@ class PaymentSerializer(object):
         db.session.add(access)
         return access
 
+    def _move_funds_to_available(self, order):
+        seller_balance = SellerBalance.query.filter_by(seller_id=order.seller_id).first()
+        if not seller_balance:
+            return None
+
+        net_amount = Decimal(str(order.net_seller_amount))
+        current_pending = Decimal(str(seller_balance.pending_payout or 0))
+        current_available = Decimal(str(seller_balance.available_for_payout or 0))
+
+        seller_balance.pending_payout = max(current_pending - net_amount, Decimal("0"))
+        seller_balance.available_for_payout = current_available + net_amount
+        seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
+        return seller_balance
+
+    def _mark_order_paid(self, order, payment_id):
+        if order.payment_status == "paid" and order.provider_payment_id == payment_id:
+            return order
+
+        order.provider = "razorpay"
+        order.provider_payment_id = payment_id
+        order.payment_status = "paid"
+        order.delivery_status = "ready"
+        self._grant_access_if_needed(order)
+        self._move_funds_to_available(order)
+        return order
+
     @session_rollback(db)
     def confirm_checkout_payment(self, payload):
         provider_order_id = payload.get("razorpay_order_id")
@@ -88,22 +114,9 @@ class PaymentSerializer(object):
         order = MarketplaceOrder.query.filter_by(provider_order_id=provider_order_id).first()
         if not order:
             raise PaymentInputError("Marketplace order not found for provider order id")
-        if order.provider_payment_id == payment_id and order.payment_status == "paid":
-            return order
-
         if not self.gateway.verify_checkout_signature(order.provider_order_id, payment_id, signature):
             raise PaymentInputError("Signature mismatch")
-
-        order.provider = "razorpay"
-        order.provider_payment_id = payment_id
-        order.payment_status = "paid"
-        order.delivery_status = "ready"
-        self._grant_access_if_needed(order)
-
-        seller_balance = SellerBalance.query.filter_by(seller_id=order.seller_id).first()
-        if seller_balance:
-            seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
-
+        self._mark_order_paid(order, payment_id)
         db.session.commit()
         return order
 
@@ -126,15 +139,7 @@ class PaymentSerializer(object):
         order = MarketplaceOrder.query.filter_by(provider_order_id=provider_order_id).first()
         if not order:
             raise PaymentInputError("Marketplace order not found for webhook payment")
-
-        if order.payment_status == "paid" and order.provider_payment_id == payment_id:
-            return order
-
-        order.provider = "razorpay"
-        order.provider_payment_id = payment_id
-        order.payment_status = "paid"
-        order.delivery_status = "ready"
-        self._grant_access_if_needed(order)
+        self._mark_order_paid(order, payment_id)
         db.session.commit()
         return order
 
