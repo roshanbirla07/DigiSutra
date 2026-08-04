@@ -81,6 +81,16 @@ PaymentWebhookSchema = {
     'payload': {'type': 'dict', 'nullable': False, 'required': True},
 }
 
+PayoutCreateSchema = {
+    'uuid': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
+    'seller_uuid': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'amount': {'type': ['string', 'integer', 'float'], 'nullable': False, 'required': True},
+    'status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
+    'payout_method': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
+    'batch_id': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
+    'failure_reason': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
+}
+
 validationschema = {
     'UserCreate': UserCreateSchema,
     'UserLogin': UserLoginSchema,
@@ -91,4 +101,5 @@ validationschema = {
     'PaymentOrderCreate': PaymentOrderCreateSchema,
     'PaymentConfirm': PaymentConfirmSchema,
     'PaymentWebhook': PaymentWebhookSchema,
+    'PayoutCreate': PayoutCreateSchema,
 }
