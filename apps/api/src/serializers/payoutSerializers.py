@@ -21,6 +21,13 @@ class PayoutInputError(HTTPException):
 
 class PayoutSerializer(object):
     PAYOUT_STATES = {"pending", "processing", "paid", "failed", "cancelled"}
+    PAYOUT_TRANSITIONS = {
+        "pending": {"processing", "cancelled"},
+        "processing": {"paid", "failed", "cancelled"},
+        "failed": {"processing", "cancelled"},
+        "paid": set(),
+        "cancelled": set(),
+    }
 
     def __init__(self, data=None):
         self.data = data or {}
@@ -40,8 +47,40 @@ class PayoutSerializer(object):
             "modified_on": payout.modified_on.isoformat() if payout.modified_on else None,
         }
 
+    def validate_status_transition(self, current_status, next_status):
+        if current_status not in self.PAYOUT_STATES:
+            raise PayoutInputError("Invalid current payout status")
+        if next_status not in self.PAYOUT_STATES:
+            raise PayoutInputError("Invalid payout status")
+        allowed_next_statuses = self.PAYOUT_TRANSITIONS.get(current_status, set())
+        if next_status == current_status:
+            return next_status
+        if next_status not in allowed_next_statuses:
+            raise PayoutInputError(f"Invalid payout transition from {current_status} to {next_status}")
+        return next_status
+
+    def transition_payout(self, payout, next_status, failure_reason=None):
+        payout.status = self.validate_status_transition(payout.status, next_status)
+        if next_status == "paid":
+            payout.processed_at = datetime.datetime.utcnow()
+            payout.failure_reason = None
+        elif next_status == "failed":
+            payout.failure_reason = failure_reason or payout.failure_reason
+            payout.processed_at = datetime.datetime.utcnow()
+        elif next_status == "processing":
+            payout.failure_reason = None
+        elif next_status == "cancelled":
+            payout.failure_reason = failure_reason or payout.failure_reason
+        return payout
+
     def list_payouts(self):
         return SellerPayout.query.order_by(SellerPayout.created_on.desc()).all()
+
+    def get_payout_by_uuid(self, payout_uuid):
+        payout = SellerPayout.query.filter_by(uuid=payout_uuid).first()
+        if not payout:
+            raise PayoutInputError("Payout not found")
+        return payout
 
     def validate_seller(self, seller_uuid):
         seller = User.query.filter_by(uuid=seller_uuid).first()
@@ -119,6 +158,38 @@ class PayoutSerializer(object):
 
         db.session.commit()
         return payout
+
+    @session_rollback(db)
+    def process_batch(self, batch_id, payout_updates):
+        if not batch_id:
+            raise PayoutInputError("batch_id is required")
+        if not isinstance(payout_updates, list) or not payout_updates:
+            raise PayoutInputError("payout_updates must be a non-empty list")
+
+        processed_payouts = []
+        for update in payout_updates:
+            payout_uuid = update.get("payout_uuid")
+            next_status = update.get("status")
+            if not payout_uuid or not next_status:
+                raise PayoutInputError("Each payout update requires payout_uuid and status")
+
+            payout = self.get_payout_by_uuid(payout_uuid)
+            if payout.batch_id and payout.batch_id != batch_id:
+                raise PayoutInputError("Payout already belongs to a different batch")
+
+            payout.batch_id = batch_id
+            self.transition_payout(payout, "processing")
+            if next_status == "failed":
+                self.transition_payout(payout, "failed", failure_reason=update.get("failure_reason"))
+            elif next_status == "paid":
+                self.transition_payout(payout, "paid")
+            else:
+                raise PayoutInputError("Batch processing only supports paid or failed final states")
+
+            processed_payouts.append(payout)
+
+        db.session.commit()
+        return processed_payouts
 
     def serialize_payout(self, payout):
         return self._serialize_payout(payout)

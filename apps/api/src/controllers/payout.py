@@ -39,3 +39,27 @@ class PayoutCollection(View):
             status=200,
             mimetype="application/json",
         )
+
+
+class PayoutBatch(View):
+    methods = ["POST"]
+
+    @schema_validation("PayoutBatchProcess", methods=["POST"])
+    def dispatch_request(self, *args, **kwargs):
+        payload = request.get_json(silent=True) or {}
+        serializer = PayoutSerializer(payload)
+        try:
+            payouts = serializer.process_batch(payload.get("batch_id"), payload.get("payout_updates") or [])
+        except Exception as e:
+            logging.error(f"Payout batch error :: {e} :: {payload}")
+            return Response(
+                response=json.dumps({"error": f"Error processing payout batch {str(e)}"}),
+                status=400,
+                mimetype="application/json",
+            )
+
+        return Response(
+            response=json.dumps([serializer.serialize_payout(payout) for payout in payouts]),
+            status=200,
+            mimetype="application/json",
+        )

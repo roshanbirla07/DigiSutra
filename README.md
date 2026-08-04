@@ -17,6 +17,7 @@ The current backend already includes:
 - Razorpay order creation, checkout verification, and webhook handling
 - seller pending-balance tracking
 - explicit ledger state checks for payment, delivery, and refund transitions
+- payout state transitions and batch processing
 - refund bookkeeping with access revocation hooks
 - product image and asset metadata
 - S3 presigned upload target generation
@@ -154,6 +155,7 @@ Required environment values for payment flow integration:
 - payout batch workflow
 - manual or semi-manual payout execution
 - payout failure tracking
+- payout state transitions
 
 ### Phase 4: Digital delivery and access control
 - purchase-based content access
@@ -199,6 +201,7 @@ Required environment values for payment flow integration:
 - access to digital content must be tied to an order, not just a session
 - auth and role checks should be added before exposing seller or admin operations
 - ledger transitions should be validated centrally, not inferred in controllers
+- payout transitions should be validated centrally before batch execution
 
 ## Operational Notes
 

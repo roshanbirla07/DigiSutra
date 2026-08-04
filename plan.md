@@ -14,6 +14,7 @@ The platform already has the first working slice of the marketplace:
 - CloudFront and S3 support for product delivery
 - static frontend app under `apps/web/`
 - explicit ledger transition validation for order and refund state changes
+- payout state transitions and batch processing
 
 ## Current Priorities
 
@@ -28,6 +29,7 @@ The platform already has the first working slice of the marketplace:
 - introduce payout batches
 - support manual or semi-manual payout execution
 - record payout failures and retries
+- finalize payout batch reconciliation and retry handling
 
 3. Add trust and moderation controls
 - seller suspension
@@ -50,12 +52,12 @@ The platform already has the first working slice of the marketplace:
 
 ## Near-Term Build Order
 
-1. Harden seller payout batching and balance movement
-2. Wire purchase confirmation to access grants
-3. Add refund-driven access revocation and policy limits
-4. Implement moderation and support tooling
-5. Expose dashboard summaries
-6. Add operational safeguards and reconciliation support
+1. Wire purchase confirmation to access grants
+2. Add refund-driven access revocation and policy limits
+3. Implement moderation and support tooling
+4. Expose dashboard summaries
+5. Add operational safeguards and reconciliation support
+6. Add payout retry and reconciliation handling
 
 ## Working Rules
 
@@ -66,6 +68,7 @@ The platform already has the first working slice of the marketplace:
 - UI should read from backend records, not infer financial state client-side.
 - Access to content must always be tied to a paid order.
 - Ledger transitions should be validated centrally before writes are committed.
+- Payout transitions should be validated centrally before batch execution.
 
 ## Success Criteria
 
@@ -75,3 +78,4 @@ The platform already has the first working slice of the marketplace:
 - Payouts can be tracked independently from buyer payments.
 - Admin and seller views can be built from the ledger without ad hoc calculations.
 - Invalid order/refund state combinations are rejected before they reach persistence.
+- Invalid payout state combinations are rejected before they reach persistence.

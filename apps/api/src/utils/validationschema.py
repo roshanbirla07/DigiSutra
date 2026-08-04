@@ -91,6 +91,11 @@ PayoutCreateSchema = {
     'failure_reason': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
 }
 
+PayoutBatchProcessSchema = {
+    'batch_id': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
+    'payout_updates': {'type': 'list', 'nullable': False, 'required': True},
+}
+
 validationschema = {
     'UserCreate': UserCreateSchema,
     'UserLogin': UserLoginSchema,
@@ -102,4 +107,5 @@ validationschema = {
     'PaymentConfirm': PaymentConfirmSchema,
     'PaymentWebhook': PaymentWebhookSchema,
     'PayoutCreate': PayoutCreateSchema,
+    'PayoutBatchProcess': PayoutBatchProcessSchema,
 }
