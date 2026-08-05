@@ -42,6 +42,19 @@ def create_access_token(user, expires_in_seconds=86400):
     return jwt.encode(payload, _get_private_key(), algorithm="EdDSA")
 
 
+def create_delivery_token(user_uuid, asset_uuid, order_uuid, download_url, expires_in_seconds=900):
+    now = datetime.datetime.now(datetime.timezone.utc)
+    payload = {
+        "sub": user_uuid,
+        "asset_uuid": asset_uuid,
+        "order_uuid": order_uuid,
+        "download_url": download_url,
+        "iat": int(now.timestamp()),
+        "exp": int((now + datetime.timedelta(seconds=expires_in_seconds)).timestamp()),
+    }
+    return jwt.encode(payload, _get_private_key(), algorithm="EdDSA")
+
+
 def verify_access_token(token):
     payload = jwt.decode(
         token,

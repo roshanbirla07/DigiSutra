@@ -8,10 +8,15 @@ from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 
 from configuration.db_routing import db, session_rollback
-from configuration.variables import ASSET_ACCESS_EXPIRES_IN_DAYS, ASSET_ACCESS_MAX_DOWNLOADS
+from configuration.variables import (
+    ASSET_ACCESS_EXPIRES_IN_DAYS,
+    ASSET_ACCESS_MAX_DOWNLOADS,
+    ASSET_DELIVERY_TOKEN_TTL_SECONDS,
+)
 from models.ledger import MarketplaceOrder, ProductAccess
 from models.product import Product, ProductAsset, ProductAssetDownload
 from services.s3_asset_gateway import S3AssetGateway, S3AssetGatewayError
+from utils.auth import create_delivery_token
 
 
 class AssetInputError(HTTPException):
@@ -200,11 +205,28 @@ class AssetSerializer(object):
         asset, order, access = self.authorize_asset_access(asset_uuid, payload.get("order_uuid"))
         self._register_download(access)
         db.session.commit()
+        token_ttl = self._get_delivery_token_ttl()
+        delivery_token = create_delivery_token(
+            user_uuid=order.buyer.uuid,
+            asset_uuid=asset.uuid,
+            order_uuid=order.uuid,
+            download_url=asset.cloudfront_url,
+            expires_in_seconds=token_ttl,
+        )
         return {
             "asset_uuid": asset.uuid,
             "order_uuid": order.uuid,
             "download_url": asset.cloudfront_url,
+            "delivery_token": delivery_token,
             "download_count": access.download_count,
             "expires_in_days": self._get_access_expiry_days(),
             "max_downloads": self._get_access_limit(),
+            "delivery_token_ttl_seconds": token_ttl,
         }
+
+    def _get_delivery_token_ttl(self):
+        try:
+            ttl = int(ASSET_DELIVERY_TOKEN_TTL_SECONDS)
+        except (TypeError, ValueError):
+            return 900
+        return ttl if ttl > 0 else 900

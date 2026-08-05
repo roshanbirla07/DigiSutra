@@ -47,6 +47,7 @@ class AssetAuthorizationTests(unittest.TestCase):
             self.assertEqual(result["asset_uuid"], "asset::1")
             self.assertEqual(result["order_uuid"], "order::1")
             self.assertEqual(result["download_url"], asset.cloudfront_url)
+            self.assertTrue(result["delivery_token"])
             self.assertEqual(result["download_count"], 3)
             db_mock.session.commit.assert_called()
 

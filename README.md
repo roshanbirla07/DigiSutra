@@ -50,7 +50,7 @@ Role intent:
 - `POST /v1/products/` - create a product for a seller or admin owner
 - `GET /v1/products/<product_uuid>/` - fetch a public active product by uuid
 - `POST /v1/assets/upload-target/` - create a product asset and return a presigned upload URL
-- `POST /v1/assets/<asset_uuid>/deliver/` - authorize a download for a purchased asset
+- `POST /v1/assets/<asset_uuid>/deliver/` - authorize a download for a purchased asset and return a short-lived delivery token
 - `POST /v1/assets/<asset_uuid>/downloads/` - log a product asset download
 - `GET /v1/ledger/orders/` - list marketplace ledger orders
 - `GET /v1/ledger/orders/<order_uuid>/` - fetch a marketplace ledger order by uuid
@@ -140,6 +140,7 @@ Required environment values for auth tokens:
 Optional access policy values:
 - `ASSET_ACCESS_MAX_DOWNLOADS`
 - `ASSET_ACCESS_EXPIRES_IN_DAYS`
+- `ASSET_DELIVERY_TOKEN_TTL_SECONDS`
 
 ## Roadmap
 
