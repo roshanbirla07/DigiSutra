@@ -5,7 +5,7 @@ import json
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
 
-from configuration.variables import RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET
+from configuration.variables import PAYMENT_MODE, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET
 
 
 class RazorpayGatewayError(Exception):
@@ -13,14 +13,21 @@ class RazorpayGatewayError(Exception):
 
 
 class RazorpayGateway(object):
-    BASE_URL = "https://api.razorpay.com/v1"
+    TEST_BASE_URL = "https://api.razorpay.com/v1"
+    LIVE_BASE_URL = "https://api.razorpay.com/v1"
+
+    def _base_url(self):
+        mode = str(PAYMENT_MODE or "test").lower()
+        if mode not in {"test", "live"}:
+            raise RazorpayGatewayError("PAYMENT_MODE must be test or live")
+        return self.LIVE_BASE_URL if mode == "live" else self.TEST_BASE_URL
 
     def _auth_header(self):
         token = f"{RAZORPAY_KEY_ID}:{RAZORPAY_KEY_SECRET}".encode("utf-8")
         return base64.b64encode(token).decode("ascii")
 
     def _request(self, method, path, payload=None):
-        url = f"{self.BASE_URL}{path}"
+        url = f"{self._base_url()}{path}"
         body = None if payload is None else json.dumps(payload).encode("utf-8")
         req = urlrequest.Request(url, data=body, method=method.upper())
         req.add_header("Content-Type", "application/json")
@@ -43,6 +50,9 @@ class RazorpayGateway(object):
         if notes:
             payload["notes"] = notes
         return self._request("POST", "/orders", payload)
+
+    def mode(self):
+        return str(PAYMENT_MODE or "test").lower()
 
     def verify_checkout_signature(self, order_id, payment_id, signature):
         expected = hmac.new(

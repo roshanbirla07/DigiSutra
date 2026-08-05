@@ -66,8 +66,7 @@ Before the frontend work is treated as fully unblocked, the backend should also 
 
 1. Add refund-driven access revocation and policy limits
 2. Return protected delivery responses for purchased assets
-3. Add operational safeguards and reconciliation support
-4. Add payout retry and reconciliation handling
+3. Add payout retry and reconciliation handling
 
 ## Working Rules
 
