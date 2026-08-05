@@ -56,6 +56,7 @@ Role intent:
 - `POST /v1/assets/<asset_uuid>/downloads/` - log a product asset download
 - `GET /v1/ledger/orders/` - list marketplace ledger orders
 - `GET /v1/ledger/purchases/` - list the authenticated buyer's purchase history
+- `GET /v1/dashboard/summary/` - get a seller or admin dashboard summary
 - `GET /v1/ledger/orders/<order_uuid>/` - fetch a marketplace ledger order by uuid
 - `POST /v1/ledger/orders/` - create a marketplace ledger order
 - `POST /v1/ledger/orders/<order_uuid>/` - create a refund for an order
