@@ -3,6 +3,7 @@ import logging
 
 from flask import Response, request
 from flask.views import View
+from utils.auth import require_auth
 
 from serializers.productSerializers import ProductSerializer
 from utils.user import schema_validation
@@ -38,6 +39,7 @@ def serialize_product(product):
 class ProductCollection(View):
     methods = ["GET", "POST"]
 
+    @require_auth(roles=["seller", "admin"], methods=["POST"])
     @schema_validation("ProductCreate", methods=["POST"])
     def dispatch_request(self, *args, **kwargs):
         if request.method == "POST":
@@ -71,6 +73,7 @@ class ProductCollection(View):
 class ProductDetail(View):
     methods = ["GET", "DELETE"]
 
+    @require_auth(roles=["seller", "admin"], methods=["DELETE"])
     def dispatch_request(self, product_uuid, *args, **kwargs):
         serializer = ProductSerializer()
         try:

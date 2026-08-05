@@ -4,6 +4,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 from flask import abort
+from flask import g
 from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 
@@ -208,7 +209,11 @@ class LedgerSerializer(object):
         return validated_data
 
     def prepare_create_data(self, validated_data):
-        buyer = self.validate_user(validated_data.get("buyer_uuid"), "Buyer")
+        auth_user = getattr(g, "user", None)
+        buyer_uuid = validated_data.get("buyer_uuid") or (auth_user.uuid if auth_user else None)
+        buyer = self.validate_user(buyer_uuid, "Buyer")
+        if auth_user and buyer.uuid != auth_user.uuid:
+            raise LedgerInputError("Authenticated buyer must match buyer_uuid")
         seller = self.validate_seller(self.validate_user(validated_data.get("seller_uuid"), "Seller"))
         product = self.validate_product(validated_data.get("product_uuid"), seller)
 

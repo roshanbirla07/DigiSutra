@@ -6,12 +6,14 @@ from flask import Response, request
 from flask.views import View
 
 from serializers.ledgerSerializers import LedgerSerializer
+from utils.auth import require_auth
 from utils.user import schema_validation
 
 
 class LedgerCollection(View):
     methods = ["GET", "POST"]
 
+    @require_auth(roles=["customer", "seller", "admin"], methods=["POST"])
     @schema_validation("LedgerOrderCreate", methods=["POST"])
     def dispatch_request(self, *args, **kwargs):
         if request.method == "POST":
@@ -45,6 +47,7 @@ class LedgerCollection(View):
 class LedgerDetail(View):
     methods = ["GET", "POST"]
 
+    @require_auth(roles=["customer", "seller", "admin"], methods=["POST"])
     @schema_validation("LedgerRefundCreate", methods=["POST"])
     def dispatch_request(self, order_uuid, *args, **kwargs):
         serializer = LedgerSerializer()

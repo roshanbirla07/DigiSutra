@@ -5,3 +5,5 @@ flask-cors
 cerberus
 psycopg2-binary
 python-dotenv
+PyJWT[crypto]
+cryptography

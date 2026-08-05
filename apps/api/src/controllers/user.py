@@ -40,7 +40,7 @@ class Login(View):
         serializer = UserSerializer(data)
 
         try:
-            user = serializer.login()
+            user, token = serializer.login_with_token()
         except Exception as e:
             logging.error(f"User Login Error on service :: {e} :: {data}")
             return Response(
@@ -59,6 +59,7 @@ class Login(View):
                 'phone_number': user.phone_number,
                 'user_type': user.user_type,
                 'is_active': user.is_active,
+                'token': token,
                 'created_on': user.created_on.isoformat() if user.created_on else None,
                 'modified_on': user.modified_on.isoformat() if user.modified_on else None,
             }),

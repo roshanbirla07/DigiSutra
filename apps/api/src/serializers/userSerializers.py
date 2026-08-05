@@ -7,6 +7,7 @@ from utils.constants import USER_TYPE
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 import logging
+from utils.auth import create_access_token
 
 
 class IndefiniteUserProfileData(HTTPException):
@@ -170,6 +171,11 @@ class UserSerializer(object):
             raise IndefiniteUserProfileData('Invalid username or password')
 
         return user
+
+    def login_with_token(self, validated_data=None):
+        user = self.login(validated_data)
+        token = create_access_token(user)
+        return user, token
 
     def list_users(self):
         return User.query.order_by(User.created_on.desc()).all()

@@ -5,12 +5,14 @@ from flask import Response, request
 from flask.views import View
 
 from serializers.paymentSerializers import PaymentSerializer
+from utils.auth import require_auth
 from utils.user import schema_validation
 
 
 class PaymentOrderCollection(View):
     methods = ["POST"]
 
+    @require_auth(roles=["customer", "seller", "admin"], methods=["POST"])
     @schema_validation("PaymentOrderCreate", methods=["POST"])
     def dispatch_request(self, *args, **kwargs):
         payload = request.get_json(silent=True) or {}
@@ -38,6 +40,7 @@ class PaymentOrderCollection(View):
 class PaymentConfirm(View):
     methods = ["POST"]
 
+    @require_auth(roles=["customer", "seller", "admin"], methods=["POST"])
     @schema_validation("PaymentConfirm", methods=["POST"])
     def dispatch_request(self, *args, **kwargs):
         payload = request.get_json(silent=True) or {}

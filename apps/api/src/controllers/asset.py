@@ -5,12 +5,14 @@ from flask import Response, request
 from flask.views import View
 
 from serializers.assetSerializers import AssetSerializer
+from utils.auth import require_auth
 from utils.user import schema_validation
 
 
 class AssetUploadTarget(View):
     methods = ["POST"]
 
+    @require_auth(roles=["seller", "admin"], methods=["POST"])
     @schema_validation("ProductAssetCreate", methods=["POST"])
     def dispatch_request(self, *args, **kwargs):
         payload = request.get_json(silent=True) or {}
@@ -37,6 +39,7 @@ class AssetUploadTarget(View):
 class AssetDownloadLog(View):
     methods = ["POST"]
 
+    @require_auth(methods=["POST"])
     def dispatch_request(self, asset_uuid, *args, **kwargs):
         payload = request.get_json(silent=True) or {}
         serializer = AssetSerializer(payload)
