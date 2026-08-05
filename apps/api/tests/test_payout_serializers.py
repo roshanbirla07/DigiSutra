@@ -141,6 +141,79 @@ class PayoutSerializerTests(unittest.TestCase):
             with self.assertRaises(PayoutInputError):
                 serializer.process_batch("batch::1", [{"payout_uuid": "payout::1", "status": "cancelled"}])
 
+    def test_retry_payout_moves_failed_payout_back_to_processing(self):
+        payout = MagicMock()
+        payout.uuid = "payout::retry"
+        payout.status = "failed"
+        payout.failure_reason = "bank rejected"
+        payout.processed_at = None
+
+        with patch.object(PayoutSerializer, "get_payout_by_uuid", return_value=payout), \
+                patch("serializers.payoutSerializers.db") as db_mock:
+            db_mock.session.commit = MagicMock()
+            serializer = PayoutSerializer()
+            result = serializer.retry_payout("payout::retry")
+
+            self.assertIs(result, payout)
+            self.assertEqual(payout.status, "processing")
+            self.assertIsNone(payout.failure_reason)
+            db_mock.session.commit.assert_called()
+
+    def test_retry_payout_rejects_non_failed_payout(self):
+        payout = MagicMock()
+        payout.uuid = "payout::retry"
+        payout.status = "paid"
+
+        with patch.object(PayoutSerializer, "get_payout_by_uuid", return_value=payout):
+            serializer = PayoutSerializer()
+            with self.assertRaises(PayoutInputError):
+                serializer.retry_payout("payout::retry")
+
+    def test_reconciliation_summary_groups_failed_and_open_payouts(self):
+        failed = MagicMock()
+        failed.uuid = "payout::failed"
+        failed.status = "failed"
+        failed.seller = MagicMock()
+        failed.seller.uuid = "seller::1"
+        failed.amount = 25
+        failed.failure_reason = "bank rejected"
+        failed.processed_at = None
+        failed.created_on = None
+        failed.modified_on = None
+
+        open_payout = MagicMock()
+        open_payout.uuid = "payout::open"
+        open_payout.status = "processing"
+        open_payout.seller = MagicMock()
+        open_payout.seller.uuid = "seller::2"
+        open_payout.amount = 10
+        open_payout.failure_reason = None
+        open_payout.processed_at = None
+        open_payout.created_on = None
+        open_payout.modified_on = None
+
+        paid = MagicMock()
+        paid.uuid = "payout::paid"
+        paid.status = "paid"
+        paid.seller = MagicMock()
+        paid.seller.uuid = "seller::3"
+        paid.amount = 15
+        paid.failure_reason = None
+        paid.processed_at = None
+        paid.created_on = None
+        paid.modified_on = None
+
+        with patch("serializers.payoutSerializers.SellerPayout") as seller_payout_model:
+            seller_payout_model.query.filter_by.return_value.all.side_effect = [[failed], [paid]]
+            seller_payout_model.query.filter.return_value.all.return_value = [open_payout]
+
+            serializer = PayoutSerializer()
+            summary = serializer.reconciliation_summary()
+
+            self.assertEqual(summary["counts"]["failed_payouts"], 1)
+            self.assertEqual(summary["counts"]["open_payouts"], 1)
+            self.assertEqual(summary["counts"]["paid_payouts"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

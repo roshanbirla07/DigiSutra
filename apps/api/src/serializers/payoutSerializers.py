@@ -76,6 +76,9 @@ class PayoutSerializer(object):
     def list_payouts(self):
         return SellerPayout.query.order_by(SellerPayout.created_on.desc()).all()
 
+    def list_retryable_payouts(self):
+        return SellerPayout.query.filter_by(status="failed").order_by(SellerPayout.modified_on.desc()).all()
+
     def get_payout_by_uuid(self, payout_uuid):
         payout = SellerPayout.query.filter_by(uuid=payout_uuid).first()
         if not payout:
@@ -190,6 +193,32 @@ class PayoutSerializer(object):
 
         db.session.commit()
         return processed_payouts
+
+    @session_rollback(db)
+    def retry_payout(self, payout_uuid):
+        payout = self.get_payout_by_uuid(payout_uuid)
+        if payout.status != "failed":
+            raise PayoutInputError("Only failed payouts can be retried")
+
+        payout = self.transition_payout(payout, "processing")
+        payout.failure_reason = None
+        db.session.commit()
+        return payout
+
+    def reconciliation_summary(self):
+        failed_payouts = SellerPayout.query.filter_by(status="failed").all()
+        open_payouts = SellerPayout.query.filter(SellerPayout.status.in_(["pending", "processing"])).all()
+        paid_payouts = SellerPayout.query.filter_by(status="paid").all()
+        return {
+            "failed_payouts": [self.serialize_payout(payout) for payout in failed_payouts],
+            "open_payouts": [self.serialize_payout(payout) for payout in open_payouts],
+            "paid_payouts": [self.serialize_payout(payout) for payout in paid_payouts],
+            "counts": {
+                "failed_payouts": len(failed_payouts),
+                "open_payouts": len(open_payouts),
+                "paid_payouts": len(paid_payouts),
+            },
+        }
 
     def serialize_payout(self, payout):
         return self._serialize_payout(payout)

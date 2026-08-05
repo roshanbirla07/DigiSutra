@@ -66,3 +66,49 @@ class PayoutBatch(View):
             status=200,
             mimetype="application/json",
         )
+
+
+class PayoutRetry(View):
+    methods = ["POST"]
+
+    @require_auth(roles=["admin"], methods=["POST"])
+    def dispatch_request(self, payout_uuid, *args, **kwargs):
+        serializer = PayoutSerializer()
+        try:
+            payout = serializer.retry_payout(payout_uuid)
+        except Exception as e:
+            logging.error(f"Payout retry error :: {e} :: {payout_uuid}")
+            return Response(
+                response=json.dumps({"error": f"Error retrying payout {str(e)}"}),
+                status=400,
+                mimetype="application/json",
+            )
+
+        return Response(
+            response=json.dumps(serializer.serialize_payout(payout)),
+            status=200,
+            mimetype="application/json",
+        )
+
+
+class PayoutReconciliationSummary(View):
+    methods = ["GET"]
+
+    @require_auth(roles=["admin"], methods=["GET"])
+    def dispatch_request(self, *args, **kwargs):
+        serializer = PayoutSerializer()
+        try:
+            summary = serializer.reconciliation_summary()
+        except Exception as e:
+            logging.error(f"Payout reconciliation summary error :: {e}")
+            return Response(
+                response=json.dumps({"error": f"Error loading payout reconciliation summary {str(e)}"}),
+                status=400,
+                mimetype="application/json",
+            )
+
+        return Response(
+            response=json.dumps(summary),
+            status=200,
+            mimetype="application/json",
+        )

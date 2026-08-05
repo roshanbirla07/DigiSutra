@@ -58,6 +58,8 @@ Role intent:
 - `GET /v1/ledger/purchases/` - list the authenticated buyer's purchase history
 - `GET /v1/dashboard/summary/` - get a seller or admin dashboard summary
 - `GET /v1/ops/reconciliation-summary/` - get admin-facing reconciliation risk buckets
+- `POST /v1/payouts/<payout_uuid>/retry/` - retry a failed payout as admin
+- `GET /v1/payouts/reconciliation-summary/` - get payout reconciliation details for admin
 - `GET /v1/ledger/orders/<order_uuid>/` - fetch a marketplace ledger order by uuid
 - `POST /v1/ledger/orders/` - create a marketplace ledger order
 - `POST /v1/ledger/orders/<order_uuid>/` - create a refund for an order
