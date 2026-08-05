@@ -128,8 +128,23 @@ class LedgerSerializer(object):
             "resolved_on": refund.resolved_on.isoformat() if refund.resolved_on else None,
         }
 
+    def _serialize_access_record(self, access_record):
+        return {
+            "uuid": access_record.uuid,
+            "order_uuid": access_record.order.uuid if access_record.order else None,
+            "asset_uuid": access_record.asset.uuid if getattr(access_record, "asset", None) else None,
+            "access_status": access_record.access_status,
+            "download_count": access_record.download_count,
+            "revoked_at": access_record.revoked_at.isoformat() if access_record.revoked_at else None,
+            "created_on": access_record.created_on.isoformat() if access_record.created_on else None,
+            "modified_on": access_record.modified_on.isoformat() if access_record.modified_on else None,
+        }
+
     def list_orders(self):
         return MarketplaceOrder.query.order_by(MarketplaceOrder.created_on.desc()).all()
+
+    def list_orders_for_buyer(self, buyer_id):
+        return MarketplaceOrder.query.filter_by(buyer_id=buyer_id).order_by(MarketplaceOrder.created_on.desc()).all()
 
     def validate_refund_request(self, order, validated_data):
         if order.refund_status in {"requested", "approved", "processed"}:
@@ -316,3 +331,19 @@ class LedgerSerializer(object):
 
     def serialize_refund(self, refund):
         return self._serialize_refund(refund)
+
+    def list_buyer_purchases(self, buyer_id):
+        orders = self.list_orders_for_buyer(buyer_id)
+        history = []
+        for order in orders:
+            access_records = [
+                self._serialize_access_record(access_record)
+                for access_record in order.product_access_records.all()
+            ]
+            refunds = [self._serialize_refund(refund) for refund in order.refund_records.all()]
+            history.append({
+                "order": self._serialize_order(order),
+                "access_records": access_records,
+                "refunds": refunds,
+            })
+        return history

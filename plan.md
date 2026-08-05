@@ -24,7 +24,6 @@ The platform already has the first working slice of the marketplace:
 - revoke access on refund
 - define re-download limits and expiry rules
 - return a true protected delivery response for purchased assets
-- add buyer purchase-history views or endpoints
 
 2. Add seller payout workflow
 - track pending and available seller balances
@@ -67,11 +66,10 @@ Before the frontend work is treated as fully unblocked, the backend should also 
 
 1. Add refund-driven access revocation and policy limits
 2. Return protected delivery responses for purchased assets
-3. Add buyer purchase-history endpoints
-4. Implement moderation and support tooling
-5. Expose dashboard summaries
-6. Add operational safeguards and reconciliation support
-7. Add payout retry and reconciliation handling
+3. Implement moderation and support tooling
+4. Expose dashboard summaries
+5. Add operational safeguards and reconciliation support
+6. Add payout retry and reconciliation handling
 
 ## Working Rules
 

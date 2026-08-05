@@ -2,12 +2,27 @@ import json
 
 import logging
 
-from flask import Response, request
+from flask import Response, request, g
 from flask.views import View
 
 from serializers.ledgerSerializers import LedgerSerializer
 from utils.auth import require_auth
 from utils.user import schema_validation
+
+
+class BuyerPurchaseHistory(View):
+    methods = ["GET"]
+
+    @require_auth(roles=["customer", "seller", "admin"], methods=["GET"])
+    def dispatch_request(self, *args, **kwargs):
+        serializer = LedgerSerializer()
+        buyer = getattr(g, "user", None)
+        history = serializer.list_buyer_purchases(buyer.id)
+        return Response(
+            response=json.dumps(history),
+            status=200,
+            mimetype="application/json",
+        )
 
 
 class LedgerCollection(View):

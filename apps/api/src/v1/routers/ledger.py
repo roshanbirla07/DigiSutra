@@ -1,4 +1,4 @@
-from controllers.ledger import LedgerCollection, LedgerDetail
+from controllers.ledger import BuyerPurchaseHistory, LedgerCollection, LedgerDetail
 
 
 class LedgerRoutes(object):
@@ -11,6 +11,12 @@ class LedgerRoutes(object):
             view_func=LedgerCollection.as_view("ledger_collection"),
             methods=["GET", "POST"],
             endpoint="should_be_v1_only_ledger_collection",
+        )
+        v1.add_url_rule(
+            "ledger/purchases/",
+            view_func=BuyerPurchaseHistory.as_view("buyer_purchase_history"),
+            methods=["GET"],
+            endpoint="should_be_v1_only_buyer_purchase_history",
         )
         v1.add_url_rule(
             "ledger/orders/<string:order_uuid>/",
