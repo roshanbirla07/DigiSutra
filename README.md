@@ -26,6 +26,8 @@ The current backend already includes:
 - authenticated asset delivery authorization tied to paid orders
 - configurable download limit and access-expiry enforcement
 - download logging and asset status tracking
+- support ticket creation and admin resolution
+- product flagging and admin moderation actions
 
 The current frontend is a static client that talks to the Flask API.
 
@@ -57,6 +59,13 @@ Role intent:
 - `GET /v1/ledger/orders/<order_uuid>/` - fetch a marketplace ledger order by uuid
 - `POST /v1/ledger/orders/` - create a marketplace ledger order
 - `POST /v1/ledger/orders/<order_uuid>/` - create a refund for an order
+- `GET /v1/support/tickets/` - list support tickets for the authenticated user, or all tickets for admin
+- `POST /v1/support/tickets/` - create a support ticket
+- `POST /v1/support/tickets/<ticket_uuid>/resolve/` - resolve a support ticket as admin
+- `POST /v1/moderation/products/<product_uuid>/flags/` - flag a product for review
+- `POST /v1/moderation/product-flags/<flag_uuid>/resolve/` - resolve a product flag as admin
+- `POST /v1/moderation/users/<user_uuid>/suspend/` - suspend a user as admin
+- `POST /v1/moderation/users/<user_uuid>/activate/` - reactivate a user as admin
 - `POST /v1/payments/orders/` - create a Razorpay order for an internal ledger order
 - `POST /v1/payments/confirm/` - verify checkout signature and mark payment paid
 - `POST /v1/payments/webhook/razorpay/` - process Razorpay payment webhooks idempotently

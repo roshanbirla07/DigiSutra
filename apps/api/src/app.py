@@ -8,6 +8,7 @@ from sqlalchemy.exc import OperationalError
 import models.user  # noqa: F401
 import models.product  # noqa: F401
 import models.ledger  # noqa: F401
+import models.support  # noqa: F401
 
 BLUEPRINT = [
     V1Version().get_blueprint()
