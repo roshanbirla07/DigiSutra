@@ -66,6 +66,32 @@ class AssetSerializer(object):
             return None
         return int(value)
 
+    def authorize_asset_access(self, asset_uuid, order_uuid):
+        asset = ProductAsset.query.filter_by(uuid=asset_uuid).first()
+        if not asset:
+            raise AssetInputError("Asset not found")
+
+        if not order_uuid:
+            raise AssetInputError("order_uuid is required")
+
+        auth_user = getattr(g, "user", None)
+        if not auth_user:
+            raise AssetInputError("Authentication required")
+
+        order = MarketplaceOrder.query.filter_by(uuid=order_uuid).first()
+        if not order:
+            raise AssetInputError("Marketplace order not found")
+        if order.buyer_id != auth_user.id:
+            raise AssetInputError("Authenticated user does not own this order")
+        if order.product_id != asset.product_id:
+            raise AssetInputError("Asset does not belong to the purchased product")
+
+        access = ProductAccess.query.filter_by(order_id=order.id).first()
+        if not access or access.access_status != "granted":
+            raise AssetInputError("Access is not currently granted for this order")
+
+        return asset, order, access
+
     @session_rollback(db)
     def create_upload_target(self, validated_data=None):
         validated_data = dict(validated_data or self.data)
@@ -108,35 +134,13 @@ class AssetSerializer(object):
 
     @session_rollback(db)
     def log_download(self, asset_uuid, payload):
-        asset = ProductAsset.query.filter_by(uuid=asset_uuid).first()
-        if not asset:
-            raise AssetInputError("Asset not found")
-
-        order_uuid = payload.get("order_uuid")
-        if not order_uuid:
-            raise AssetInputError("order_uuid is required")
-
         auth_user = getattr(g, "user", None)
-        if not auth_user:
-            raise AssetInputError("Authentication required")
-
-        order = MarketplaceOrder.query.filter_by(uuid=order_uuid).first()
-        if not order:
-            raise AssetInputError("Marketplace order not found")
-        if order.buyer_id != auth_user.id:
-            raise AssetInputError("Authenticated user does not own this order")
-        if order.product_id != asset.product_id:
-            raise AssetInputError("Asset does not belong to the purchased product")
-
-        access = ProductAccess.query.filter_by(order_id=order.id).first()
-        if not access or access.access_status != "granted":
-            raise AssetInputError("Access is not currently granted for this order")
-
+        asset, order, access = self.authorize_asset_access(asset_uuid, payload.get("order_uuid"))
         access.download_count = int(access.download_count or 0) + 1
         download = ProductAssetDownload(
             uuid=f"download::{uuid.uuid4()}",
             asset_id=asset.id,
-            order_uuid=payload.get("order_uuid"),
+            order_uuid=order.uuid,
             downloaded_by=payload.get("downloaded_by") or auth_user.uuid,
             download_url=payload.get("download_url") or asset.cloudfront_url,
             user_agent=payload.get("user_agent"),
@@ -150,3 +154,15 @@ class AssetSerializer(object):
             logging.error(f"Exception in Asset Download Log Serializer :: {e}")
             abort(400)
         return download
+
+    @session_rollback(db)
+    def authorize_download(self, asset_uuid, payload):
+        asset, order, access = self.authorize_asset_access(asset_uuid, payload.get("order_uuid"))
+        access.download_count = int(access.download_count or 0) + 1
+        db.session.commit()
+        return {
+            "asset_uuid": asset.uuid,
+            "order_uuid": order.uuid,
+            "download_url": asset.cloudfront_url,
+            "download_count": access.download_count,
+        }

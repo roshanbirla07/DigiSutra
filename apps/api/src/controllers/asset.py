@@ -58,3 +58,27 @@ class AssetDownloadLog(View):
             status=201,
             mimetype="application/json",
         )
+
+
+class AssetDownloadAuthorize(View):
+    methods = ["POST"]
+
+    @require_auth(methods=["POST"])
+    def dispatch_request(self, asset_uuid, *args, **kwargs):
+        payload = request.get_json(silent=True) or {}
+        serializer = AssetSerializer(payload)
+        try:
+            delivery = serializer.authorize_download(asset_uuid, payload)
+        except Exception as e:
+            logging.error(f"Asset download authorize error :: {e} :: {payload}")
+            return Response(
+                response=json.dumps({"error": f"Error authorizing download {str(e)}"}),
+                status=400,
+                mimetype="application/json",
+            )
+
+        return Response(
+            response=json.dumps(delivery),
+            status=200,
+            mimetype="application/json",
+        )

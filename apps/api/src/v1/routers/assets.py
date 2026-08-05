@@ -1,4 +1,4 @@
-from controllers.asset import AssetDownloadLog, AssetUploadTarget
+from controllers.asset import AssetDownloadAuthorize, AssetDownloadLog, AssetUploadTarget
 
 
 class AssetRoutes(object):
@@ -18,4 +18,10 @@ class AssetRoutes(object):
             view_func=AssetDownloadLog.as_view("asset_download_log"),
             methods=["POST"],
             endpoint="should_be_v1_only_asset_download_log",
+        )
+        v1.add_url_rule(
+            "assets/<string:asset_uuid>/deliver/",
+            view_func=AssetDownloadAuthorize.as_view("asset_download_authorize"),
+            methods=["POST"],
+            endpoint="should_be_v1_only_asset_download_authorize",
         )

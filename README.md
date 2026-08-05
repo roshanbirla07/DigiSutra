@@ -11,6 +11,7 @@ The codebase is organized as a small monorepo:
 
 The current backend already includes:
 - user signup and login
+- EdDSA-signed auth tokens with request-level authentication guards
 - PostgreSQL-backed Flask API
 - product listing and product fetch endpoints
 - marketplace ledger models for orders, refunds, payouts, and access tracking
@@ -22,6 +23,7 @@ The current backend already includes:
 - product image and asset metadata
 - S3 presigned upload target generation
 - CloudFront URL generation for public delivery
+- authenticated asset delivery authorization tied to paid orders
 - download logging and asset status tracking
 
 The current frontend is a static client that talks to the Flask API.
@@ -47,6 +49,7 @@ Role intent:
 - `POST /v1/products/` - create a product for a seller or admin owner
 - `GET /v1/products/<product_uuid>/` - fetch a public active product by uuid
 - `POST /v1/assets/upload-target/` - create a product asset and return a presigned upload URL
+- `POST /v1/assets/<asset_uuid>/deliver/` - authorize a download for a purchased asset
 - `POST /v1/assets/<asset_uuid>/downloads/` - log a product asset download
 - `GET /v1/ledger/orders/` - list marketplace ledger orders
 - `GET /v1/ledger/orders/<order_uuid>/` - fetch a marketplace ledger order by uuid
@@ -128,6 +131,10 @@ Required environment values for payment flow integration:
 - `RAZORPAY_KEY_ID`
 - `RAZORPAY_KEY_SECRET`
 - `RAZORPAY_WEBHOOK_SECRET`
+
+Required environment values for auth tokens:
+- `AUTH_EDDSA_PRIVATE_KEY_PEM`
+- `AUTH_EDDSA_PUBLIC_KEY_PEM`
 
 ## Roadmap
 
