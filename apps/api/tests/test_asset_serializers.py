@@ -1,5 +1,6 @@
 import os
 import sys
+import datetime
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -64,6 +65,74 @@ class AssetAuthorizationTests(unittest.TestCase):
         access = MagicMock()
         access.access_status = "revoked"
         access.download_count = 2
+
+        user = MagicMock()
+        user.id = 7
+        user.uuid = "user::buyer"
+
+        with patch("serializers.assetSerializers.g") as g_mock, \
+                patch("serializers.assetSerializers.ProductAsset") as product_asset_model, \
+                patch("serializers.assetSerializers.MarketplaceOrder") as marketplace_order_model, \
+                patch("serializers.assetSerializers.ProductAccess") as product_access_model:
+            g_mock.user = user
+            product_asset_model.query.filter_by.return_value.first.return_value = asset
+            marketplace_order_model.query.filter_by.return_value.first.return_value = order
+            product_access_model.query.filter_by.return_value.first.return_value = access
+
+            serializer = AssetSerializer()
+            with self.assertRaises(AssetInputError):
+                serializer.authorize_download("asset::1", {"order_uuid": "order::1"})
+
+    def test_authorize_download_rejects_expired_access(self):
+        asset = MagicMock()
+        asset.uuid = "asset::1"
+        asset.product_id = 11
+        asset.cloudfront_url = "https://cdn.example.com/asset.pdf"
+
+        order = MagicMock()
+        order.id = 21
+        order.uuid = "order::1"
+        order.buyer_id = 7
+        order.product_id = 11
+
+        access = MagicMock()
+        access.access_status = "granted"
+        access.download_count = 1
+        access.created_on = datetime.datetime.utcnow() - datetime.timedelta(days=31)
+
+        user = MagicMock()
+        user.id = 7
+        user.uuid = "user::buyer"
+
+        with patch("serializers.assetSerializers.g") as g_mock, \
+                patch("serializers.assetSerializers.ProductAsset") as product_asset_model, \
+                patch("serializers.assetSerializers.MarketplaceOrder") as marketplace_order_model, \
+                patch("serializers.assetSerializers.ProductAccess") as product_access_model:
+            g_mock.user = user
+            product_asset_model.query.filter_by.return_value.first.return_value = asset
+            marketplace_order_model.query.filter_by.return_value.first.return_value = order
+            product_access_model.query.filter_by.return_value.first.return_value = access
+
+            serializer = AssetSerializer()
+            with self.assertRaises(AssetInputError):
+                serializer.authorize_download("asset::1", {"order_uuid": "order::1"})
+
+    def test_authorize_download_rejects_download_limit(self):
+        asset = MagicMock()
+        asset.uuid = "asset::1"
+        asset.product_id = 11
+        asset.cloudfront_url = "https://cdn.example.com/asset.pdf"
+
+        order = MagicMock()
+        order.id = 21
+        order.uuid = "order::1"
+        order.buyer_id = 7
+        order.product_id = 11
+
+        access = MagicMock()
+        access.access_status = "granted"
+        access.download_count = 3
+        access.created_on = datetime.datetime.utcnow()
 
         user = MagicMock()
         user.id = 7

@@ -24,6 +24,7 @@ The current backend already includes:
 - S3 presigned upload target generation
 - CloudFront URL generation for public delivery
 - authenticated asset delivery authorization tied to paid orders
+- configurable download limit and access-expiry enforcement
 - download logging and asset status tracking
 
 The current frontend is a static client that talks to the Flask API.
@@ -135,6 +136,10 @@ Required environment values for payment flow integration:
 Required environment values for auth tokens:
 - `AUTH_EDDSA_PRIVATE_KEY_PEM`
 - `AUTH_EDDSA_PUBLIC_KEY_PEM`
+
+Optional access policy values:
+- `ASSET_ACCESS_MAX_DOWNLOADS`
+- `ASSET_ACCESS_EXPIRES_IN_DAYS`
 
 ## Roadmap
 

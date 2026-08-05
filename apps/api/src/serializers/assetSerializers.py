@@ -1,3 +1,4 @@
+import datetime
 import logging
 import uuid
 
@@ -7,6 +8,7 @@ from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 
 from configuration.db_routing import db, session_rollback
+from configuration.variables import ASSET_ACCESS_EXPIRES_IN_DAYS, ASSET_ACCESS_MAX_DOWNLOADS
 from models.ledger import MarketplaceOrder, ProductAccess
 from models.product import Product, ProductAsset, ProductAssetDownload
 from services.s3_asset_gateway import S3AssetGateway, S3AssetGatewayError
@@ -89,8 +91,46 @@ class AssetSerializer(object):
         access = ProductAccess.query.filter_by(order_id=order.id).first()
         if not access or access.access_status != "granted":
             raise AssetInputError("Access is not currently granted for this order")
+        if self._is_access_expired(access):
+            raise AssetInputError("Access has expired")
+        if self._has_download_limit_been_reached(access):
+            raise AssetInputError("Download limit reached")
 
         return asset, order, access
+
+    def _get_access_limit(self):
+        try:
+            limit = int(ASSET_ACCESS_MAX_DOWNLOADS)
+        except (TypeError, ValueError):
+            return None
+        return limit if limit > 0 else None
+
+    def _get_access_expiry_days(self):
+        try:
+            days = int(ASSET_ACCESS_EXPIRES_IN_DAYS)
+        except (TypeError, ValueError):
+            return None
+        return days if days > 0 else None
+
+    def _is_access_expired(self, access):
+        expiry_days = self._get_access_expiry_days()
+        if not expiry_days:
+            return False
+        created_on = access.created_on
+        if not created_on:
+            return False
+        return created_on + datetime.timedelta(days=expiry_days) < datetime.datetime.utcnow()
+
+    def _has_download_limit_been_reached(self, access):
+        limit = self._get_access_limit()
+        if not limit:
+            return False
+        current_count = int(access.download_count or 0)
+        return current_count >= limit
+
+    def _register_download(self, access):
+        access.download_count = int(access.download_count or 0) + 1
+        return access
 
     @session_rollback(db)
     def create_upload_target(self, validated_data=None):
@@ -136,7 +176,7 @@ class AssetSerializer(object):
     def log_download(self, asset_uuid, payload):
         auth_user = getattr(g, "user", None)
         asset, order, access = self.authorize_asset_access(asset_uuid, payload.get("order_uuid"))
-        access.download_count = int(access.download_count or 0) + 1
+        self._register_download(access)
         download = ProductAssetDownload(
             uuid=f"download::{uuid.uuid4()}",
             asset_id=asset.id,
@@ -158,11 +198,13 @@ class AssetSerializer(object):
     @session_rollback(db)
     def authorize_download(self, asset_uuid, payload):
         asset, order, access = self.authorize_asset_access(asset_uuid, payload.get("order_uuid"))
-        access.download_count = int(access.download_count or 0) + 1
+        self._register_download(access)
         db.session.commit()
         return {
             "asset_uuid": asset.uuid,
             "order_uuid": order.uuid,
             "download_url": asset.cloudfront_url,
             "download_count": access.download_count,
+            "expires_in_days": self._get_access_expiry_days(),
+            "max_downloads": self._get_access_limit(),
         }

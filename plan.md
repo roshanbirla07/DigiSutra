@@ -23,6 +23,8 @@ The platform already has the first working slice of the marketplace:
 - keep downloads tied to purchased orders
 - revoke access on refund
 - define re-download limits and expiry rules
+- return a true protected delivery response for purchased assets
+- add buyer purchase-history views or endpoints
 
 2. Add seller payout workflow
 - track pending and available seller balances
@@ -50,14 +52,26 @@ The platform already has the first working slice of the marketplace:
 - logging and alerting for payment, webhook, and payout failures
 - compliance and tax/invoice foundation
 
+## Frontend Readiness Gaps
+
+Before the frontend work is treated as fully unblocked, the backend should also have:
+
+- a signed, short-lived asset delivery response
+- buyer purchase-history endpoints for orders and downloads
+- seller-owned product views for dashboard use
+- refund/admin workflow endpoints or summary views
+- payout summary endpoints for seller and admin screens
+- a standard token-storage and 401/403 response contract for the web app
+
 ## Near-Term Build Order
 
-1. Wire purchase confirmation to access grants
-2. Add refund-driven access revocation and policy limits
-3. Implement moderation and support tooling
-4. Expose dashboard summaries
-5. Add operational safeguards and reconciliation support
-6. Add payout retry and reconciliation handling
+1. Add refund-driven access revocation and policy limits
+2. Return protected delivery responses for purchased assets
+3. Add buyer purchase-history endpoints
+4. Implement moderation and support tooling
+5. Expose dashboard summaries
+6. Add operational safeguards and reconciliation support
+7. Add payout retry and reconciliation handling
 
 ## Working Rules
 
