@@ -2,6 +2,7 @@ import { createAuthController } from "./controllers/authController.js";
 import { createDashboardController } from "./controllers/dashboardController.js";
 import { createProductController } from "./controllers/productController.js";
 import { createSettingsController } from "./controllers/settingsController.js";
+import { createSellerApplicationController } from "./controllers/sellerApplicationController.js";
 import { getRoutes, resolveRoute } from "./routes/index.js";
 
 export function createApp() {
@@ -9,6 +10,7 @@ export function createApp() {
   let dashboardController;
   let productController;
   let settingsController;
+  let sellerApplicationController;
 
   const state = {
     apiBaseUrl: localStorage.getItem("digisutra_api_base_url") || "http://localhost:5000",
@@ -17,6 +19,7 @@ export function createApp() {
     profileOpen: false,
     products: [],
     content: null,
+    sellerApplicationUuid: null,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -75,9 +78,13 @@ export function createApp() {
   }
 
   function api(path, options = {}) {
+    const authHeaders = state.session?.token
+      ? { Authorization: `Bearer ${state.session.token}` }
+      : {};
     return fetch(`${state.apiBaseUrl}${path}`, {
       headers: {
         "Content-Type": "application/json",
+        ...authHeaders,
         ...(options.headers || {}),
       },
       ...options,
@@ -90,6 +97,11 @@ export function createApp() {
         data = { raw: text };
       }
       if (!response.ok) {
+        if ((response.status === 401 || response.status === 403) && state.session && path !== "/v1/users/login/") {
+          setSession(null);
+          window.history.replaceState({}, "", "/auth");
+          handleRoute();
+        }
         throw new Error(data?.error || response.statusText || "Request failed");
       }
       return data;
@@ -194,6 +206,7 @@ export function createApp() {
     $("profileMenuEmail").textContent = email;
     $("ownerName").textContent = name;
     $("ownerSeal").textContent = avatar;
+    $("sellerApplicationNav")?.classList.toggle("hidden", session?.user_type !== "customer");
   }
 
   function openProfileMenu() {
@@ -282,11 +295,13 @@ export function createApp() {
       dashboardController = createDashboardController(this);
       productController = createProductController(this);
       settingsController = createSettingsController(this);
+      sellerApplicationController = createSellerApplicationController(this);
 
       authController.bind();
       dashboardController.bind();
       productController.bind();
       settingsController.bind();
+      sellerApplicationController.bind();
       window.addEventListener("popstate", handleRoute);
       setSession(state.session);
       if (window.location.pathname === "/") {

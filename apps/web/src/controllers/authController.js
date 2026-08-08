@@ -88,7 +88,6 @@ export function createAuthController(app) {
             lastname: app.$("signupLastName").value.trim(),
             email: app.$("signupEmail").value.trim(),
             password: app.$("signupPassword").value,
-            user_type: app.$("signupUserType").value,
           }),
         });
         const session = await app.api("/v1/users/login/", {

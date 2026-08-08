@@ -49,14 +49,6 @@
                 <small id="signupUsernameError" class="error"></small>
               </label>
               <label class="field">
-                <span>User type</span>
-                <select id="signupUserType">
-                  <option value="customer">customer</option>
-                  <option value="creator">creator</option>
-                  <option value="admin">admin</option>
-                </select>
-              </label>
-              <label class="field">
                 <span>First name</span>
                 <input id="signupFirstName" type="text" autocomplete="given-name" />
                 <small id="signupFirstNameError" class="error"></small>
@@ -97,6 +89,7 @@
           <nav class="nav">
             <button class="nav-item active" data-view="addProductView" type="button" id="navAddProduct">Add Product</button>
             <button class="nav-item" data-view="productsView" type="button" id="navProductList">Product List</button>
+            <button class="nav-item hidden" data-view="sellerApplicationView" type="button" id="sellerApplicationNav">Become a seller</button>
             <button class="nav-item nav-bottom" data-view="settingsView" type="button" id="navSettings">Settings</button>
           </nav>
         </aside>
@@ -234,6 +227,35 @@
                   <small id="apiBaseUrlError" class="error"></small>
                 </label>
                 <button class="btn primary" type="submit">Save</button>
+              </form>
+            </section>
+
+            <section id="sellerApplicationView" class="panel view">
+              <div class="panel-head">
+                <div>
+                  <h2>Become a seller</h2>
+                  <p class="muted">Tell us about your store. An admin reviews every application before seller access is enabled.</p>
+                </div>
+                <span id="sellerApplicationStatusBadge" class="status-stamp muted">not started</span>
+              </div>
+              <p id="sellerApplicationMessage" class="muted">Complete the form to apply to become a seller.</p>
+              <form id="sellerApplicationForm" class="form-grid" novalidate>
+                <label class="field full"><span>Store name *</span><input id="sellerStoreName" type="text" /></label>
+                <label class="field full"><span>Store description *</span><textarea id="sellerStoreDescription" rows="4"></textarea></label>
+                <label class="field"><span>Category *</span><input id="sellerCategory" type="text" /></label>
+                <label class="field"><span>Product types *</span><input id="sellerProductTypes" type="text" placeholder="PDFs, templates, prompts" /></label>
+                <label class="field"><span>Legal name *</span><input id="sellerLegalName" type="text" /></label>
+                <label class="field"><span>Country *</span><input id="sellerCountry" type="text" /></label>
+                <label class="field"><span>Phone number *</span><input id="sellerPhoneNumber" type="tel" /></label>
+                <label class="field"><span>Website</span><input id="sellerWebsiteUrl" type="url" /></label>
+                <label class="field full"><span>Portfolio link</span><input id="sellerPortfolioUrl" type="url" /></label>
+                <label class="switch-row full"><input id="sellerTermsAccepted" type="checkbox" /><span>I accept the seller terms and marketplace policies *</span></label>
+                <small id="sellerApplicationError" class="error full"></small>
+                <div class="form-actions full">
+                  <button class="btn secondary" type="submit">Save draft</button>
+                  <button id="sellerApplicationSubmit" class="btn primary" type="button">Submit application</button>
+                  <button id="sellerApplicationWithdraw" class="btn danger ghost hidden" type="button">Withdraw</button>
+                </div>
               </form>
             </section>
           </main>
