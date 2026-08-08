@@ -69,6 +69,17 @@ def verify_access_token(token):
     return user, payload
 
 
+def verify_delivery_token(token):
+    if not token:
+        raise AuthError("Asset delivery token required")
+    return jwt.decode(
+        token,
+        _get_public_key(),
+        algorithms=["EdDSA"],
+        options={"require": ["sub", "asset_uuid", "order_uuid", "download_url", "exp", "iat"]},
+    )
+
+
 def get_bearer_token():
     header = request.headers.get("Authorization", "")
     if header.lower().startswith("bearer "):

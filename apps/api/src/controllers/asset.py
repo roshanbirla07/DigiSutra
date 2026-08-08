@@ -1,11 +1,11 @@
 import json
 import logging
 
-from flask import Response, request
+from flask import g, Response, request
 from flask.views import View
 
 from serializers.assetSerializers import AssetSerializer
-from utils.auth import require_auth
+from utils.auth import require_auth, verify_delivery_token
 from utils.user import schema_validation
 
 
@@ -42,8 +42,16 @@ class AssetDownloadLog(View):
     @require_auth(methods=["POST"])
     def dispatch_request(self, asset_uuid, *args, **kwargs):
         payload = request.get_json(silent=True) or {}
+        delivery_token = request.headers.get("X-Asset-Delivery-Token")
         serializer = AssetSerializer(payload)
         try:
+            delivery_claims = verify_delivery_token(delivery_token)
+            if delivery_claims.get("sub") != g.user.uuid:
+                raise ValueError("Delivery token user mismatch")
+            if delivery_claims.get("asset_uuid") != asset_uuid:
+                raise ValueError("Delivery token asset mismatch")
+            if delivery_claims.get("order_uuid") != payload.get("order_uuid"):
+                raise ValueError("Delivery token order mismatch")
             download = serializer.log_download(asset_uuid, payload)
         except Exception as e:
             logging.error(f"Asset download log error :: {e} :: {payload}")
