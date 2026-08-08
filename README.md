@@ -79,6 +79,16 @@ Role intent:
 - `POST /v1/moderation/product-flags/<flag_uuid>/resolve/` - resolve a product flag as admin
 - `POST /v1/moderation/users/<user_uuid>/suspend/` - suspend a user as admin
 - `POST /v1/moderation/users/<user_uuid>/activate/` - reactivate a user as admin
+- `GET /v1/seller-applications/` - get the authenticated customer's seller application
+- `POST /v1/seller-applications/` - save a seller application draft
+- `PATCH /v1/seller-applications/` - update a seller application draft
+- `POST /v1/seller-applications/submit/` - submit a seller application for review
+- `POST /v1/seller-applications/<application_uuid>/withdraw/` - withdraw an application
+- `GET /v1/admin/seller-applications/` - list seller applications as admin
+- `GET /v1/admin/seller-applications/<application_uuid>/` - view an application as admin
+- `POST /v1/admin/seller-applications/<application_uuid>/request-information/` - request more information
+- `POST /v1/admin/seller-applications/<application_uuid>/reject/` - reject an application
+- `POST /v1/admin/seller-applications/<application_uuid>/approve/` - approve and promote the customer to seller
 - `POST /v1/payments/orders/` - create a Razorpay order for an internal ledger order
 - `POST /v1/payments/confirm/` - verify checkout signature and mark payment paid
 - `POST /v1/payments/webhook/razorpay/` - process Razorpay payment webhooks idempotently
@@ -91,7 +101,8 @@ inactive users, tampered delivery data, and replay handling. Running those
 tests still requires the API dependencies and a working test environment.
 
 The next release-blocking work is to align the web authentication contract,
-keep public signup customer-only, add controlled customer-to-seller approval,
+keep public signup customer-only, complete the admin review UI for the
+customer-to-seller approval workflow,
 protect the final CloudFront delivery URL, connect provider refunds, verify
 completed uploads, and add production payment/operations safeguards.
 
@@ -178,6 +189,21 @@ Optional access policy values:
 - `ASSET_DELIVERY_TOKEN_TTL_SECONDS`
 
 ## Roadmap
+
+### Seller onboarding workflow
+
+Seller access is granted through a controlled application lifecycle:
+
+```text
+customer -> draft -> submitted -> under review
+                              -> needs information -> submitted
+                              -> approved -> seller
+                              -> rejected or withdrawn
+```
+
+Public signup always creates a customer. Admin approval atomically changes the
+user role to `seller` and creates a seller profile. Pending applicants cannot
+use seller product, payout, or dashboard endpoints.
 
 ### Phase 1: Core marketplace foundation
 - user signup and login
