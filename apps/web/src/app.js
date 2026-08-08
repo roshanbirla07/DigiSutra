@@ -1,323 +1,43 @@
-import { createAuthController } from "./controllers/authController.js";
-import { createDashboardController } from "./controllers/dashboardController.js";
-import { createProductController } from "./controllers/productController.js";
-import { createSettingsController } from "./controllers/settingsController.js";
-import { createSellerApplicationController } from "./controllers/sellerApplicationController.js";
-import { createAdminSellerController } from "./controllers/adminSellerController.js";
-import { getRoutes, resolveRoute } from "./routes/index.js";
+import { APP, API_PATHS, ROUTES } from "./constants/app.js";
+import { createApi, isSellerOrAdmin } from "./services/api.js";
+import { readSession, writeSession } from "./services/storage.js";
+import * as view from "./views/marketplace.js";
 
 export function createApp() {
-  let authController;
-  let dashboardController;
-  let productController;
-  let settingsController;
-  let sellerApplicationController;
-  let adminSellerController;
+  const root = document.getElementById("app");
+  const state = { session: readSession(), products: [], query: "", category: "all" };
+  const api = createApi({ onUnauthorized: () => { state.session = null; navigate(ROUTES.auth, true); toast("Your session expired. Please sign in again."); } });
 
-  const state = {
-    apiBaseUrl: localStorage.getItem("digisutra_api_base_url") || "http://localhost:5000",
-    session: JSON.parse(localStorage.getItem("digisutra_session") || "null"),
-    activeAuthTab: "login",
-    profileOpen: false,
-    products: [],
-    content: null,
-    sellerApplicationUuid: null,
-  };
-
-  const $ = (id) => document.getElementById(id);
-
-  function escapeHtml(value) {
-    return String(value ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
-  }
-
-  function toast(message) {
-    const host = $("toastHost");
-    const node = document.createElement("div");
-    node.className = "toast";
-    node.textContent = message;
-    host.appendChild(node);
-    requestAnimationFrame(() => node.classList.add("show"));
-    setTimeout(() => {
-      node.classList.remove("show");
-      setTimeout(() => node.remove(), 220);
-    }, 2200);
-  }
-
-  function setError(id, message = "") {
-    $(id).textContent = message;
-  }
-
-  function clearErrors(...ids) {
-    ids.forEach((id) => setError(id, ""));
-  }
-
-  function formatPrice(currency, price) {
-    const value = typeof price === "string" ? price : Number(price).toFixed(2);
-    return `${currency || "INR"} ${value}`;
-  }
-
-  function formatDate(value) {
-    if (!value) return "-";
-    const date = new Date(value);
-    return Number.isNaN(date.getTime())
-      ? "-"
-      : new Intl.DateTimeFormat("en-IN", {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        }).format(date);
-  }
-
-  function initialForName(name) {
-    return (name || "U").trim().charAt(0).toUpperCase() || "U";
-  }
-
-  function api(path, options = {}) {
-    const authHeaders = state.session?.token
-      ? { Authorization: `Bearer ${state.session.token}` }
-      : {};
-    return fetch(`${state.apiBaseUrl}${path}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders,
-        ...(options.headers || {}),
-      },
-      ...options,
-    }).then(async (response) => {
-      const text = await response.text();
-      let data = {};
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        data = { raw: text };
-      }
-      if (!response.ok) {
-        if ((response.status === 401 || response.status === 403) && state.session && path !== "/v1/users/login/") {
-          setSession(null);
-          window.history.replaceState({}, "", "/auth");
-          handleRoute();
-        }
-        throw new Error(data?.error || response.statusText || "Request failed");
-      }
-      return data;
-    });
-  }
-
-  function loadContent() {
-    return fetch("./content.json").then(async (response) => {
-      if (!response.ok) {
-        throw new Error("Unable to load dashboard content");
-      }
-      state.content = await response.json();
-    });
-  }
-
-  function applyContent() {
-    const content = state.content;
-    if (!content) return;
-
-    $("brandName").textContent = content.brand.name;
-    $("authTitle").textContent = content.brand.authTitle;
-    $("authLede").textContent = content.brand.authLede;
-    $("authFootnote").textContent = content.brand.footnote;
-    $("sidebarBrand").textContent = content.brand.name;
-    $("sidebarTagline").textContent = content.brand.tagline;
-    $("dashboardLabel").textContent = content.navigation.home;
-    $("navAddProduct").textContent = content.navigation.addProduct;
-    $("navProductList").textContent = content.navigation.productList;
-    $("navSettings").textContent = content.navigation.settings;
-    $("homeTitle").textContent = content.home.title;
-    $("homeLede").textContent = content.home.lede;
-    $("pageTitle").textContent = content.home.title;
-    $("profileMenuEmail").textContent = content.placeholders.emptyEmail;
-
-    const [card0, card1, card2] = content.home.cards;
-    $("homeCardTitle0").textContent = card0.title;
-    $("homeCardBody0").textContent = card0.body;
-    $("homeCardTitle1").textContent = card1.title;
-    $("homeCardItems1").innerHTML = (card1.items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
-    $("homeCardTitle2").textContent = card2.title;
-    $("homeCardItems2").innerHTML = (card2.items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
-  }
-
-  function showScreen(screen) {
-    $("authScreen").classList.toggle("hidden", screen !== "auth");
-    $("dashboardScreen").classList.toggle("hidden", screen !== "dashboard");
-  }
-
-  function setActiveView(viewId) {
-    document.querySelectorAll(".view").forEach((view) => {
-      view.classList.toggle("active", view.id === viewId);
-    });
-    document.querySelectorAll(".nav-item").forEach((button) => {
-      button.classList.toggle("active", button.dataset.view === viewId);
-    });
-  }
-
-  function navigate(path) {
-    const target = path || "/dashboard";
-    if (window.location.pathname !== target) {
-      window.history.pushState({}, "", target);
+  function toast(message) { const host = document.getElementById("toastHost"); const node = document.createElement("div"); node.className = "toast"; node.textContent = message; host.append(node); requestAnimationFrame(() => node.classList.add("show")); window.setTimeout(() => { node.classList.remove("show"); window.setTimeout(() => node.remove(), 200); }, 2600); }
+  function setSession(session) { state.session = session; writeSession(session); }
+  function navigate(path, replace = false) { if (replace) window.history.replaceState({}, "", path); else window.history.pushState({}, "", path); render(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function route() { const match = window.location.pathname.match(/^\/products\/([^/]+)$/); if (match) return { name: "detail", uuid: decodeURIComponent(match[1]) }; return { name: window.location.pathname.replace(/\/$/, "") || ROUTES.home }; }
+  async function loadProducts() { state.products = await api.request(API_PATHS.products); }
+  async function render() {
+    const current = route();
+    if (current.name === ROUTES.auth) { root.innerHTML = view.auth({ mode: new URLSearchParams(window.location.search).get("mode") || "login" }); return; }
+    if (current.name === ROUTES.home || current.name === ROUTES.catalog) {
+      try { await loadProducts(); } catch (error) { root.innerHTML = view.catalog({ session: state.session, products: [], query: state.query, category: state.category }); toast(error.message); return; }
+      const products = state.products.filter((p) => (state.category === "all" || p.category === state.category) && (!state.query || `${p.title} ${p.description} ${p.category}`.toLowerCase().includes(state.query.toLowerCase())));
+      root.innerHTML = current.name === ROUTES.home ? view.home({ session: state.session, products }) : view.catalog({ session: state.session, products, query: state.query, category: state.category }); return;
     }
-    handleRoute();
+    if (current.name === "detail") { try { root.innerHTML = view.detail({ session: state.session, product: await api.request(API_PATHS.product(current.uuid)) }); } catch { root.innerHTML = view.detail({ session: state.session, product: null }); } return; }
+    if (!state.session) { navigate(ROUTES.auth, true); return; }
+    try {
+      if (current.name === ROUTES.library) root.innerHTML = view.library({ session: state.session, purchases: await api.request(API_PATHS.purchases) });
+      else if (current.name === ROUTES.seller && isSellerOrAdmin(state.session)) { const [summary, products] = await Promise.all([api.request(API_PATHS.dashboard), api.request(API_PATHS.ownedProducts)]); root.innerHTML = view.seller({ session: state.session, summary, products }); }
+      else if (current.name === ROUTES.sellerProducts && isSellerOrAdmin(state.session)) root.innerHTML = view.sellerProducts({ session: state.session, products: await api.request(API_PATHS.ownedProducts) });
+      else if (current.name === ROUTES.sellerProductNew && isSellerOrAdmin(state.session)) root.innerHTML = view.sellerProductNew({ session: state.session });
+      else if (current.name === ROUTES.sellerPayouts && isSellerOrAdmin(state.session)) root.innerHTML = view.sellerPayouts({ session: state.session, summary: await api.request(API_PATHS.payoutSummary) });
+      else { root.innerHTML = view.home({ session: state.session, products: state.products }); }
+    } catch (error) { root.innerHTML = `<main class="page"><div class="not-found"><h1>Could not load this workspace.</h1><p>${error.message}</p><a class="button button-primary" href="${ROUTES.home}" data-link>Go home</a></div></main>`; }
   }
-
-  function handleRoute() {
-    const routes = getRoutes({ authController, dashboardController, productController, settingsController });
-    let route = resolveRoute(window.location.pathname || "/auth", routes);
-    if (!route) return;
-
-    if (!state.session && route.path !== "/auth") {
-      window.history.replaceState({}, "", "/auth");
-      route = resolveRoute("/auth", routes);
-    } else if (state.session && route.path === "/auth") {
-      window.history.replaceState({}, "", "/dashboard");
-      route = resolveRoute("/dashboard", routes);
-    }
-
-    showScreen(route.screen);
-    if (route.view) setActiveView(route.view);
-    if (route.title) $("pageTitle").textContent = route.title;
-    route.enter?.();
-  }
-
-  function setSession(session) {
-    state.session = session;
-    if (session) {
-      localStorage.setItem("digisutra_session", JSON.stringify(session));
-    } else {
-      localStorage.removeItem("digisutra_session");
-    }
-
-    const name = session?.first_name || session?.username || "Guest";
-    const role = session?.user_type || "No session";
-    const email = session?.email || state.content?.placeholders?.emptyEmail || "-";
-    const avatar = initialForName(name);
-
-    $("profileAvatar").textContent = avatar;
-    $("profileName").textContent = name;
-    $("profileRole").textContent = role;
-    $("profileMenuName").textContent = name;
-    $("profileMenuEmail").textContent = email;
-    $("ownerName").textContent = name;
-    $("ownerSeal").textContent = avatar;
-    $("sellerApplicationNav")?.classList.toggle("hidden", session?.user_type !== "customer");
-    $("adminSellerApplicationsNav")?.classList.toggle("hidden", session?.user_type !== "admin");
-  }
-
-  function openProfileMenu() {
-    state.profileOpen = true;
-    $("profileMenu").classList.remove("hidden");
-    $("profileButton").setAttribute("aria-expanded", "true");
-  }
-
-  function closeProfileMenu() {
-    state.profileOpen = false;
-    $("profileMenu").classList.add("hidden");
-    $("profileButton").setAttribute("aria-expanded", "false");
-  }
-
-  function toggleProfileMenu() {
-    state.profileOpen ? closeProfileMenu() : openProfileMenu();
-  }
-
-  function renderProducts() {
-    const list = $("productsList");
-    const empty = $("productsEmpty");
-    if (!state.products.length) {
-      list.innerHTML = "";
-      empty.classList.remove("hidden");
-      return;
-    }
-
-    empty.classList.add("hidden");
-    list.innerHTML = state.products
-      .map((product, index) => {
-        const description = product.description ? product.description : "No description provided.";
-        const truncated = description.length > 110 ? `${description.slice(0, 110).trim()}...` : description;
-        return `
-          <article class="product-row" data-uuid="${escapeHtml(product.uuid)}">
-            <div class="row-index">${index + 1}</div>
-            <div class="row-main">
-              <div class="row-title">${escapeHtml(product.title)}</div>
-              <div class="row-description">${escapeHtml(truncated)}</div>
-            </div>
-            <div class="row-meta">
-              <span>${escapeHtml(product.category || "-")}</span>
-              <span class="status-stamp ${product.is_active ? "sage" : "muted"}">${product.is_active ? "Active" : "Draft"}</span>
-              <span class="status-stamp ${product.is_public ? "sage" : "muted"}">${product.is_public ? "Public" : "Private"}</span>
-            </div>
-            <div class="row-price">${escapeHtml(formatPrice(product.currency, product.price))}</div>
-            <div class="row-owner">${escapeHtml(product.owner_username || "-")}</div>
-            <div class="row-date">${escapeHtml(formatDate(product.created_on))}</div>
-            <div class="row-actions">
-              <button class="btn danger ghost delete-product" data-uuid="${escapeHtml(product.uuid)}" type="button">Delete</button>
-            </div>
-          </article>
-        `;
-      })
-      .join("");
-  }
-
-  async function loadProducts() {
-    state.products = await api("/v1/products/");
-    renderProducts();
-  }
-
-  return {
-    state,
-    $,
-    api,
-    toast,
-    setError,
-    clearErrors,
-    escapeHtml,
-    formatPrice,
-    formatDate,
-    initialForName,
-    loadContent,
-    applyContent,
-    showScreen,
-    setActiveView,
-    navigate,
-    setSession,
-    openProfileMenu,
-    closeProfileMenu,
-    toggleProfileMenu,
-    renderProducts,
-    loadProducts,
-    bind() {
-      authController = createAuthController(this);
-      dashboardController = createDashboardController(this);
-      productController = createProductController(this);
-      settingsController = createSettingsController(this);
-      sellerApplicationController = createSellerApplicationController(this);
-      adminSellerController = createAdminSellerController(this);
-
-      authController.bind();
-      dashboardController.bind();
-      productController.bind();
-      settingsController.bind();
-      sellerApplicationController.bind();
-      adminSellerController.bind();
-      window.addEventListener("popstate", handleRoute);
-      setSession(state.session);
-      if (window.location.pathname === "/") {
-        window.history.replaceState({}, "", state.session ? "/dashboard" : "/auth");
-      }
-      handleRoute();
-    },
-    async init() {
-      await loadContent();
-      applyContent();
-      this.bind();
-    },
-  };
+  async function submitAuth(form) { const mode = form.dataset.mode; const data = Object.fromEntries(new FormData(form).entries()); const errorNode = form.querySelector("[data-form-error]"); errorNode.textContent = ""; try { if (mode === "signup") { await api.request(API_PATHS.signup, { method: "POST", body: JSON.stringify({ ...data, firstname: data.first_name, lastname: data.last_name }) }); } const session = await api.request(API_PATHS.login, { method: "POST", body: JSON.stringify({ username: data.username, password: data.password }) }); setSession(session); navigate(session.user_type === APP.roles.customer ? ROUTES.library : ROUTES.seller, true); } catch (error) { errorNode.textContent = error.message; } }
+  root.addEventListener("click", async (event) => { const link = event.target.closest("[data-link]"); if (link) { event.preventDefault(); navigate(link.getAttribute("href")); return; } const tab = event.target.closest("[data-auth-mode]"); if (tab) { navigate(`${ROUTES.auth}?mode=${tab.dataset.authMode}`); return; } const buy = event.target.closest("[data-buy-product]"); if (buy) { if (!state.session) { navigate(`${ROUTES.auth}?mode=login`); return; } toast("Checkout is ready for the payment integration."); } });
+  root.addEventListener("submit", async (event) => { if (event.target.matches("[data-auth-form]")) { event.preventDefault(); await submitAuth(event.target); } if (event.target.matches("[data-catalog-form]")) { event.preventDefault(); const data = new FormData(event.target); state.query = String(data.get("q") || "").trim(); state.category = String(data.get("category") || "all"); await render(); } });
+  root.addEventListener("submit", async (event) => { if (!event.target.matches("[data-product-form]")) return; event.preventDefault(); const form = event.target; const errorNode = form.querySelector("[data-form-error]"); errorNode.textContent = ""; const data = Object.fromEntries(new FormData(form).entries()); try { await api.request(API_PATHS.products, { method: "POST", body: JSON.stringify(data) }); toast("Product created"); navigate(ROUTES.sellerProducts, true); } catch (error) { errorNode.textContent = error.message; } });
+  window.addEventListener("popstate", render);
+  return { init: render };
 }
+
+createApp().init();

@@ -1,3 +1,5 @@
+import { APP } from "../constants/app.js";
+
 export function createSettingsController(app) {
   function bind() {
     app.$("apiBaseUrl").value = app.state.apiBaseUrl;
@@ -10,7 +12,7 @@ export function createSettingsController(app) {
         return;
       }
       app.state.apiBaseUrl = value;
-      localStorage.setItem("digisutra_api_base_url", value);
+      localStorage.setItem(APP.storageKeys.apiBaseUrl, value);
       app.toast("Settings saved");
     });
   }

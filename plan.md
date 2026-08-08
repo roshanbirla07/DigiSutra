@@ -259,6 +259,65 @@ Routes:
 - Add confirmation dialogs for approval, rejection, suspension, payout retry,
   and other irreversible actions.
 
+## Frontend Implementation Status
+
+The frontend implementation is being rebuilt around the marketplace product
+flow while preserving the current static SPA and `apps/web/server.py` server.
+The implementation must remain thin: the browser renders server state,
+collects input, and calls the API; it must not become a second business layer.
+
+### Frontend structure rules
+
+- Keep runtime configuration in `apps/web/src/config/`.
+- Keep route names, API paths, roles, labels, storage keys, and UI defaults in
+  `apps/web/src/constants/`.
+- Keep HTTP/session behavior in `apps/web/src/services/`.
+- Keep screen rendering in `apps/web/src/views/` and keep `src/app.js` focused
+  on orchestration, routing, and shared state.
+- Do not hard-code API URLs, roles, route strings, currency defaults, or status
+  labels inside controllers or templates.
+- Do not calculate platform fees, taxes, balances, refunds, payouts, or order
+  state in the client. Display values returned by the backend.
+- Escape server-provided content before inserting it into HTML.
+- Treat local storage as a session cache only; authorization remains backend
+  enforced.
+
+### FE-09: Marketplace shell and shared frontend foundation
+
+- Replace the creator-only shell with a responsive marketplace shell that can
+  render public catalog pages and authenticated workspaces.
+- Add central config/constants modules and a single API client with bearer
+  attachment, JSON parsing, timeout handling, and consistent 401/403 clearing.
+- Add shared loading, empty, error, toast, currency, date, and escaping helpers.
+- Keep the existing Python static server and ES-module browser runtime.
+
+### FE-10: Marketplace discovery implementation
+
+- Implement `/`, `/catalog`, and `/products/:productUuid` using the public
+  product endpoint.
+- Add search/category/sort UI state without assuming server-side filtering is
+  available; pass query parameters only when the API supports them.
+- Render product cover placeholders safely when image metadata is unavailable.
+- Provide a guest-safe sign-in path and role-aware account actions.
+
+### FE-11: Authenticated customer and seller workspace
+
+- Implement `/library`, `/seller`, `/seller/products`, and `/seller/payouts`
+  against the existing purchase, dashboard, product, and payout endpoints.
+- Preserve seller onboarding and admin seller-review routes already supported by
+  the backend.
+- Keep product creation restricted by backend response and expose seller
+  actions only as UX affordances.
+
+### FE-12: Validation and handoff
+
+- Validate JavaScript syntax for every module.
+- Smoke-test the static server and SPA fallback routes.
+- Verify that no frontend module contains a hard-coded API base URL or business
+  calculation.
+- Update `apps/web/README.md` with the module layout, configuration contract,
+  route map, and local run instructions.
+
 ### FE-09: Responsive, accessibility, and release pass
 
 - Support desktop sidebar, tablet condensed navigation, and mobile stacked
