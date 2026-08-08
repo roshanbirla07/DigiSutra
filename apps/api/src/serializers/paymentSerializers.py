@@ -1,10 +1,11 @@
+import datetime
 from decimal import Decimal
 
 from werkzeug.exceptions import HTTPException
 from flask import g
 
 from configuration.db_routing import db, session_rollback
-from models.ledger import MarketplaceOrder, ProductAccess, SellerBalance
+from models.ledger import MarketplaceOrder, ProductAccess, RefundRecord, SellerBalance
 from services.razorpay_gateway import RazorpayGateway
 
 
@@ -126,6 +127,35 @@ class PaymentSerializer(object):
     @session_rollback(db)
     def process_webhook_event(self, payload, raw_body):
         event = payload.get("event")
+        if event in {"refund.processed", "refund.failed"}:
+            signature = payload.get("x_razorpay_signature") or self.data.get("x_razorpay_signature")
+            if signature and not self.gateway.verify_webhook_signature(raw_body, signature):
+                raise PaymentInputError("Webhook signature mismatch")
+            entity = payload.get("payload", {}).get("refund", {}).get("entity", {})
+            payment_id = entity.get("payment_id")
+            refund_id = entity.get("id")
+            if not payment_id or not refund_id:
+                raise PaymentInputError("Refund webhook missing provider identifiers")
+            order = MarketplaceOrder.query.filter_by(provider_payment_id=payment_id).first()
+            if not order:
+                raise PaymentInputError("Marketplace order not found for refund webhook")
+            refund = RefundRecord.query.filter_by(provider_refund_id=refund_id).first()
+            if not refund:
+                refund = RefundRecord.query.filter_by(order_id=order.id).first()
+            if not refund:
+                raise PaymentInputError("Refund record not found for webhook")
+            refund.provider_refund_id = refund_id
+            refund.provider_status = entity.get("status") or event.rsplit(".", 1)[-1]
+            if event == "refund.processed" and refund.status != "processed":
+                refund.status = "processed"
+                refund.resolved_on = datetime.datetime.utcnow()
+                order.payment_status = "refunded"
+                order.delivery_status = "revoked"
+                order.refund_status = "processed"
+            elif event == "refund.failed":
+                refund.failure_reason = entity.get("error_description") or "Provider refund failed"
+            db.session.commit()
+            return order
         if event not in {"payment.captured", "order.paid"}:
             return None
 

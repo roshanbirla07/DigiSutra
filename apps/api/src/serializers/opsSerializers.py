@@ -24,6 +24,9 @@ class OpsSerializer(object):
             "status": refund.status,
             "amount": str(refund.amount),
             "reason": refund.reason,
+            "provider_refund_id": refund.provider_refund_id,
+            "provider_status": refund.provider_status,
+            "failure_reason": refund.failure_reason,
             "created_on": refund.created_on.isoformat() if refund.created_on else None,
         }
 

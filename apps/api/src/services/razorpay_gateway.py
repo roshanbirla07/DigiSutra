@@ -51,6 +51,14 @@ class RazorpayGateway(object):
             payload["notes"] = notes
         return self._request("POST", "/orders", payload)
 
+    def create_refund(self, payment_id, amount, currency="INR", notes=None):
+        if not payment_id:
+            raise RazorpayGatewayError("Razorpay payment id is required for refund")
+        payload = {"amount": int(amount), "currency": currency}
+        if notes:
+            payload["notes"] = notes
+        return self._request("POST", f"/payments/{payment_id}/refund", payload)
+
     def mode(self):
         return str(PAYMENT_MODE or "test").lower()
 

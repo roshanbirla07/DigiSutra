@@ -12,6 +12,7 @@ from configuration.db_routing import db, session_rollback
 from models.ledger import MarketplaceOrder, ProductAccess, RefundRecord, SellerBalance
 from models.product import Product
 from models.user import User
+from services.razorpay_gateway import RazorpayGateway, RazorpayGatewayError
 from utils.constants import USER_TYPE
 
 
@@ -31,6 +32,7 @@ class LedgerSerializer(object):
 
     def __init__(self, data=None):
         self.data = data or {}
+        self.gateway = RazorpayGateway()
 
     def _validate_order_state(self, payment_status, delivery_status, refund_status):
         if payment_status not in self.ORDER_PAYMENT_STATES:
@@ -126,6 +128,9 @@ class LedgerSerializer(object):
             "created_on": refund.created_on.isoformat() if refund.created_on else None,
             "modified_on": refund.modified_on.isoformat() if refund.modified_on else None,
             "resolved_on": refund.resolved_on.isoformat() if refund.resolved_on else None,
+            "provider_refund_id": refund.provider_refund_id,
+            "provider_status": refund.provider_status,
+            "failure_reason": refund.failure_reason,
         }
 
     def _serialize_access_record(self, access_record):
@@ -311,6 +316,23 @@ class LedgerSerializer(object):
             reason=validated_data.get("reason"),
             resolved_on=datetime.datetime.utcnow(),
         )
+        if refund_status == "processed" and order.provider == "razorpay" and order.provider_payment_id:
+            try:
+                provider_refund = self.gateway.create_refund(
+                    payment_id=order.provider_payment_id,
+                    amount=int(refund_amount * 100),
+                    currency=order.product.currency or "INR",
+                    notes={"marketplace_order_uuid": order.uuid, "refund_uuid": refund.uuid},
+                )
+            except RazorpayGatewayError as exc:
+                refund.status = "approved"
+                refund.failure_reason = str(exc)
+                refund.resolved_on = None
+                db.session.add(refund)
+                db.session.commit()
+                return refund
+            refund.provider_refund_id = provider_refund.get("id")
+            refund.provider_status = provider_refund.get("status") or "created"
         db.session.add(refund)
 
         if refund_status == "processed":

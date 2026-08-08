@@ -93,6 +93,9 @@ class RefundRecord(db.Model):
     created_on = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     modified_on = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     resolved_on = db.Column(db.DateTime)
+    provider_refund_id = db.Column(db.String(100), unique=True)
+    provider_status = db.Column(db.String(50))
+    failure_reason = db.Column(db.Text)
 
     __table_args__ = (
         db.Index("refund_record_uuid_idx", uuid),
