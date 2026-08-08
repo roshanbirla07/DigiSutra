@@ -1,7 +1,10 @@
 import os
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+
+from flask import Flask
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
@@ -9,16 +12,23 @@ from serializers.supportSerializers import SupportInputError, SupportSerializer
 
 
 class SupportSerializerTests(unittest.TestCase):
+    def setUp(self):
+        self.app = Flask(__name__)
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+
+    def tearDown(self):
+        self.app_context.pop()
+
     def test_create_ticket_records_authenticated_user(self):
         user = MagicMock()
         user.id = 7
         user.uuid = "user::buyer"
         user.user_type = "customer"
 
-        with patch("serializers.supportSerializers.g") as g_mock, \
+        with patch("serializers.supportSerializers.g", new=SimpleNamespace(user=user)), \
                 patch("serializers.supportSerializers.SupportTicket") as ticket_model, \
                 patch("serializers.supportSerializers.db") as db_mock:
-            g_mock.user = user
             ticket = MagicMock()
             ticket.uuid = "ticket::1"
             ticket.created_by = user
@@ -51,10 +61,9 @@ class SupportSerializerTests(unittest.TestCase):
         target.uuid = "user::suspended"
         target.is_active = "true"
 
-        with patch("serializers.supportSerializers.g") as g_mock, \
+        with patch("serializers.supportSerializers.g", new=SimpleNamespace(user=admin)), \
                 patch("serializers.supportSerializers.User") as user_model, \
                 patch("serializers.supportSerializers.db") as db_mock:
-            g_mock.user = admin
             user_model.query.filter_by.return_value.first.return_value = target
             db_mock.session.commit = MagicMock()
 
@@ -70,8 +79,7 @@ class SupportSerializerTests(unittest.TestCase):
         user.id = 2
         user.user_type = "seller"
 
-        with patch("serializers.supportSerializers.g") as g_mock:
-            g_mock.user = user
+        with patch("serializers.supportSerializers.g", new=SimpleNamespace(user=user)):
             serializer = SupportSerializer()
             with self.assertRaises(SupportInputError):
                 serializer.set_user_active_state("user::suspended", False)

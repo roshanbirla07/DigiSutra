@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+from flask import Flask
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
@@ -9,6 +10,14 @@ from serializers.payoutSerializers import PayoutInputError, PayoutSerializer
 
 
 class PayoutSerializerTests(unittest.TestCase):
+    def setUp(self):
+        self.app = Flask(__name__)
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+
+    def tearDown(self):
+        self.app_context.pop()
+
     def test_create_payout_reduces_available_balance(self):
         seller = MagicMock()
         seller.id = 7
@@ -22,6 +31,7 @@ class PayoutSerializerTests(unittest.TestCase):
         seller_balance.currency = "INR"
         payout = MagicMock()
         payout.seller = seller
+        payout.amount = "100.00"
 
         with patch("serializers.payoutSerializers.User") as user_model, \
                 patch("serializers.payoutSerializers.SellerBalance") as seller_balance_model, \
