@@ -83,12 +83,12 @@ Role intent:
 - `POST /v1/payments/confirm/` - verify checkout signature and mark payment paid
 - `POST /v1/payments/webhook/razorpay/` - process Razorpay payment webhooks idempotently
 
-The remaining authorization hardening items are:
-
-- Delivery tokens need verification at their eventual consumption boundary,
-  including replay and cross-asset/cross-order checks.
-- Integration tests need to cover IDOR attempts, inactive users, and 401/403
-  responses across all protected routes.
+Delivery tokens are verified again at consumption, bound to the authenticated
+buyer and requested asset/order, and recorded as single-use credentials.
+Download counts are incremented only when a token is consumed. Authorization
+regression tests cover the protected route matrix, signup role stripping,
+inactive users, tampered delivery data, and replay handling. Running those
+tests still requires the API dependencies and a working test environment.
 
 ## Local Development
 

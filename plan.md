@@ -148,8 +148,9 @@ Status: implemented in the API; regression coverage remains in AUTH-07.
 ### AUTH-06: Bind asset delivery and download logging to one access policy
 
 Status: implemented; download identity and the download-log boundary are now
-bound to the authenticated user and a verified delivery token. Replay control
-remains limited to the existing access-expiry and download-count policy.
+bound to the authenticated user and a verified, single-use delivery token.
+Download counts are incremented at consumption time, and paid-order,
+asset/order, expiry, and access-limit checks are enforced at that boundary.
 
 - Keep delivery authorization tied to the authenticated buyer, paid order,
   matching product, granted access, expiry, and download limit.
@@ -161,15 +162,17 @@ remains limited to the existing access-expiry and download-count policy.
 
 ### AUTH-07: Add authorization regression coverage and web contract
 
-Status: implemented; focused tests are checked in, but execution requires the
-API dependencies and a working test environment.
+Status: implemented in code and focused/integration tests are checked in;
+execution requires the API dependencies and a working test environment.
 
 - Add tests for IDOR attempts across users, sellers, orders, products, assets,
   and payouts, including inactive accounts and role changes.
 - Document the frontend token-storage, 401, and 403 contract and update the
   static client to clear stale sessions on authentication failure.
 - Run the API test suite and verify the documented route matrix against the
-  registered Flask routes.
+  registered Flask routes. The test suite now includes the protected-route
+  matrix, signup role stripping, inactive-user login, and delivery-token
+  tampering/replay cases.
 - Commit message: `test(auth): cover authorization boundaries and client errors`
 
 ## Working Rules

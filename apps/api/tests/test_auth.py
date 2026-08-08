@@ -4,10 +4,12 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from flask import Flask
+import jwt
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from utils.auth import require_auth, verify_delivery_token
+from utils.auth import AuthError, require_auth, verify_delivery_token
+from serializers.userSerializers import IndefiniteUserProfileData, UserSerializer
 
 
 class AuthTests(unittest.TestCase):
@@ -20,8 +22,14 @@ class AuthTests(unittest.TestCase):
         self.assertEqual(decode.call_args.kwargs["algorithms"], ["EdDSA"])
         self.assertEqual(
             decode.call_args.kwargs["options"]["require"],
-            ["sub", "asset_uuid", "order_uuid", "download_url", "exp", "iat"],
+            ["jti", "sub", "asset_uuid", "order_uuid", "download_url", "exp", "iat"],
         )
+
+    def test_delivery_token_verification_normalizes_expired_tokens(self):
+        with patch("utils.auth._get_public_key", return_value="public-key"), \
+                patch("utils.auth.jwt.decode", side_effect=jwt.ExpiredSignatureError("expired")):
+            with self.assertRaises(AuthError):
+                verify_delivery_token("expired-token")
 
     def test_require_auth_rejects_missing_bearer_token(self):
         app = Flask(__name__)
@@ -50,6 +58,16 @@ class AuthTests(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 403)
+
+    def test_login_rejects_inactive_user(self):
+        inactive_user = MagicMock(is_active=False)
+
+        with patch("serializers.userSerializers.User") as user_model, \
+                patch("serializers.userSerializers.check_password_hash", return_value=True):
+            user_model.query.filter.return_value.first.return_value = inactive_user
+
+            with self.assertRaises(IndefiniteUserProfileData):
+                UserSerializer({"username": "inactive", "password": "password"}).login()
 
 
 if __name__ == "__main__":
