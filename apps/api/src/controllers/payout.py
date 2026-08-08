@@ -1,7 +1,7 @@
 import json
 import logging
 
-from flask import Response, request
+from flask import g, Response, request
 from flask.views import View
 
 from serializers.payoutSerializers import PayoutSerializer
@@ -12,11 +12,14 @@ from utils.user import schema_validation
 class PayoutCollection(View):
     methods = ["GET", "POST"]
 
-    @require_auth(roles=["seller", "admin"], methods=["POST"])
+    @require_auth(roles=["seller", "admin"], methods=["GET", "POST"])
     @schema_validation("PayoutCreate", methods=["POST"])
     def dispatch_request(self, *args, **kwargs):
         if request.method == "POST":
             payload = request.get_json(silent=True) or {}
+            user = getattr(g, "user", None)
+            if str(user.user_type).lower() == "seller":
+                payload["seller_uuid"] = user.uuid
             serializer = PayoutSerializer(payload)
             try:
                 payout = serializer.create()
@@ -35,7 +38,9 @@ class PayoutCollection(View):
             )
 
         serializer = PayoutSerializer()
-        payouts = serializer.list_payouts()
+        user = getattr(g, "user", None)
+        seller_id = None if str(user.user_type).lower() == "admin" else user.id
+        payouts = serializer.list_payouts(seller_id=seller_id)
         return Response(
             response=json.dumps([serializer.serialize_payout(payout) for payout in payouts]),
             status=200,

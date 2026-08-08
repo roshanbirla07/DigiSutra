@@ -73,8 +73,11 @@ class PayoutSerializer(object):
             payout.failure_reason = failure_reason or payout.failure_reason
         return payout
 
-    def list_payouts(self):
-        return SellerPayout.query.order_by(SellerPayout.created_on.desc()).all()
+    def list_payouts(self, seller_id=None):
+        query = SellerPayout.query
+        if seller_id is not None:
+            query = query.filter_by(seller_id=seller_id)
+        return query.order_by(SellerPayout.created_on.desc()).all()
 
     def list_retryable_payouts(self):
         return SellerPayout.query.filter_by(status="failed").order_by(SellerPayout.modified_on.desc()).all()
