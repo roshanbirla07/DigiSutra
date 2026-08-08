@@ -49,6 +49,15 @@ class AuthorizationIntegrationTests(unittest.TestCase):
             ("POST", "/v1/moderation/product-flags/flag::1/resolve/"),
             ("POST", "/v1/moderation/users/user::1/suspend/"),
             ("POST", "/v1/moderation/users/user::1/activate/"),
+            ("GET", "/v1/seller-applications/"),
+            ("POST", "/v1/seller-applications/submit/"),
+            ("PATCH", "/v1/seller-applications/"),
+            ("POST", "/v1/seller-applications/application::1/withdraw/"),
+            ("GET", "/v1/admin/seller-applications/"),
+            ("GET", "/v1/admin/seller-applications/application::1/"),
+            ("POST", "/v1/admin/seller-applications/application::1/request-information/"),
+            ("POST", "/v1/admin/seller-applications/application::1/reject/"),
+            ("POST", "/v1/admin/seller-applications/application::1/approve/"),
         ]
 
         for method, path in protected_routes:
@@ -61,6 +70,17 @@ class AuthorizationIntegrationTests(unittest.TestCase):
         with patch("utils.auth.verify_access_token", return_value=(customer, {})):
             response = self.client.get(
                 "/v1/users/",
+                headers={"Authorization": "Bearer customer-token"},
+            )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_application_endpoints_reject_customer(self):
+        customer = SimpleNamespace(user_type="customer")
+
+        with patch("utils.auth.verify_access_token", return_value=(customer, {})):
+            response = self.client.get(
+                "/v1/admin/seller-applications/",
                 headers={"Authorization": "Bearer customer-token"},
             )
 
