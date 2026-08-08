@@ -31,6 +31,12 @@ The current backend already includes:
 
 The current frontend is a static client that talks to the Flask API.
 
+Authentication is implemented with EdDSA-signed bearer tokens and route-level
+role guards. The main resource-ownership and collection-scoping checks are now
+implemented in the API; integration regression coverage and delivery-token
+consumption hardening remain. See [plan.md](plan.md#authorization-completion-subtasks)
+for the remaining subtasks and commit messages.
+
 ## Roles
 
 Current role types in the codebase:
@@ -47,22 +53,25 @@ Role intent:
 
 - `POST /v1/users/` - create a user
 - `POST /v1/users/login/` - login with username and password
-- `GET /v1/users/` - list users
+- `GET /v1/users/` - list users (admin only)
 - `GET /v1/products/` - list public active products
 - `POST /v1/products/` - create a product for a seller or admin owner
 - `GET /v1/products/<product_uuid>/` - fetch a public active product by uuid
 - `POST /v1/assets/upload-target/` - create a product asset and return a presigned upload URL
 - `POST /v1/assets/<asset_uuid>/deliver/` - authorize a download for a purchased asset and return a short-lived delivery token
-- `POST /v1/assets/<asset_uuid>/downloads/` - log a product asset download
-- `GET /v1/ledger/orders/` - list marketplace ledger orders
+- `POST /v1/assets/<asset_uuid>/downloads/` - log a product asset download (requires `X-Asset-Delivery-Token`)
+- `GET /v1/ledger/orders/` - list marketplace ledger orders (buyer/seller scoped, admin all)
 - `GET /v1/ledger/purchases/` - list the authenticated buyer's purchase history
 - `GET /v1/dashboard/summary/` - get a seller or admin dashboard summary
 - `GET /v1/ops/reconciliation-summary/` - get admin-facing reconciliation risk buckets
+- `GET /v1/payouts/` - list payouts (seller-scoped, admin all)
+- `POST /v1/payouts/` - create a payout record for a seller or admin
+- `POST /v1/payouts/batch/` - process a payout batch as admin
 - `POST /v1/payouts/<payout_uuid>/retry/` - retry a failed payout as admin
 - `GET /v1/payouts/reconciliation-summary/` - get payout reconciliation details for admin
-- `GET /v1/ledger/orders/<order_uuid>/` - fetch a marketplace ledger order by uuid
-- `POST /v1/ledger/orders/` - create a marketplace ledger order
-- `POST /v1/ledger/orders/<order_uuid>/` - create a refund for an order
+- `GET /v1/ledger/orders/<order_uuid>/` - fetch a marketplace ledger order by uuid (buyer, seller, or admin)
+- `POST /v1/ledger/orders/` - create a marketplace ledger order (authenticated buyer identity enforced)
+- `POST /v1/ledger/orders/<order_uuid>/` - create a refund for an order (buyer or admin)
 - `GET /v1/support/tickets/` - list support tickets for the authenticated user, or all tickets for admin
 - `POST /v1/support/tickets/` - create a support ticket
 - `POST /v1/support/tickets/<ticket_uuid>/resolve/` - resolve a support ticket as admin
@@ -73,6 +82,13 @@ Role intent:
 - `POST /v1/payments/orders/` - create a Razorpay order for an internal ledger order
 - `POST /v1/payments/confirm/` - verify checkout signature and mark payment paid
 - `POST /v1/payments/webhook/razorpay/` - process Razorpay payment webhooks idempotently
+
+The remaining authorization hardening items are:
+
+- Delivery tokens need verification at their eventual consumption boundary,
+  including replay and cross-asset/cross-order checks.
+- Integration tests need to cover IDOR attempts, inactive users, and 401/403
+  responses across all protected routes.
 
 ## Local Development
 
@@ -226,7 +242,9 @@ Optional access policy values:
 - seller payout logic must not be mixed with buyer payment collection logic
 - dashboard views must read from internal records, not client-side assumptions
 - access to digital content must be tied to an order, not just a session
-- auth and role checks should be added before exposing seller or admin operations
+- auth and role checks must be applied before exposing seller or admin operations
+- resource ownership and collection scoping must be enforced server-side
+- caller-supplied owner, buyer, seller, and user identifiers must not override the authenticated principal
 - ledger transitions should be validated centrally, not inferred in controllers
 - payout transitions should be validated centrally before batch execution
 
