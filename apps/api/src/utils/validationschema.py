@@ -96,6 +96,23 @@ PayoutBatchProcessSchema = {
     'payout_updates': {'type': 'list', 'nullable': False, 'required': True},
 }
 
+SellerApplicationSchema = {
+    'store_name': {'type': 'string', 'maxlength': 120, 'nullable': True, 'required': False},
+    'store_description': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
+    'category': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
+    'product_types': {'type': 'string', 'maxlength': 1000, 'nullable': True, 'required': False},
+    'website_url': {'type': 'string', 'maxlength': 2048, 'nullable': True, 'required': False},
+    'portfolio_url': {'type': 'string', 'maxlength': 2048, 'nullable': True, 'required': False},
+    'legal_name': {'type': 'string', 'maxlength': 120, 'nullable': True, 'required': False},
+    'country': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
+    'phone_number': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
+    'terms_accepted': {'type': 'boolean', 'nullable': True, 'required': False},
+}
+
+SellerApplicationReviewSchema = {
+    'note': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
+}
+
 validationschema = {
     'UserCreate': UserCreateSchema,
     'UserLogin': UserLoginSchema,
@@ -108,4 +125,6 @@ validationschema = {
     'PaymentWebhook': PaymentWebhookSchema,
     'PayoutCreate': PayoutCreateSchema,
     'PayoutBatchProcess': PayoutBatchProcessSchema,
+    'SellerApplication': SellerApplicationSchema,
+    'SellerApplicationReview': SellerApplicationReviewSchema,
 }
