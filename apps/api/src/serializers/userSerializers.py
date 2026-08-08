@@ -167,6 +167,9 @@ class UserSerializer(object):
         if not user:
             raise IndefiniteUserProfileData('Invalid username or password')
 
+        if user.is_active and str(user.is_active).lower() in ('false', '0', 'inactive'):
+            raise IndefiniteUserProfileData('Invalid username or password')
+
         if not check_password_hash(user.password, password):
             raise IndefiniteUserProfileData('Invalid username or password')
 

@@ -1,8 +1,10 @@
 import logging
 import json
-from flask import request, Response
+from flask import g, request, Response
 from flask.views import View
 from serializers.userSerializers import UserSerializer
+from utils.auth import require_auth
+from utils.constants import USER_TYPE
 from utils.user import schema_validation
 
 class SignUp(View):
@@ -11,6 +13,7 @@ class SignUp(View):
     @schema_validation('UserCreate')
     def dispatch_request(self, *args, **kwargs):
         data = request.get_json()
+        data["user_type"] = USER_TYPE.CUSTOMER.value
         serializer = UserSerializer(data)
 
         try:
@@ -86,6 +89,7 @@ def serialize_user(user):
 class UserList(View):
     methods = ['GET']
 
+    @require_auth(roles=["admin"], methods=["GET"])
     def dispatch_request(self, *args, **kwargs):
         serializer = UserSerializer()
         users = serializer.list_users()
