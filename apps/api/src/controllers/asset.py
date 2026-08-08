@@ -3,6 +3,7 @@ import logging
 
 from flask import g, Response, request
 from flask.views import View
+from werkzeug.exceptions import HTTPException
 
 from serializers.assetSerializers import AssetSerializer
 from utils.auth import require_auth, verify_delivery_token
@@ -50,14 +51,14 @@ class AssetDownloadLog(View):
                 raise ValueError("Delivery token user mismatch")
             if delivery_claims.get("asset_uuid") != asset_uuid:
                 raise ValueError("Delivery token asset mismatch")
-            if delivery_claims.get("order_uuid") != payload.get("order_uuid"):
-                raise ValueError("Delivery token order mismatch")
+            payload = dict(payload)
+            payload["_delivery_claims"] = delivery_claims
             download = serializer.log_download(asset_uuid, payload)
         except Exception as e:
             logging.error(f"Asset download log error :: {e} :: {payload}")
             return Response(
                 response=json.dumps({"error": f"Error logging download {str(e)}"}),
-                status=400,
+                status=e.code if isinstance(e, HTTPException) else 400,
                 mimetype="application/json",
             )
 

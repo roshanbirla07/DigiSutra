@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from functools import wraps
 
 import jwt
@@ -45,6 +46,7 @@ def create_access_token(user, expires_in_seconds=86400):
 def create_delivery_token(user_uuid, asset_uuid, order_uuid, download_url, expires_in_seconds=900):
     now = datetime.datetime.now(datetime.timezone.utc)
     payload = {
+        "jti": f"delivery::{uuid.uuid4()}",
         "sub": user_uuid,
         "asset_uuid": asset_uuid,
         "order_uuid": order_uuid,
@@ -72,12 +74,15 @@ def verify_access_token(token):
 def verify_delivery_token(token):
     if not token:
         raise AuthError("Asset delivery token required")
-    return jwt.decode(
-        token,
-        _get_public_key(),
-        algorithms=["EdDSA"],
-        options={"require": ["sub", "asset_uuid", "order_uuid", "download_url", "exp", "iat"]},
-    )
+    try:
+        return jwt.decode(
+            token,
+            _get_public_key(),
+            algorithms=["EdDSA"],
+            options={"require": ["jti", "sub", "asset_uuid", "order_uuid", "download_url", "exp", "iat"]},
+        )
+    except jwt.PyJWTError as exc:
+        raise AuthError("Invalid or expired asset delivery token") from exc
 
 
 def get_bearer_token():

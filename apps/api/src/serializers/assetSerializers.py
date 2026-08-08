@@ -13,7 +13,7 @@ from configuration.variables import (
     ASSET_ACCESS_MAX_DOWNLOADS,
     ASSET_DELIVERY_TOKEN_TTL_SECONDS,
 )
-from models.ledger import MarketplaceOrder, ProductAccess
+from models.ledger import DeliveryTokenUse, MarketplaceOrder, ProductAccess
 from models.product import Product, ProductAsset, ProductAssetDownload
 from services.s3_asset_gateway import S3AssetGateway, S3AssetGatewayError
 from utils.auth import create_delivery_token
@@ -22,6 +22,15 @@ from utils.auth import create_delivery_token
 class AssetInputError(HTTPException):
     code = 400
     description = "Asset data is invalid"
+
+    def __init__(self, msg=None):
+        super().__init__()
+        self.description = msg if msg else self.description
+
+
+class DeliveryTokenError(HTTPException):
+    code = 403
+    description = "Delivery token is not authorized"
 
     def __init__(self, msg=None):
         super().__init__()
@@ -90,6 +99,8 @@ class AssetSerializer(object):
             raise AssetInputError("Marketplace order not found")
         if order.buyer_id != auth_user.id:
             raise AssetInputError("Authenticated user does not own this order")
+        if order.payment_status != "paid":
+            raise AssetInputError("Marketplace order is not paid")
         if order.product_id != asset.product_id:
             raise AssetInputError("Asset does not belong to the purchased product")
 
@@ -185,18 +196,21 @@ class AssetSerializer(object):
     @session_rollback(db)
     def log_download(self, asset_uuid, payload):
         auth_user = getattr(g, "user", None)
-        asset, order, access = self.authorize_asset_access(asset_uuid, payload.get("order_uuid"))
+        delivery_claims = payload.get("_delivery_claims") or {}
+        asset, order, access = self.authorize_asset_access(
+            asset_uuid, delivery_claims.get("order_uuid")
+        )
+        self._consume_delivery_token(delivery_claims, auth_user, asset, order)
         self._register_download(access)
         download = ProductAssetDownload(
             uuid=f"download::{uuid.uuid4()}",
             asset_id=asset.id,
             order_uuid=order.uuid,
             downloaded_by=auth_user.uuid,
-            download_url=payload.get("download_url") or asset.cloudfront_url,
+            download_url=delivery_claims["download_url"],
             user_agent=payload.get("user_agent"),
             ip_address=payload.get("ip_address"),
         )
-        asset.asset_status = payload.get("asset_status") or asset.asset_status
         db.session.add(download)
         try:
             db.session.commit()
@@ -208,8 +222,6 @@ class AssetSerializer(object):
     @session_rollback(db)
     def authorize_download(self, asset_uuid, payload):
         asset, order, access = self.authorize_asset_access(asset_uuid, payload.get("order_uuid"))
-        self._register_download(access)
-        db.session.commit()
         token_ttl = self._get_delivery_token_ttl()
         delivery_token = create_delivery_token(
             user_uuid=order.buyer.uuid,
@@ -223,11 +235,32 @@ class AssetSerializer(object):
             "order_uuid": order.uuid,
             "download_url": asset.cloudfront_url,
             "delivery_token": delivery_token,
-            "download_count": access.download_count,
+            "download_count": int(access.download_count or 0),
             "expires_in_days": self._get_access_expiry_days(),
             "max_downloads": self._get_access_limit(),
             "delivery_token_ttl_seconds": token_ttl,
         }
+
+    def _consume_delivery_token(self, delivery_claims, auth_user, asset, order):
+        if not delivery_claims.get("jti"):
+            raise DeliveryTokenError("Delivery token identifier is required")
+        if delivery_claims.get("sub") != auth_user.uuid:
+            raise DeliveryTokenError("Delivery token user mismatch")
+        if delivery_claims.get("asset_uuid") != asset.uuid:
+            raise DeliveryTokenError("Delivery token asset mismatch")
+        if delivery_claims.get("order_uuid") != order.uuid:
+            raise DeliveryTokenError("Delivery token order mismatch")
+        if delivery_claims.get("download_url") != asset.cloudfront_url:
+            raise DeliveryTokenError("Delivery token URL mismatch")
+        if DeliveryTokenUse.query.filter_by(token_jti=delivery_claims["jti"]).first():
+            raise DeliveryTokenError("Delivery token has already been used")
+
+        db.session.add(DeliveryTokenUse(
+            token_jti=delivery_claims["jti"],
+            user_uuid=auth_user.uuid,
+            asset_uuid=asset.uuid,
+            order_uuid=order.uuid,
+        ))
 
     def _get_delivery_token_ttl(self):
         try:

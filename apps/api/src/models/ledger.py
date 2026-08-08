@@ -120,3 +120,19 @@ class ProductAccess(db.Model):
         db.Index("product_access_order_id_idx", order_id),
         db.Index("product_access_status_idx", access_status),
     )
+
+
+class DeliveryTokenUse(db.Model):
+    __tablename__ = "delivery_token_use"
+
+    id = db.Column(db.Integer, primary_key=True)
+    token_jti = db.Column(db.String(100), unique=True, nullable=False)
+    user_uuid = db.Column(db.String(100), nullable=False)
+    asset_uuid = db.Column(db.String(100), nullable=False)
+    order_uuid = db.Column(db.String(100), nullable=False)
+    consumed_on = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.Index("delivery_token_use_asset_uuid_idx", asset_uuid),
+        db.Index("delivery_token_use_order_uuid_idx", order_uuid),
+    )
