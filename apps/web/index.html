@@ -90,6 +90,7 @@
             <button class="nav-item active" data-view="addProductView" type="button" id="navAddProduct">Add Product</button>
             <button class="nav-item" data-view="productsView" type="button" id="navProductList">Product List</button>
             <button class="nav-item hidden" data-view="sellerApplicationView" type="button" id="sellerApplicationNav">Become a seller</button>
+            <button class="nav-item hidden" data-view="adminSellerApplicationsView" type="button" id="adminSellerApplicationsNav">Seller applications</button>
             <button class="nav-item nav-bottom" data-view="settingsView" type="button" id="navSettings">Settings</button>
           </nav>
         </aside>
@@ -257,6 +258,17 @@
                   <button id="sellerApplicationWithdraw" class="btn danger ghost hidden" type="button">Withdraw</button>
                 </div>
               </form>
+            </section>
+
+            <section id="adminSellerApplicationsView" class="panel view">
+              <div class="panel-head">
+                <div>
+                  <h2>Seller applications</h2>
+                  <p class="muted">Review customer applications and grant seller access.</p>
+                </div>
+                <button id="adminSellerRefresh" class="btn secondary" type="button">Refresh</button>
+              </div>
+              <div id="adminSellerApplicationsList" class="product-list"></div>
             </section>
           </main>
         </div>

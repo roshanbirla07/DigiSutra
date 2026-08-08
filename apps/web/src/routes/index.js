@@ -6,6 +6,7 @@ export function getRoutes(controllers) {
     { path: "/products", screen: "dashboard", view: "productsView", title: "Product List", enter: controllers.productController?.enterProductList },
     { path: "/settings", screen: "dashboard", view: "settingsView", title: "Settings", enter: controllers.settingsController?.enterSettings },
     { path: "/become-seller", screen: "dashboard", view: "sellerApplicationView", title: "Become a seller", enter: controllers.sellerApplicationController?.enterSellerApplication },
+    { path: "/admin/seller-applications", screen: "dashboard", view: "adminSellerApplicationsView", title: "Seller applications", enter: controllers.adminSellerController?.enterAdminSellerApplications },
   ];
 }
 

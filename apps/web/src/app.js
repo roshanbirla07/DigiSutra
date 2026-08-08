@@ -3,6 +3,7 @@ import { createDashboardController } from "./controllers/dashboardController.js"
 import { createProductController } from "./controllers/productController.js";
 import { createSettingsController } from "./controllers/settingsController.js";
 import { createSellerApplicationController } from "./controllers/sellerApplicationController.js";
+import { createAdminSellerController } from "./controllers/adminSellerController.js";
 import { getRoutes, resolveRoute } from "./routes/index.js";
 
 export function createApp() {
@@ -11,6 +12,7 @@ export function createApp() {
   let productController;
   let settingsController;
   let sellerApplicationController;
+  let adminSellerController;
 
   const state = {
     apiBaseUrl: localStorage.getItem("digisutra_api_base_url") || "http://localhost:5000",
@@ -207,6 +209,7 @@ export function createApp() {
     $("ownerName").textContent = name;
     $("ownerSeal").textContent = avatar;
     $("sellerApplicationNav")?.classList.toggle("hidden", session?.user_type !== "customer");
+    $("adminSellerApplicationsNav")?.classList.toggle("hidden", session?.user_type !== "admin");
   }
 
   function openProfileMenu() {
@@ -296,12 +299,14 @@ export function createApp() {
       productController = createProductController(this);
       settingsController = createSettingsController(this);
       sellerApplicationController = createSellerApplicationController(this);
+      adminSellerController = createAdminSellerController(this);
 
       authController.bind();
       dashboardController.bind();
       productController.bind();
       settingsController.bind();
       sellerApplicationController.bind();
+      adminSellerController.bind();
       window.addEventListener("popstate", handleRoute);
       setSession(state.session);
       if (window.location.pathname === "/") {
