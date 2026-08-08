@@ -10,3 +10,6 @@ separates deployable apps from shared packages.
 
 - Backend source of truth remains the Flask app and PostgreSQL models.
 - Frontend should not introduce business logic that belongs to the API.
+- Apply schema changes with `alembic upgrade head` from the repository root.
+- `db.create_all()` remains available for local bootstrap only; production
+  deployments must run migrations before starting the API.

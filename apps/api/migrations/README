@@ -1,0 +1,7 @@
+DigiSutra database migrations.
+
+Run from the repository root:
+
+    alembic upgrade head
+
+The connection URL is read from POSTGRES_DB_URI when available.
