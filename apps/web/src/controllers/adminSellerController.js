@@ -17,12 +17,14 @@ export function createAdminSellerController(app) {
           ${["submitted", "under_review", "needs_information"].includes(item.status) ? `
             <button class="btn primary admin-approve" data-uuid="${app.escapeHtml(item.uuid)}" type="button">Approve</button>
             <button class="btn danger ghost admin-reject" data-uuid="${app.escapeHtml(item.uuid)}" type="button">Reject</button>
+            <button class="btn secondary admin-request-info" data-uuid="${app.escapeHtml(item.uuid)}" type="button">Request info</button>
           ` : ""}
         </div>
       </article>
     `).join("");
     list.querySelectorAll(".admin-approve").forEach((button) => button.addEventListener("click", () => review(button.dataset.uuid, "approve")));
     list.querySelectorAll(".admin-reject").forEach((button) => button.addEventListener("click", () => review(button.dataset.uuid, "reject")));
+    list.querySelectorAll(".admin-request-info").forEach((button) => button.addEventListener("click", () => review(button.dataset.uuid, "request-information")));
   }
 
   async function load() {
@@ -31,8 +33,8 @@ export function createAdminSellerController(app) {
   }
 
   async function review(uuid, action) {
-    const note = action === "reject" ? window.prompt("Reason for rejection:") : window.prompt("Optional review note:") || "";
-    if (action === "reject" && !note) return;
+    const note = action === "reject" || action === "request-information" ? window.prompt(action === "reject" ? "Reason for rejection:" : "What information is needed:") : window.prompt("Optional review note:") || "";
+    if (["reject", "request-information"].includes(action) && !note) return;
     try {
       await app.api(`/v1/admin/seller-applications/${uuid}/${action}/`, { method: "POST", body: JSON.stringify({ note }) });
       app.toast(action === "approve" ? "Seller approved" : "Application rejected");

@@ -120,3 +120,20 @@ class LedgerDetail(View):
             status=200,
             mimetype="application/json",
         )
+
+
+class InvoiceDetail(View):
+    methods = ["GET"]
+
+    @require_auth(roles=["customer", "seller", "admin"], methods=["GET"])
+    def dispatch_request(self, order_uuid, *args, **kwargs):
+        serializer = LedgerSerializer()
+        user = getattr(g, "user", None)
+        try:
+            order = serializer.get_by_uuid(order_uuid)
+            if str(user.user_type).lower() != "admin" and user.id not in {order.buyer_id, order.seller_id}:
+                return Response(response=json.dumps({"error": "You do not have access to this order"}), status=403, mimetype="application/json")
+            invoice = serializer.get_or_create_invoice(order)
+            return Response(response=json.dumps(serializer.serialize_invoice(invoice)), status=200, mimetype="application/json")
+        except Exception as exc:
+            return Response(response=json.dumps({"error": str(exc)}), status=400, mimetype="application/json")

@@ -45,13 +45,16 @@ class OpsSerializer(object):
         failed_payments = MarketplaceOrder.query.filter_by(payment_status="failed").all()
         stuck_refunds = RefundRecord.query.filter(RefundRecord.status.in_(["requested", "approved"])).all()
         open_payouts = SellerPayout.query.filter(SellerPayout.status.in_(["pending", "processing", "failed"])).all()
+        refund_gaps = RefundRecord.query.filter(RefundRecord.status == "processed", RefundRecord.provider_refund_id.is_(None)).all()
         return {
             "failed_payments": [self.serialize_order(order) for order in failed_payments],
             "stuck_refunds": [self.serialize_refund(refund) for refund in stuck_refunds],
             "open_payouts": [self.serialize_payout(payout) for payout in open_payouts],
+            "refund_provider_gaps": [self.serialize_refund(refund) for refund in refund_gaps],
             "counts": {
                 "failed_payments": len(failed_payments),
                 "stuck_refunds": len(stuck_refunds),
                 "open_payouts": len(open_payouts),
+                "refund_provider_gaps": len(refund_gaps),
             },
         }

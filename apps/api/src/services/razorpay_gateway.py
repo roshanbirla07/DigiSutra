@@ -5,7 +5,18 @@ import json
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
 
-from configuration.variables import PAYMENT_MODE, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET
+from configuration.variables import (
+    PAYMENT_MODE,
+    RAZORPAY_KEY_ID,
+    RAZORPAY_KEY_SECRET,
+    RAZORPAY_WEBHOOK_SECRET,
+    RAZORPAY_TEST_KEY_ID,
+    RAZORPAY_TEST_KEY_SECRET,
+    RAZORPAY_TEST_WEBHOOK_SECRET,
+    RAZORPAY_LIVE_KEY_ID,
+    RAZORPAY_LIVE_KEY_SECRET,
+    RAZORPAY_LIVE_WEBHOOK_SECRET,
+)
 
 
 class RazorpayGatewayError(Exception):
@@ -23,8 +34,14 @@ class RazorpayGateway(object):
         return self.LIVE_BASE_URL if mode == "live" else self.TEST_BASE_URL
 
     def _auth_header(self):
-        token = f"{RAZORPAY_KEY_ID}:{RAZORPAY_KEY_SECRET}".encode("utf-8")
+        key_id, key_secret, _ = self._credentials()
+        token = f"{key_id}:{key_secret}".encode("utf-8")
         return base64.b64encode(token).decode("ascii")
+
+    def _credentials(self):
+        if self.mode() == "live":
+            return (RAZORPAY_LIVE_KEY_ID or RAZORPAY_KEY_ID, RAZORPAY_LIVE_KEY_SECRET or RAZORPAY_KEY_SECRET, RAZORPAY_LIVE_WEBHOOK_SECRET or RAZORPAY_WEBHOOK_SECRET)
+        return (RAZORPAY_TEST_KEY_ID or RAZORPAY_KEY_ID, RAZORPAY_TEST_KEY_SECRET or RAZORPAY_KEY_SECRET, RAZORPAY_TEST_WEBHOOK_SECRET or RAZORPAY_WEBHOOK_SECRET)
 
     def _request(self, method, path, payload=None):
         url = f"{self._base_url()}{path}"
@@ -63,16 +80,18 @@ class RazorpayGateway(object):
         return str(PAYMENT_MODE or "test").lower()
 
     def verify_checkout_signature(self, order_id, payment_id, signature):
+        _, key_secret, _ = self._credentials()
         expected = hmac.new(
-            RAZORPAY_KEY_SECRET.encode("utf-8"),
+            key_secret.encode("utf-8"),
             f"{order_id}|{payment_id}".encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
         return hmac.compare_digest(expected, signature)
 
     def verify_webhook_signature(self, raw_body, signature):
+        _, _, webhook_secret = self._credentials()
         expected = hmac.new(
-            RAZORPAY_WEBHOOK_SECRET.encode("utf-8"),
+            webhook_secret.encode("utf-8"),
             raw_body,
             hashlib.sha256,
         ).hexdigest()

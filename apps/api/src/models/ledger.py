@@ -104,6 +104,22 @@ class RefundRecord(db.Model):
     )
 
 
+class InvoiceRecord(db.Model):
+    __tablename__ = "invoice_record"
+
+    id = db.Column(db.Integer, primary_key=True)
+    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey("marketplace_order.id"), nullable=False, unique=True)
+    order = db.relationship("MarketplaceOrder", backref=db.backref("invoice", uselist=False))
+    invoice_number = db.Column(db.String(80), unique=True, nullable=False)
+    status = db.Column(db.String(30), nullable=False, default="issued")
+    currency = db.Column(db.String(10), nullable=False, default="INR")
+    subtotal = db.Column(db.Numeric(10, 2), nullable=False)
+    tax_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    issued_on = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+
 class ProductAccess(db.Model):
     __tablename__ = "product_access"
 

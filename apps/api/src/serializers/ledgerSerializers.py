@@ -9,7 +9,7 @@ from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 
 from configuration.db_routing import db, session_rollback
-from models.ledger import MarketplaceOrder, ProductAccess, RefundRecord, SellerBalance
+from models.ledger import InvoiceRecord, MarketplaceOrder, ProductAccess, RefundRecord, SellerBalance
 from models.product import Product
 from models.user import User
 from services.razorpay_gateway import RazorpayGateway, RazorpayGatewayError
@@ -356,6 +356,40 @@ class LedgerSerializer(object):
 
     def serialize_refund(self, refund):
         return self._serialize_refund(refund)
+
+    def get_or_create_invoice(self, order):
+        invoice = InvoiceRecord.query.filter_by(order_id=order.id).first()
+        if invoice:
+            return invoice
+        if order.payment_status != "paid":
+            raise LedgerInputError("Invoices are available after payment is confirmed")
+        invoice = InvoiceRecord(
+            uuid=f"invoice::{uuid.uuid4()}",
+            order_id=order.id,
+            invoice_number=f"DS-{datetime.datetime.utcnow().strftime('%Y%m%d')}-{order.id:06d}",
+            currency=order.product.currency if order.product else "INR",
+            subtotal=order.gross_amount,
+            tax_amount=order.tax_amount,
+            total_amount=order.gross_amount,
+            status="issued",
+        )
+        db.session.add(invoice)
+        db.session.commit()
+        return invoice
+
+    @staticmethod
+    def serialize_invoice(invoice):
+        return {
+            "uuid": invoice.uuid,
+            "order_uuid": invoice.order.uuid if invoice.order else None,
+            "invoice_number": invoice.invoice_number,
+            "status": invoice.status,
+            "currency": invoice.currency,
+            "subtotal": str(invoice.subtotal),
+            "tax_amount": str(invoice.tax_amount),
+            "total_amount": str(invoice.total_amount),
+            "issued_on": invoice.issued_on.isoformat() if invoice.issued_on else None,
+        }
 
     def list_buyer_purchases(self, buyer_id):
         orders = self.list_orders_for_buyer(buyer_id)
