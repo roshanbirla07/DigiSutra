@@ -102,7 +102,7 @@ Before the frontend work is treated as fully unblocked, the backend should also 
 1. Complete the authorization subtasks below and align the web auth contract
 2. Add customer-to-seller application and admin approval workflow (application
    models, customer APIs, admin review APIs, atomic promotion, and customer UI
-   implemented; admin review UI remains)
+   implemented)
 3. Finish purchase-to-access delivery, including genuinely protected URLs
 4. Connect provider refunds and complete asset upload verification
 5. Add seller payout monitoring and production operational safeguards
