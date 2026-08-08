@@ -42,6 +42,11 @@ ProductAssetCreateSchema = {
     'size_bytes': {'type': ['string', 'integer'], 'nullable': True, 'required': False},
 }
 
+ProductAssetCompleteSchema = {
+    'size_bytes': {'type': ['string', 'integer'], 'nullable': True, 'required': False},
+    'checksum_sha256': {'type': 'string', 'maxlength': 64, 'nullable': True, 'required': False},
+}
+
 LedgerOrderCreateSchema = {
     'uuid': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
     'buyer_uuid': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
@@ -118,6 +123,7 @@ validationschema = {
     'UserLogin': UserLoginSchema,
     'ProductCreate': ProductCreateSchema,
     'ProductAssetCreate': ProductAssetCreateSchema,
+    'ProductAssetComplete': ProductAssetCompleteSchema,
     'LedgerOrderCreate': LedgerOrderCreateSchema,
     'LedgerRefundCreate': LedgerRefundCreateSchema,
     'PaymentOrderCreate': PaymentOrderCreateSchema,

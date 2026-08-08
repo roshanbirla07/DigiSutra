@@ -26,6 +26,9 @@ class AssetAuthorizationTests(unittest.TestCase):
         asset.uuid = "asset::1"
         asset.product_id = 11
         asset.cloudfront_url = "https://cdn.example.com/asset.pdf"
+        asset.object_key = "products/product::1/asset.pdf"
+        asset.bucket_name = "bucket"
+        asset.asset_status = "verified"
 
         order = MagicMock()
         order.id = 21
@@ -48,10 +51,12 @@ class AssetAuthorizationTests(unittest.TestCase):
                 patch("serializers.assetSerializers.MarketplaceOrder") as marketplace_order_model, \
                 patch("serializers.assetSerializers.ProductAccess") as product_access_model, \
                 patch("serializers.assetSerializers.db") as db_mock, \
+                patch("serializers.assetSerializers.S3AssetGateway") as gateway, \
                 patch("serializers.assetSerializers.create_delivery_token", return_value="delivery-token"):
             product_asset_model.query.filter_by.return_value.first.return_value = asset
             marketplace_order_model.query.filter_by.return_value.first.return_value = order
             product_access_model.query.filter_by.return_value.first.return_value = access
+            gateway.return_value.create_presigned_get_url.return_value = asset.cloudfront_url
             db_mock.session.commit = MagicMock()
 
             serializer = AssetSerializer()
@@ -69,6 +74,7 @@ class AssetAuthorizationTests(unittest.TestCase):
         asset.uuid = "asset::1"
         asset.product_id = 11
         asset.cloudfront_url = "https://cdn.example.com/asset.pdf"
+        asset.asset_status = "verified"
 
         order = MagicMock()
         order.id = 21
@@ -102,6 +108,7 @@ class AssetAuthorizationTests(unittest.TestCase):
         asset.uuid = "asset::1"
         asset.product_id = 11
         asset.cloudfront_url = "https://cdn.example.com/asset.pdf"
+        asset.asset_status = "verified"
 
         order = MagicMock()
         order.id = 21
@@ -136,6 +143,7 @@ class AssetAuthorizationTests(unittest.TestCase):
         asset.uuid = "asset::1"
         asset.product_id = 11
         asset.cloudfront_url = "https://cdn.example.com/asset.pdf"
+        asset.asset_status = "verified"
 
         order = MagicMock()
         order.id = 21
@@ -166,7 +174,7 @@ class AssetAuthorizationTests(unittest.TestCase):
                 serializer.authorize_download("asset::1", {"order_uuid": "order::1"})
 
     def test_delivery_token_consumption_records_token_once(self):
-        asset = MagicMock(uuid="asset::1", cloudfront_url="https://cdn.example.com/asset.pdf")
+        asset = MagicMock(uuid="asset::1", cloudfront_url="https://cdn.example.com/asset.pdf", object_key="asset.pdf")
         order = MagicMock(uuid="order::1")
         user = MagicMock(uuid="user::buyer")
         claims = {
@@ -192,7 +200,7 @@ class AssetAuthorizationTests(unittest.TestCase):
             db_mock.session.add.assert_called_once()
 
     def test_delivery_token_replay_is_rejected(self):
-        asset = MagicMock(uuid="asset::1", cloudfront_url="https://cdn.example.com/asset.pdf")
+        asset = MagicMock(uuid="asset::1", cloudfront_url="https://cdn.example.com/asset.pdf", object_key="asset.pdf")
         order = MagicMock(uuid="order::1")
         user = MagicMock(uuid="user::buyer")
         claims = {

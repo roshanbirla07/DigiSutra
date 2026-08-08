@@ -194,6 +194,35 @@ class AssetSerializer(object):
         return asset, presigned
 
     @session_rollback(db)
+    def complete_upload(self, asset_uuid, validated_data=None):
+        validated_data = dict(validated_data or self.data)
+        asset = ProductAsset.query.filter_by(uuid=asset_uuid).first()
+        if not asset:
+            raise AssetInputError("Asset not found")
+        auth_user = getattr(g, "user", None)
+        if not auth_user:
+            raise AssetInputError("Authentication required")
+        if str(auth_user.user_type).lower() != "admin" and asset.product.owner_id != auth_user.id:
+            raise AssetInputError("Authenticated user does not own this asset")
+        if asset.asset_status not in {"upload_url_issued", "pending_upload", "upload_failed"}:
+            raise AssetInputError("Asset upload is already complete")
+        try:
+            metadata = self.gateway.head_object(asset.object_key, asset.bucket_name)
+        except S3AssetGatewayError as exc:
+            asset.asset_status = "upload_failed"
+            db.session.commit()
+            raise AssetInputError(str(exc))
+        expected_size = self._normalize_optional_int(validated_data.get("size_bytes"))
+        actual_size = metadata.get("ContentLength")
+        if expected_size is not None and actual_size is not None and expected_size != actual_size:
+            raise AssetInputError("Uploaded asset size does not match the declared size")
+        asset.size_bytes = actual_size or expected_size or asset.size_bytes
+        asset.checksum_sha256 = validated_data.get("checksum_sha256") or asset.checksum_sha256
+        asset.asset_status = "verified"
+        db.session.commit()
+        return asset
+
+    @session_rollback(db)
     def log_download(self, asset_uuid, payload):
         auth_user = getattr(g, "user", None)
         delivery_claims = payload.get("_delivery_claims") or {}
@@ -222,18 +251,24 @@ class AssetSerializer(object):
     @session_rollback(db)
     def authorize_download(self, asset_uuid, payload):
         asset, order, access = self.authorize_asset_access(asset_uuid, payload.get("order_uuid"))
+        if asset.asset_status != "verified":
+            raise AssetInputError("Asset is not ready for delivery")
         token_ttl = self._get_delivery_token_ttl()
+        try:
+            download_url = self.gateway.create_presigned_get_url(asset.object_key, asset.bucket_name, token_ttl)
+        except S3AssetGatewayError as exc:
+            raise AssetInputError(str(exc))
         delivery_token = create_delivery_token(
             user_uuid=order.buyer.uuid,
             asset_uuid=asset.uuid,
             order_uuid=order.uuid,
-            download_url=asset.cloudfront_url,
+            download_url=download_url,
             expires_in_seconds=token_ttl,
         )
         return {
             "asset_uuid": asset.uuid,
             "order_uuid": order.uuid,
-            "download_url": asset.cloudfront_url,
+            "download_url": download_url,
             "delivery_token": delivery_token,
             "download_count": int(access.download_count or 0),
             "expires_in_days": self._get_access_expiry_days(),
@@ -250,7 +285,7 @@ class AssetSerializer(object):
             raise DeliveryTokenError("Delivery token asset mismatch")
         if delivery_claims.get("order_uuid") != order.uuid:
             raise DeliveryTokenError("Delivery token order mismatch")
-        if delivery_claims.get("download_url") != asset.cloudfront_url:
+        if not delivery_claims.get("download_url") or (asset.object_key and asset.object_key not in delivery_claims["download_url"]):
             raise DeliveryTokenError("Delivery token URL mismatch")
         if DeliveryTokenUse.query.filter_by(token_jti=delivery_claims["jti"]).first():
             raise DeliveryTokenError("Delivery token has already been used")

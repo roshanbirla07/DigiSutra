@@ -91,3 +91,19 @@ class AssetDownloadAuthorize(View):
             status=200,
             mimetype="application/json",
         )
+
+
+class AssetUploadComplete(View):
+    methods = ["POST"]
+
+    @require_auth(roles=["seller", "admin"], methods=["POST"])
+    @schema_validation("ProductAssetComplete", methods=["POST"])
+    def dispatch_request(self, asset_uuid, *args, **kwargs):
+        payload = request.get_json(silent=True) or {}
+        serializer = AssetSerializer(payload)
+        try:
+            asset = serializer.complete_upload(asset_uuid, payload)
+        except Exception as e:
+            logging.error(f"Asset upload completion error :: {e} :: {asset_uuid}")
+            return Response(response=json.dumps({"error": f"Error completing upload {str(e)}"}), status=400, mimetype="application/json")
+        return Response(response=json.dumps(serializer.serialize_asset(asset)), status=200, mimetype="application/json")

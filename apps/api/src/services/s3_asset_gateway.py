@@ -9,6 +9,7 @@ from configuration.variables import (
     AWS_REGION,
     AWS_S3_BUCKET_NAME,
     AWS_S3_PRESIGN_EXPIRES_IN,
+    AWS_S3_GET_PRESIGN_EXPIRES_IN,
     AWS_SECRET_ACCESS_KEY,
 )
 
@@ -94,3 +95,27 @@ class S3AssetGateway(object):
         if AWS_CLOUDFRONT_DOMAIN:
             return f"https://{AWS_CLOUDFRONT_DOMAIN.rstrip('/')}/{object_key.lstrip('/')}"
         return f"https://{AWS_S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{object_key.lstrip('/')}"
+
+    def _client(self):
+        self._require_config()
+        try:
+            import boto3
+        except ImportError as exc:
+            raise S3AssetGatewayError("boto3 is required for protected asset delivery") from exc
+        return boto3.client("s3", region_name=AWS_REGION, aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+
+    def create_presigned_get_url(self, object_key, bucket_name=None, expires_in=None):
+        try:
+            return self._client().generate_presigned_url(
+                "get_object",
+                Params={"Bucket": bucket_name or AWS_S3_BUCKET_NAME, "Key": object_key},
+                ExpiresIn=int(expires_in or AWS_S3_GET_PRESIGN_EXPIRES_IN),
+            )
+        except Exception as exc:
+            raise S3AssetGatewayError(f"Unable to create protected asset URL: {exc}") from exc
+
+    def head_object(self, object_key, bucket_name=None):
+        try:
+            return self._client().head_object(Bucket=bucket_name or AWS_S3_BUCKET_NAME, Key=object_key)
+        except Exception as exc:
+            raise S3AssetGatewayError(f"Unable to verify uploaded asset: {exc}") from exc
