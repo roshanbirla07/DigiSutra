@@ -21,6 +21,13 @@ Authorization is currently partial. Authentication is present, but several
 endpoints still need resource ownership, collection scoping, or privileged
 role enforcement before the API is safe for multi-user production use.
 
+The backend readiness work is now implemented in code, including seller
+onboarding, protected asset delivery, upload verification, refund provider
+reconciliation, seller suspension/readiness, scoped product and payout APIs,
+invoice foundations, migrations, and operations summaries. The remaining
+environment step before deployment is installing the declared dependencies and
+running `alembic upgrade head` against the target database.
+
 ## Current Priorities
 
 0. Resolve frontend and production release blockers
@@ -106,6 +113,242 @@ Before the frontend work is treated as fully unblocked, the backend should also 
 3. Finish purchase-to-access delivery, including genuinely protected URLs
 4. Connect provider refunds and complete asset upload verification
 5. Add seller payout monitoring and production operational safeguards
+
+## Frontend Implementation Plan
+
+The frontend will extend the existing static client under `apps/web/`. The
+current authenticated shell, sidebar navigation, profile menu, settings view,
+product editor, product list, seller application form, and admin seller review
+queue remain the foundation. New screens should be added as focused controllers
+and routes instead of turning `app.js` into a feature-specific monolith.
+
+### FE-01: Frontend foundation and shared contracts
+
+- Keep a single API client responsible for bearer tokens, JSON parsing, 401/403
+  session clearing, and consistent error messages.
+- Add shared view helpers for loading, empty, error, and success states.
+- Add route-level role visibility for customer, seller, and admin navigation;
+  keep all authorization enforced by the API.
+- Add a small frontend test strategy for route resolution, session handling,
+  form validation, and API error behavior.
+- Do not calculate prices, fees, balances, refunds, or payout values in the UI.
+
+### FE-02: Public marketplace and customer discovery
+
+Routes:
+
+```text
+/
+/catalog
+/products/:uuid
+```
+
+- Build a public product catalog using active/public product responses.
+- Add search, category filtering, sorting, and pagination-ready UI state.
+- Add product detail with cover, title, seller, price, description, preview,
+  FAQ/review placeholders, and purchase CTA.
+- Design empty, loading, unavailable, and error states before connecting data.
+
+### FE-03: Authentication and account entry
+
+Routes:
+
+```text
+/auth
+/settings
+```
+
+- Keep signup customer-only.
+- Preserve the existing login/signup segmented control and session behavior.
+- Show role-aware account navigation after login.
+- Show “Become a seller” only for eligible customers.
+- Provide clear inactive-account, invalid-credentials, expired-session, and
+  forbidden responses.
+
+### FE-04: Checkout and payment
+
+Routes:
+
+```text
+/checkout/:productUuid
+/checkout/:productUuid/success
+/checkout/:productUuid/failure
+```
+
+- Create the internal order first through the backend.
+- Create the provider payment order through the backend.
+- Launch Razorpay checkout using server-provided values.
+- Confirm payment through the backend and wait for the authoritative order
+  response.
+- Never mark an order paid from browser-only state.
+- Handle cancellation, payment failure, retry, duplicate confirmation, and
+  webhook-delay states.
+
+### FE-05: Customer library and protected downloads
+
+Routes:
+
+```text
+/library
+/library/:orderUuid
+/library/:orderUuid/invoice
+```
+
+- Render purchase history from `/v1/ledger/purchases/`.
+- Show payment, refund, access, expiry, and download-limit states from the API.
+- Request a short-lived delivery response only when the user selects a file.
+- Use the returned protected URL and single-use delivery token.
+- Provide invoice access and clear revoked/expired/download-limit states.
+
+### FE-06: Seller workspace
+
+Routes:
+
+```text
+/seller
+/seller/products
+/seller/products/new
+/seller/products/:uuid
+/seller/orders
+/seller/payouts
+/seller/settings
+```
+
+- Build seller overview from dashboard and payout summary APIs.
+- List seller-owned products from `/v1/products/mine/`.
+- Add product creation, draft state, asset upload, upload completion, and
+  publish readiness indicators.
+- Add seller order and customer views using scoped ledger responses.
+- Show available balance, pending balance, payout readiness, payout holds, and
+  payout history without client-side financial calculations.
+- Display suspended, payout-held, and incomplete-profile states prominently.
+
+### FE-07: Seller onboarding completion
+
+Routes:
+
+```text
+/become-seller
+/seller-application/status
+```
+
+- Keep the implemented draft, submit, withdraw, needs-information, rejected,
+  and approved states.
+- Add clear progress and next-action messaging.
+- After approval, redirect to a seller activation checklist.
+- Link profile completion, payout readiness, first product, asset verification,
+  and first publish action into one checklist.
+
+### FE-08: Admin operations
+
+Routes:
+
+```text
+/admin
+/admin/seller-applications
+/admin/orders
+/admin/refunds
+/admin/payouts
+/admin/flags
+```
+
+- Expand the existing seller application queue with detail, review history,
+  approve, reject, request-information, suspend, and activate actions.
+- Add reconciliation summaries for payments, refunds, uploads, and payouts.
+- Add admin order/refund detail and invoice visibility.
+- Add confirmation dialogs for approval, rejection, suspension, payout retry,
+  and other irreversible actions.
+
+### FE-09: Responsive, accessibility, and release pass
+
+- Support desktop sidebar, tablet condensed navigation, and mobile stacked
+  layouts.
+- Maintain visible keyboard focus, semantic labels, 44px touch targets, and
+  WCAG AA color contrast.
+- Add skeletons that preserve layout and do not shift content.
+- Test browser refresh, back/forward navigation, deep links, expired sessions,
+  slow API responses, duplicate submits, and offline failures.
+
+## Frontend Style Plan
+
+The style direction is an extension of the existing DigiSutra application, not
+a visual reset. Preserve the current `DS` seal, paper-like neutral surfaces,
+left navigation shell, editorial headings, IBM Plex utility typography, and
+quiet operational tone from `Design.md` and the current `styles.css`.
+
+### Visual principles
+
+- Quiet professionalism: calm, precise, editorial, and trustworthy.
+- Content first: products, purchase state, balances, and actions receive the
+  strongest hierarchy.
+- Borders and spacing communicate grouping; shadows remain subtle.
+- Use one accent at a time and reserve status colors for meaning.
+- Avoid gradients, decorative illustrations, glass panels, excessive pills,
+  noisy charts, and animation that delays an action.
+
+### Existing application references to preserve
+
+- `DS` seal as the brand marker and avatar fallback.
+- Stable sidebar and topbar shell for authenticated workspaces.
+- Fraunces-style editorial display headings for page titles where already used.
+- IBM Plex Sans for interface text and IBM Plex Mono for identifiers, dates,
+  amounts, and operational metadata.
+- Neutral background, thin borders, compact status stamps, owner chips, and
+  restrained toast feedback.
+
+### Token direction
+
+Define shared CSS custom properties before expanding screens:
+
+```css
+--surface-canvas: #f3f1ec;
+--surface-panel: #fbfaf7;
+--surface-raised: #ffffff;
+--ink-strong: #20221f;
+--ink-muted: #70736d;
+--line-subtle: #deded8;
+--accent-primary: #315f8c;
+--status-success: #4f7a61;
+--status-warning: #a47735;
+--status-danger: #a5524a;
+--radius-sm: 6px;
+--radius-md: 10px;
+--shadow-soft: 0 8px 24px rgba(32, 34, 31, 0.07);
+```
+
+The exact values may be tuned against the existing stylesheet, but all new
+screens should consume tokens rather than inventing local colors or spacing.
+
+### Component language
+
+- Buttons: primary, secondary, danger, and ghost variants with consistent
+  height, focus, disabled, loading, and hover behavior.
+- Forms: shared labels, required markers, help text, inline errors, and submit
+  states.
+- Cards: modest radius, thin border, clear heading, and one primary action.
+- Tables/lists: readable rows, secondary metadata, status stamps, and actions
+  aligned to the right.
+- Status: use text plus color; never communicate state by color alone.
+- Dialogs: use only for destructive or focused review/payment actions.
+- Charts: only when a trend materially improves understanding; prioritize
+  values and labels over decoration.
+
+### Motion
+
+- Use 180–220ms fade, opacity, scale, or short slide transitions.
+- Prefer skeletons and immediate layout over long spinners.
+- Respect `prefers-reduced-motion`.
+
+## Frontend Definition of Done
+
+- Every screen has loading, empty, error, and success states.
+- Every authenticated request uses the shared API client.
+- No client-side financial, role, ownership, or permission decisions are
+  treated as authoritative.
+- Desktop, tablet, and mobile layouts are usable.
+- Keyboard and screen-reader paths are tested.
+- Visual decisions match the style plan and existing DigiSutra shell.
+- Frontend changes are committed in feature-sized, reviewable commits.
 
 ## Authorization Completion Subtasks
 
