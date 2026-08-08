@@ -28,7 +28,7 @@ class BuyerPurchaseHistory(View):
 class LedgerCollection(View):
     methods = ["GET", "POST"]
 
-    @require_auth(roles=["customer", "seller", "admin"], methods=["POST"])
+    @require_auth(roles=["customer", "seller", "admin"], methods=["GET", "POST"])
     @schema_validation("LedgerOrderCreate", methods=["POST"])
     def dispatch_request(self, *args, **kwargs):
         if request.method == "POST":
@@ -51,7 +51,13 @@ class LedgerCollection(View):
             )
 
         serializer = LedgerSerializer()
-        orders = serializer.list_orders()
+        user = getattr(g, "user", None)
+        if str(user.user_type).lower() == "admin":
+            orders = serializer.list_orders()
+        elif str(user.user_type).lower() == "seller":
+            orders = serializer.list_orders_for_seller(user.id)
+        else:
+            orders = serializer.list_orders_for_buyer(user.id)
         return Response(
             response=json.dumps([serializer.serialize_order(order) for order in orders]),
             status=200,
@@ -62,11 +68,36 @@ class LedgerCollection(View):
 class LedgerDetail(View):
     methods = ["GET", "POST"]
 
-    @require_auth(roles=["customer", "seller", "admin"], methods=["POST"])
+    @require_auth(roles=["customer", "seller", "admin"], methods=["GET", "POST"])
     @schema_validation("LedgerRefundCreate", methods=["POST"])
     def dispatch_request(self, order_uuid, *args, **kwargs):
         serializer = LedgerSerializer()
+        user = getattr(g, "user", None)
+        try:
+            order = serializer.get_by_uuid(order_uuid)
+        except Exception as e:
+            return Response(
+                response=json.dumps({"error": str(e)}),
+                status=404,
+                mimetype="application/json",
+            )
+
+        is_admin = str(user.user_type).lower() == "admin"
+        owns_order = user.id in {order.buyer_id, order.seller_id}
+        if not is_admin and not owns_order:
+            return Response(
+                response=json.dumps({"error": "You do not have access to this order"}),
+                status=403,
+                mimetype="application/json",
+            )
+
         if request.method == "POST":
+            if not is_admin and user.id != order.buyer_id:
+                return Response(
+                    response=json.dumps({"error": "Only the buyer or an admin can request a refund"}),
+                    status=403,
+                    mimetype="application/json",
+                )
             payload = request.get_json(silent=True) or {}
             try:
                 refund = serializer.create_refund(order_uuid, payload)
@@ -81,15 +112,6 @@ class LedgerDetail(View):
             return Response(
                 response=json.dumps(serializer.serialize_refund(refund)),
                 status=201,
-                mimetype="application/json",
-            )
-
-        try:
-            order = serializer.get_by_uuid(order_uuid)
-        except Exception as e:
-            return Response(
-                response=json.dumps({"error": str(e)}),
-                status=404,
                 mimetype="application/json",
             )
 

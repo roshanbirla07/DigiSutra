@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from werkzeug.exceptions import HTTPException
+from flask import g
 
 from configuration.db_routing import db, session_rollback
 from models.ledger import MarketplaceOrder, ProductAccess, SellerBalance
@@ -43,6 +44,7 @@ class PaymentSerializer(object):
     @session_rollback(db)
     def create_provider_order(self, order_uuid):
         order = self.get_order(order_uuid)
+        self._require_buyer(order)
         if order.provider == "razorpay" and order.provider_order_id:
             return order, None
 
@@ -113,6 +115,7 @@ class PaymentSerializer(object):
         order = MarketplaceOrder.query.filter_by(provider_order_id=provider_order_id).first()
         if not order:
             raise PaymentInputError("Marketplace order not found for provider order id")
+        self._require_buyer(order)
         if not self.gateway.verify_checkout_signature(order.provider_order_id, payment_id, signature):
             raise PaymentInputError("Signature mismatch")
         order, changed = self._mark_order_paid(order, payment_id)
@@ -146,3 +149,8 @@ class PaymentSerializer(object):
 
     def serialize_order(self, order):
         return self._serialize_order(order)
+
+    def _require_buyer(self, order):
+        user = getattr(g, "user", None)
+        if not user or order.buyer_id != user.id:
+            raise PaymentInputError("Authenticated user does not own this order")

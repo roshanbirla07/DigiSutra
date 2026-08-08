@@ -146,6 +146,9 @@ class LedgerSerializer(object):
     def list_orders_for_buyer(self, buyer_id):
         return MarketplaceOrder.query.filter_by(buyer_id=buyer_id).order_by(MarketplaceOrder.created_on.desc()).all()
 
+    def list_orders_for_seller(self, seller_id):
+        return MarketplaceOrder.query.filter_by(seller_id=seller_id).order_by(MarketplaceOrder.created_on.desc()).all()
+
     def validate_refund_request(self, order, validated_data):
         if order.refund_status in {"requested", "approved", "processed"}:
             raise LedgerInputError("Refund already exists for this order")
