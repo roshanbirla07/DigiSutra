@@ -23,6 +23,24 @@ role enforcement before the API is safe for multi-user production use.
 
 ## Current Priorities
 
+0. Resolve frontend and production release blockers
+- attach bearer tokens to all authenticated web API requests and clear stale
+  sessions consistently on 401/403 responses
+- make public signup customer-only in both the UI and API contract; remove
+  creator/admin choices from public signup
+- add seller application, admin review, approval/rejection, promotion, and
+  suspension workflow so customers can become sellers through a controlled
+  process
+- replace the currently exposed CloudFront URL with a genuinely protected
+  delivery response, such as a CloudFront signed URL or backend delivery
+  proxy
+- connect processed refunds to the Razorpay refund API and reconcile provider
+  refund results with the internal ledger
+- add asset upload completion and verification/status handling after the
+  presigned upload target is used
+- separate test/live payment configuration, add migrations, monitoring,
+  reconciliation alerts, and tax/invoice foundations
+
 1. Close authorization gaps
 - protect user listing and other collection reads
 - prevent public signup from assigning seller or admin roles
@@ -67,19 +85,25 @@ role enforcement before the API is safe for multi-user production use.
 
 Before the frontend work is treated as fully unblocked, the backend should also have:
 
+- a stable authenticated web-client contract, including bearer-token
+  attachment and 401/403 session handling
+- a customer-only public signup contract with a separate seller application
+  and admin approval flow
 - a signed, short-lived asset delivery response
 - buyer purchase-history endpoints for orders and downloads
 - seller-owned product views for dashboard use
 - refund/admin workflow endpoints or summary views
 - payout summary endpoints for seller and admin screens
 - a standard token-storage and 401/403 response contract for the web app
+- an asset-upload completion/status endpoint
 
 ## Near-Term Build Order
 
-1. Complete the authorization subtasks below
-2. Add refund-driven access revocation and policy limits
-3. Return protected delivery responses for purchased assets
-4. Add seller payout workflow completion and payout monitoring
+1. Complete the authorization subtasks below and align the web auth contract
+2. Add customer-to-seller application and admin approval workflow
+3. Finish purchase-to-access delivery, including genuinely protected URLs
+4. Connect provider refunds and complete asset upload verification
+5. Add seller payout monitoring and production operational safeguards
 
 ## Authorization Completion Subtasks
 

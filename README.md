@@ -90,6 +90,11 @@ regression tests cover the protected route matrix, signup role stripping,
 inactive users, tampered delivery data, and replay handling. Running those
 tests still requires the API dependencies and a working test environment.
 
+The next release-blocking work is to align the web authentication contract,
+keep public signup customer-only, add controlled customer-to-seller approval,
+protect the final CloudFront delivery URL, connect provider refunds, verify
+completed uploads, and add production payment/operations safeguards.
+
 ## Local Development
 
 Run the Flask app directly only if PostgreSQL is available locally and `POSTGRES_DB_URI` or `local_config.py` points to the correct host.
