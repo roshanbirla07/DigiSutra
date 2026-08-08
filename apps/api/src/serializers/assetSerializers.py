@@ -141,6 +141,11 @@ class AssetSerializer(object):
     def create_upload_target(self, validated_data=None):
         validated_data = dict(validated_data or self.data)
         product = self.get_product(validated_data.get("product_uuid"))
+        auth_user = getattr(g, "user", None)
+        if not auth_user:
+            raise AssetInputError("Authentication required")
+        if str(auth_user.user_type).lower() != "admin" and product.owner_id != auth_user.id:
+            raise AssetInputError("Authenticated user does not own this product")
         object_key = validated_data.get("object_key") or f"products/{product.uuid}/{uuid.uuid4()}"
         asset = ProductAsset(
             uuid=f"asset::{uuid.uuid4()}",
@@ -186,7 +191,7 @@ class AssetSerializer(object):
             uuid=f"download::{uuid.uuid4()}",
             asset_id=asset.id,
             order_uuid=order.uuid,
-            downloaded_by=payload.get("downloaded_by") or auth_user.uuid,
+            downloaded_by=auth_user.uuid,
             download_url=payload.get("download_url") or asset.cloudfront_url,
             user_agent=payload.get("user_agent"),
             ip_address=payload.get("ip_address"),

@@ -1,7 +1,7 @@
 import json
 import logging
 
-from flask import Response, request
+from flask import g, Response, request
 from flask.views import View
 from utils.auth import require_auth
 
@@ -44,6 +44,9 @@ class ProductCollection(View):
     def dispatch_request(self, *args, **kwargs):
         if request.method == "POST":
             payload = request.get_json(silent=True) or {}
+            user = getattr(g, "user", None)
+            if user and str(user.user_type).lower() == "seller":
+                payload["owner_uuid"] = user.uuid
             serializer = ProductSerializer(payload)
             try:
                 product = serializer.create()
@@ -93,6 +96,13 @@ class ProductDetail(View):
             )
 
         if request.method == "DELETE":
+            user = getattr(g, "user", None)
+            if str(user.user_type).lower() != "admin" and product.owner_id != user.id:
+                return Response(
+                    response=json.dumps({"error": "You do not own this product"}),
+                    status=403,
+                    mimetype="application/json",
+                )
             try:
                 serializer.delete(product_uuid)
             except Exception as e:
