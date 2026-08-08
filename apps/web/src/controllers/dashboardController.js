@@ -6,6 +6,7 @@ export function createDashboardController(app) {
           addProductView: "/product",
           productsView: "/products",
           settingsView: "/settings",
+          sellerApplicationView: "/become-seller",
           homeView: "/dashboard",
         };
         app.navigate(routeByView[button.dataset.view] || "/auth");
