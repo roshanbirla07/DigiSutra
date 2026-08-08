@@ -8,6 +8,7 @@ from werkzeug.exceptions import HTTPException
 from serializers.assetSerializers import AssetSerializer
 from utils.auth import require_auth, verify_delivery_token
 from utils.user import schema_validation
+from utils.seller import require_operational_seller
 
 
 class AssetUploadTarget(View):
@@ -17,6 +18,8 @@ class AssetUploadTarget(View):
     @schema_validation("ProductAssetCreate", methods=["POST"])
     def dispatch_request(self, *args, **kwargs):
         payload = request.get_json(silent=True) or {}
+        if getattr(g, "user", None) and str(g.user.user_type).lower() == "seller":
+            require_operational_seller(g.user)
         serializer = AssetSerializer(payload)
         try:
             asset, presigned = serializer.create_upload_target(payload)

@@ -113,6 +113,9 @@ class ProductSerializer(object):
     def list_public(self):
         return Product.query.filter_by(is_active=True, is_public=True).order_by(Product.created_on.desc()).all()
 
+    def list_owned(self, owner_id):
+        return Product.query.filter_by(owner_id=owner_id).order_by(Product.created_on.desc()).all()
+
     def get_by_uuid(self, product_uuid):
         product = Product.query.filter_by(uuid=product_uuid).first()
         if not product:

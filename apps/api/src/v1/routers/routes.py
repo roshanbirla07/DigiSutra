@@ -5,6 +5,7 @@ from v1.routers.ops import OpsRoutes
 from v1.routers.payouts import PayoutRoutes
 from v1.routers.support import SupportRoutes
 from v1.routers.seller import SellerRoutes
+from v1.routers.seller_moderation import SellerModerationRoutes
 
 v1 = Blueprint('v1', __name__, url_prefix = '/v1/')
 
@@ -13,5 +14,6 @@ AuthenticationRoutes.router()
 PayoutRoutes.router()
 SupportRoutes.router()
 SellerRoutes.router()
+SellerModerationRoutes.router()
 DashboardRoutes.router()
 OpsRoutes.router()

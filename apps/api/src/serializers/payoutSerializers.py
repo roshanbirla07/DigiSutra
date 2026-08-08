@@ -8,6 +8,7 @@ from configuration.db_routing import db, session_rollback
 from models.ledger import SellerBalance, SellerPayout
 from models.user import User
 from utils.constants import USER_TYPE
+from models.seller import SellerProfile
 
 
 class PayoutInputError(HTTPException):
@@ -112,6 +113,9 @@ class PayoutSerializer(object):
 
     def validate_create_data(self, validated_data):
         seller = self.validate_seller(validated_data.get("seller_uuid"))
+        profile = SellerProfile.query.filter_by(user_id=seller.id).first()
+        if profile and (profile.is_suspended or profile.payout_hold):
+            raise PayoutInputError("Seller payouts are currently on hold")
 
         try:
             amount = Decimal(str(validated_data.get("amount")))
@@ -225,3 +229,16 @@ class PayoutSerializer(object):
 
     def serialize_payout(self, payout):
         return self._serialize_payout(payout)
+
+    def seller_summary(self, seller_id):
+        balance = SellerBalance.query.filter_by(seller_id=seller_id).first()
+        profile = SellerProfile.query.filter_by(user_id=seller_id).first()
+        payouts = self.list_payouts(seller_id=seller_id)
+        return {
+            "available_for_payout": str(balance.available_for_payout if balance else 0),
+            "pending_payout": str(balance.pending_payout if balance else 0),
+            "currency": balance.currency if balance else "INR",
+            "payout_ready": bool(profile and profile.payout_ready and not profile.payout_hold),
+            "payout_hold": bool(profile and profile.payout_hold),
+            "payouts": [self.serialize_payout(payout) for payout in payouts],
+        }

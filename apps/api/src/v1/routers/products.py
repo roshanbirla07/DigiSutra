@@ -1,4 +1,4 @@
-from controllers.product import ProductCollection, ProductDetail
+from controllers.product import OwnedProductCollection, ProductCollection, ProductDetail
 
 
 class ProductRoutes(object):
@@ -6,6 +6,12 @@ class ProductRoutes(object):
     def router():
         from v1.routers.routes import v1
 
+        v1.add_url_rule(
+            "products/mine/",
+            view_func=OwnedProductCollection.as_view("owned_products_collection"),
+            methods=["GET"],
+            endpoint="should_be_v1_only_owned_products_collection",
+        )
         v1.add_url_rule(
             "products/",
             view_func=ProductCollection.as_view("products_collection"),

@@ -7,6 +7,7 @@ from utils.auth import require_auth
 
 from serializers.productSerializers import ProductSerializer
 from utils.user import schema_validation
+from utils.seller import require_operational_seller
 
 
 def serialize_product(product):
@@ -46,6 +47,7 @@ class ProductCollection(View):
             payload = request.get_json(silent=True) or {}
             user = getattr(g, "user", None)
             if user and str(user.user_type).lower() == "seller":
+                require_operational_seller(user)
                 payload["owner_uuid"] = user.uuid
             serializer = ProductSerializer(payload)
             try:
@@ -71,6 +73,19 @@ class ProductCollection(View):
             status=200,
             mimetype="application/json",
         )
+
+
+class OwnedProductCollection(View):
+    methods = ["GET"]
+
+    @require_auth(roles=["seller", "admin"], methods=["GET"])
+    def dispatch_request(self, *args, **kwargs):
+        serializer = ProductSerializer()
+        user = getattr(g, "user", None)
+        if user and str(user.user_type).lower() == "seller":
+            require_operational_seller(user)
+        products = Product.query.filter_by(owner_id=user.id).order_by(Product.created_on.desc()).all()
+        return Response(response=json.dumps([serialize_product(product) for product in products]), status=200, mimetype="application/json")
 
 
 class ProductDetail(View):

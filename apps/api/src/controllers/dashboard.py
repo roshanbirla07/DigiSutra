@@ -6,6 +6,7 @@ from flask.views import View
 
 from serializers.dashboardSerializers import DashboardSerializer
 from utils.auth import require_auth
+from utils.seller import require_operational_seller
 
 
 class DashboardSummary(View):
@@ -15,6 +16,8 @@ class DashboardSummary(View):
     def dispatch_request(self, *args, **kwargs):
         serializer = DashboardSerializer()
         user = getattr(g, "user", None)
+        if str(user.user_type).lower() == "seller":
+            require_operational_seller(user)
         try:
             summary = serializer.admin_summary() if user.user_type == "admin" else serializer.seller_summary(user.id)
         except Exception as e:

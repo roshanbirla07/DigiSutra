@@ -47,6 +47,7 @@ class SellerProfile(db.Model):
     website_url = db.Column(db.String(2048), nullable=True)
     portfolio_url = db.Column(db.String(2048), nullable=True)
     payout_ready = db.Column(db.Boolean, nullable=False, default=False)
+    payout_hold = db.Column(db.Boolean, nullable=False, default=False)
     is_suspended = db.Column(db.Boolean, nullable=False, default=False)
     created_on = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     modified_on = db.Column(

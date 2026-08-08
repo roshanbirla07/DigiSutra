@@ -13,9 +13,11 @@ def upgrade():
     op.add_column("refund_record", sa.Column("provider_refund_id", sa.String(length=100), unique=True))
     op.add_column("refund_record", sa.Column("provider_status", sa.String(length=50)))
     op.add_column("refund_record", sa.Column("failure_reason", sa.Text()))
+    op.add_column("seller_profiles", sa.Column("payout_hold", sa.Boolean(), nullable=False, server_default=sa.false()))
 
 
 def downgrade():
+    op.drop_column("seller_profiles", "payout_hold")
     op.drop_column("refund_record", "failure_reason")
     op.drop_column("refund_record", "provider_status")
     op.drop_column("refund_record", "provider_refund_id")

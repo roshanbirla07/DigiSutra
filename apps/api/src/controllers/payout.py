@@ -7,6 +7,7 @@ from flask.views import View
 from serializers.payoutSerializers import PayoutSerializer
 from utils.auth import require_auth
 from utils.user import schema_validation
+from utils.seller import require_operational_seller
 
 
 class PayoutCollection(View):
@@ -19,6 +20,7 @@ class PayoutCollection(View):
             payload = request.get_json(silent=True) or {}
             user = getattr(g, "user", None)
             if str(user.user_type).lower() == "seller":
+                require_operational_seller(user)
                 payload["seller_uuid"] = user.uuid
             serializer = PayoutSerializer(payload)
             try:
@@ -71,6 +73,19 @@ class PayoutBatch(View):
             status=200,
             mimetype="application/json",
         )
+
+
+class PayoutSummary(View):
+    methods = ["GET"]
+
+    @require_auth(roles=["seller", "admin"], methods=["GET"])
+    def dispatch_request(self, *args, **kwargs):
+        serializer = PayoutSerializer()
+        user = getattr(g, "user", None)
+        seller_id = user.id if str(user.user_type).lower() == "seller" else request.args.get("seller_id", type=int)
+        if seller_id is None:
+            return Response(response=json.dumps({"error": "seller_id is required for admin requests"}), status=400, mimetype="application/json")
+        return Response(response=json.dumps(serializer.seller_summary(seller_id)), status=200, mimetype="application/json")
 
 
 class PayoutRetry(View):

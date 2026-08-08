@@ -35,9 +35,11 @@ class PayoutSerializerTests(unittest.TestCase):
 
         with patch("serializers.payoutSerializers.User") as user_model, \
                 patch("serializers.payoutSerializers.SellerBalance") as seller_balance_model, \
+                patch("serializers.payoutSerializers.SellerProfile") as seller_profile_model, \
                 patch("serializers.payoutSerializers.SellerPayout") as seller_payout_model, \
                 patch("serializers.payoutSerializers.db") as db_mock:
             user_model.query.filter_by.return_value.first.return_value = seller
+            seller_profile_model.query.filter_by.return_value.first.return_value = None
             seller_balance_model.query.filter_by.return_value.first.return_value = seller_balance
             db_mock.session.add = MagicMock()
             db_mock.session.commit = MagicMock()
@@ -61,9 +63,11 @@ class PayoutSerializerTests(unittest.TestCase):
         seller_balance.pending_payout = 0
 
         with patch("serializers.payoutSerializers.User") as user_model, \
-                patch("serializers.payoutSerializers.SellerBalance") as seller_balance_model:
+                patch("serializers.payoutSerializers.SellerBalance") as seller_balance_model, \
+                patch("serializers.payoutSerializers.SellerProfile") as seller_profile_model:
             user_model.query.filter_by.return_value.first.return_value = seller
             seller_balance_model.query.filter_by.return_value.first.return_value = seller_balance
+            seller_profile_model.query.filter_by.return_value.first.return_value = None
 
             serializer = PayoutSerializer()
             with self.assertRaises(PayoutInputError):

@@ -85,6 +85,7 @@ class SellerApplicationSerializer(object):
             "website_url": profile.website_url,
             "portfolio_url": profile.portfolio_url,
             "payout_ready": profile.payout_ready,
+            "payout_hold": profile.payout_hold,
             "is_suspended": profile.is_suspended,
             "created_on": profile.created_on.isoformat() if profile.created_on else None,
             "modified_on": profile.modified_on.isoformat() if profile.modified_on else None,
@@ -277,3 +278,23 @@ class SellerApplicationSerializer(object):
         db.session.commit()
         return application, profile
 
+    @classmethod
+    @session_rollback(db)
+    def set_suspension(cls, user_uuid, suspended, note=None):
+        admin = cls._require_admin()
+        from models.user import User
+        user = User.query.filter_by(uuid=user_uuid).first()
+        if not user or user.user_type != USER_TYPE.SELLER.value:
+            raise SellerApplicationInputError("Active seller not found")
+        profile = SellerProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            raise SellerApplicationInputError("Seller profile not found")
+        profile.is_suspended = bool(suspended)
+        profile.payout_hold = bool(suspended)
+        application = SellerApplication.query.filter_by(user_id=user.id).first()
+        if application:
+            application.review_note = str(note or "").strip() or application.review_note
+            application.reviewer_id = admin.id
+            application.reviewed_on = datetime.datetime.utcnow()
+        db.session.commit()
+        return profile

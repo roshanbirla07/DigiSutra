@@ -370,5 +370,12 @@ class LedgerSerializer(object):
                 "order": self._serialize_order(order),
                 "access_records": access_records,
                 "refunds": refunds,
+                "assets": [{
+                    "uuid": asset.uuid,
+                    "product_uuid": order.product.uuid if order.product else None,
+                    "original_filename": asset.original_filename,
+                    "content_type": asset.content_type,
+                    "asset_status": asset.asset_status,
+                } for asset in order.product.assets.all()] if order.product else [],
             })
         return history
