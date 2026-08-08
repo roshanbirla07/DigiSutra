@@ -57,4 +57,8 @@ class OpsSerializer(object):
                 "open_payouts": len(open_payouts),
                 "refund_provider_gaps": len(refund_gaps),
             },
+            "alerts": [
+                {"severity": "high", "type": "refund_provider_gap", "count": len(refund_gaps)}
+                for _ in [0] if refund_gaps
+            ],
         }

@@ -58,6 +58,12 @@ class AuthorizationIntegrationTests(unittest.TestCase):
             ("POST", "/v1/admin/seller-applications/application::1/request-information/"),
             ("POST", "/v1/admin/seller-applications/application::1/reject/"),
             ("POST", "/v1/admin/seller-applications/application::1/approve/"),
+            ("GET", "/v1/products/mine/"),
+            ("GET", "/v1/payouts/summary/"),
+            ("GET", "/v1/ledger/orders/order::1/invoice/"),
+            ("POST", "/v1/moderation/sellers/user::1/suspend/"),
+            ("POST", "/v1/moderation/sellers/user::1/activate/"),
+            ("POST", "/v1/moderation/sellers/user::1/payout-readiness/"),
         ]
 
         for method, path in protected_routes:

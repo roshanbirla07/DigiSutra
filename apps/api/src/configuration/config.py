@@ -3,7 +3,7 @@ from configuration.db_routing import db
 from flask_cors import CORS
 import logging
 from configuration.urls import V1Version
-from configuration.variables import POSTGRES_DB_URI
+from configuration.variables import LOG_LEVEL, POSTGRES_DB_URI
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
 
@@ -33,7 +33,7 @@ def create_app():
     for urls in BLUEPRINT:
         app.register_blueprint(urls)
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=getattr(logging, str(LOG_LEVEL or "INFO").upper(), logging.INFO))
 
     @app.route("/health", methods=["GET"])
     def health():

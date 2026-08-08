@@ -24,3 +24,16 @@ class SellerSuspension(View):
 
 class SellerActivate(SellerSuspension):
     suspended = False
+
+
+class SellerPayoutReadiness(View):
+    methods = ["POST"]
+
+    @require_auth(roles=["admin"], methods=["POST"])
+    def dispatch_request(self, user_uuid, *args, **kwargs):
+        try:
+            ready = bool((request.get_json(silent=True) or {}).get("payout_ready"))
+            profile = SellerApplicationSerializer.set_payout_readiness(user_uuid, ready)
+            return Response(response=json.dumps(SellerApplicationSerializer.serialize_profile(profile)), status=200, mimetype="application/json")
+        except Exception as exc:
+            return Response(response=json.dumps({"error": str(exc)}), status=400, mimetype="application/json")

@@ -298,3 +298,18 @@ class SellerApplicationSerializer(object):
             application.reviewed_on = datetime.datetime.utcnow()
         db.session.commit()
         return profile
+
+    @classmethod
+    @session_rollback(db)
+    def set_payout_readiness(cls, user_uuid, ready):
+        cls._require_admin()
+        from models.user import User
+        user = User.query.filter_by(uuid=user_uuid).first()
+        if not user or user.user_type != USER_TYPE.SELLER.value:
+            raise SellerApplicationInputError("Active seller not found")
+        profile = SellerProfile.query.filter_by(user_id=user.id).first()
+        if not profile:
+            raise SellerApplicationInputError("Seller profile not found")
+        profile.payout_ready = bool(ready)
+        db.session.commit()
+        return profile

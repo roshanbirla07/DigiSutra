@@ -65,6 +65,7 @@ Role intent:
 - `GET /v1/dashboard/summary/` - get a seller or admin dashboard summary
 - `GET /v1/ops/reconciliation-summary/` - get admin-facing reconciliation risk buckets
 - `GET /v1/payouts/` - list payouts (seller-scoped, admin all)
+- `GET /v1/payouts/summary/` - get seller balance, payout readiness, and payout history
 - `POST /v1/payouts/` - create a payout record for a seller or admin
 - `POST /v1/payouts/batch/` - process a payout batch as admin
 - `POST /v1/payouts/<payout_uuid>/retry/` - retry a failed payout as admin
@@ -79,6 +80,11 @@ Role intent:
 - `POST /v1/moderation/product-flags/<flag_uuid>/resolve/` - resolve a product flag as admin
 - `POST /v1/moderation/users/<user_uuid>/suspend/` - suspend a user as admin
 - `POST /v1/moderation/users/<user_uuid>/activate/` - reactivate a user as admin
+- `POST /v1/moderation/sellers/<user_uuid>/suspend/` - suspend seller operations and hold payouts
+- `POST /v1/moderation/sellers/<user_uuid>/activate/` - reactivate seller operations
+- `POST /v1/moderation/sellers/<user_uuid>/payout-readiness/` - set seller payout readiness as admin
+- `GET /v1/products/mine/` - list the authenticated seller's products
+- `GET /v1/ledger/orders/<order_uuid>/invoice/` - create or fetch an order invoice
 - `GET /v1/seller-applications/` - get the authenticated customer's seller application
 - `POST /v1/seller-applications/` - save a seller application draft
 - `PATCH /v1/seller-applications/` - update a seller application draft
