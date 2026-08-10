@@ -29,7 +29,7 @@ class FakeQuery:
 
 class PaymentGatewayTests(unittest.TestCase):
     def test_verify_checkout_signature_matches_expected_hmac(self):
-        with patch("services.razorpay_gateway.RAZORPAY_KEY_SECRET", "secret_key"):
+        with patch("services.razorpay_gateway.RAZORPAY_TEST_KEY_SECRET", "secret_key"):
             gateway = RazorpayGateway()
             order_id = "order_test_123"
             payment_id = "pay_test_456"
@@ -42,7 +42,7 @@ class PaymentGatewayTests(unittest.TestCase):
             self.assertTrue(gateway.verify_checkout_signature(order_id, payment_id, signature))
 
     def test_verify_checkout_signature_rejects_tampered_signature(self):
-        with patch("services.razorpay_gateway.RAZORPAY_KEY_SECRET", "secret_key"):
+        with patch("services.razorpay_gateway.RAZORPAY_TEST_KEY_SECRET", "secret_key"):
             gateway = RazorpayGateway()
 
             self.assertFalse(

@@ -28,6 +28,7 @@ class PaymentOrderCollection(View):
             )
 
         response_data = serializer.serialize_order(order)
+        response_data["razorpay_key_id"] = serializer.checkout_key_id()
         if provider_order:
             response_data["razorpay_order"] = provider_order
         return Response(

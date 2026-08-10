@@ -2,6 +2,7 @@ import datetime
 import uuid
 from decimal import Decimal, InvalidOperation
 
+from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 
 from configuration.db_routing import db, session_rollback
@@ -159,6 +160,7 @@ class PayoutSerializer(object):
             processed_at=datetime.datetime.utcnow() if validated_data["status"] in {"paid", "processing"} else None,
         )
         db.session.add(payout)
+        db.session.flush()
 
         seller_balance = self.get_or_create_seller_balance(payout.seller)
         seller_balance.available_for_payout = Decimal(str(seller_balance.available_for_payout or 0)) - Decimal(
@@ -241,4 +243,20 @@ class PayoutSerializer(object):
             "payout_ready": bool(profile and profile.payout_ready and not profile.payout_hold),
             "payout_hold": bool(profile and profile.payout_hold),
             "payouts": [self.serialize_payout(payout) for payout in payouts],
+        }
+
+    def admin_summary(self):
+        available = SellerBalance.query.with_entities(
+            func.coalesce(func.sum(SellerBalance.available_for_payout), 0)
+        ).scalar() or 0
+        pending = SellerBalance.query.with_entities(
+            func.coalesce(func.sum(SellerBalance.pending_payout), 0)
+        ).scalar() or 0
+        return {
+            "available_for_payout": str(available),
+            "pending_payout": str(pending),
+            "currency": "INR",
+            "payout_ready": False,
+            "payout_hold": False,
+            "payouts": [self.serialize_payout(payout) for payout in self.list_payouts()],
         }

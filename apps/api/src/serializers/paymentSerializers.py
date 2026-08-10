@@ -180,7 +180,12 @@ class PaymentSerializer(object):
     def serialize_order(self, order):
         return self._serialize_order(order)
 
+    def checkout_key_id(self):
+        key_id, _, _ = self.gateway._credentials()
+        return key_id
+
     def _require_buyer(self, order):
         user = getattr(g, "user", None)
         if not user or order.buyer_id != user.id:
             raise PaymentInputError("Authenticated user does not own this order")
+        return user

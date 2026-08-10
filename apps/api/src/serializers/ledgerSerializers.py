@@ -277,6 +277,7 @@ class LedgerSerializer(object):
 
         order = MarketplaceOrder(**validated_data)
         db.session.add(order)
+        db.session.flush()
 
         seller_balance = self.get_or_create_seller_balance(order.seller)
         seller_balance.pending_payout = Decimal(str(seller_balance.pending_payout or 0)) + Decimal(

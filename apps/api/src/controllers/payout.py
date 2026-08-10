@@ -82,6 +82,8 @@ class PayoutSummary(View):
     def dispatch_request(self, *args, **kwargs):
         serializer = PayoutSerializer()
         user = getattr(g, "user", None)
+        if str(user.user_type).lower() == "admin" and request.args.get("seller_id", type=int) is None:
+            return Response(response=json.dumps(serializer.admin_summary()), status=200, mimetype="application/json")
         seller_id = user.id if str(user.user_type).lower() == "seller" else request.args.get("seller_id", type=int)
         if seller_id is None:
             return Response(response=json.dumps({"error": "seller_id is required for admin requests"}), status=400, mimetype="application/json")
