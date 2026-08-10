@@ -21,12 +21,177 @@ Authorization is currently partial. Authentication is present, but several
 endpoints still need resource ownership, collection scoping, or privileged
 role enforcement before the API is safe for multi-user production use.
 
-The backend readiness work is now implemented in code, including seller
-onboarding, protected asset delivery, upload verification, refund provider
-reconciliation, seller suspension/readiness, scoped product and payout APIs,
-invoice foundations, migrations, and operations summaries. The remaining
-environment step before deployment is installing the declared dependencies and
-running `alembic upgrade head` against the target database.
+The backend has several marketplace foundations implemented in code, including
+seller applications, protected asset delivery, upload verification, refund
+provider reconciliation, seller suspension/readiness, scoped product and payout
+APIs, invoice foundations, and operations summaries. This is not yet production
+ready. The current local database also contains manual schema fixes that must
+be converted into Alembic migrations before the product can be shipped.
+
+## Production Reality Check
+
+The product should not ship to real users until these gaps are closed:
+
+- Seller onboarding is currently an application/review flow, not a real KYC
+  flow. It does not yet verify identity, business details, bank account
+  ownership, tax details, or seller risk.
+- Docker PostgreSQL is acceptable for local development only. Production should
+  use managed PostgreSQL, preferably AWS RDS with backups, point-in-time
+  recovery, restricted network access, and migration-controlled schema changes.
+- Payment collection exists, but production needs live/test separation,
+  webhook replay protection, reconciliation jobs, refund reconciliation, and
+  checkout failure/retry states tested end to end.
+- Payouts are tracked internally, but there is no complete provider-backed
+  payout execution, bank/KYC verification, settlement schedule, or payout
+  compliance workflow.
+- Secrets are currently developer-configured. Before production, move secrets
+  out of code and rotate any key that has been pasted into local files, logs, or
+  chat. Use AWS Secrets Manager or SSM Parameter Store for deployed services.
+- The manual database changes made during local debugging need migrations and
+  migration smoke tests. `db.create_all()` must not be the production schema
+  management strategy.
+- The admin UI needs complete queues for seller applications, KYC review,
+  payouts, refunds, support, moderation, reconciliation, and audit history.
+
+## Production Readiness Roadmap
+
+### P0: Migration and schema control
+
+- Create Alembic migrations for all manual schema changes:
+  - product image metadata columns on `product`
+  - widened UUID/external identifier columns that now need `String(100)`
+  - delivery-token and download-order UUID width changes
+  - any seller application/profile columns that exist in models but not in a
+    fresh migrated database
+- Add a migration smoke test that creates an empty PostgreSQL database and runs
+  `alembic upgrade head`.
+- Add an upgrade test against a copy of the current local schema so manual
+  fixes are proven repeatable.
+- Add downgrade decisions for each migration. If a downgrade is unsafe, leave a
+  clear Alembic comment and document the backup/restore path.
+- Stop relying on `db.create_all()` for production startup. Production deploys
+  must run migrations before starting the API.
+- Add a separate seed script for local/admin/dev data. Do not mix seed data with
+  schema migrations.
+- Document the deployment order: backup database, run migrations, start API,
+  run smoke tests, then enable traffic.
+
+### P0: Infrastructure and secrets
+
+- Use AWS RDS PostgreSQL for production; keep Docker PostgreSQL for local
+  development and CI only.
+- Configure private networking, security groups, database backups,
+  point-in-time recovery, and restore drills.
+- Move Razorpay, S3, CloudFront, EdDSA, database, and webhook secrets to AWS
+  Secrets Manager or SSM Parameter Store.
+- Split local, test, staging, and production config. Test Razorpay keys must
+  never be accepted in live mode.
+- Rotate the current Razorpay, webhook, AWS, and EdDSA secrets before any public
+  deployment if they were pasted into code, terminal output, screenshots, or
+  chat.
+- Add HTTPS, production CORS allowlists, API rate limits, structured logs,
+  request IDs, and alerting for 5xx/payment/webhook/payout failures.
+
+### P0: Seller onboarding and KYC
+
+- Replace the basic seller application with a proper seller state machine:
+  `draft`, `submitted`, `kyc_pending`, `kyc_in_review`, `kyc_verified`,
+  `kyc_failed`, `approved`, `rejected`, `suspended`.
+- Collect and validate seller details: legal name, business type, address,
+  phone, email verification, tax identifiers, bank account, accepted terms, and
+  supported product categories.
+- Add document upload records for identity, address, business proof, tax proof,
+  and bank proof. Store files in private S3 with restricted admin access.
+- Integrate a KYC/provider verification step or create a manual admin
+  verification queue with audit logs until a provider is selected.
+- Block product publishing and payout readiness until KYC is verified and admin
+  approval is complete.
+- Add admin actions for request information, approve, reject, suspend, resume,
+  payout hold, KYC override, and note history.
+
+### P0: Payments, orders, and access
+
+- Complete buyer checkout as: internal order -> Razorpay order -> checkout ->
+  backend confirmation/webhook -> paid order -> access grant.
+- Add idempotency keys for order creation, payment confirmation, refund request,
+  webhook processing, and payout execution.
+- Verify Razorpay webhook signatures on the raw body and reject replayed events.
+- Add reconciliation jobs for provider orders/payments/refunds versus internal
+  ledger state.
+- Handle cancelled checkout, failed payment, delayed webhook, duplicate
+  confirmation, refund pending, refund failed, and refund completed states in
+  API and UI.
+- Ensure downloads are granted only from paid orders and revoked or restricted
+  after refunds according to policy.
+
+### P0: Payouts and seller balances
+
+- Keep buyer payments and seller payouts separate in code and database records.
+- Add payout eligibility checks: verified KYC, verified bank account, no payout
+  hold, minimum balance, settlement age, no active fraud/review hold.
+- Add payout provider integration or a documented manual payout process with
+  admin approval, reference IDs, failure handling, and reconciliation.
+- Add immutable balance movement records so `SellerBalance` can be rebuilt and
+  audited.
+- Add settlement reports for pending, available, processing, paid, failed, and
+  reversed amounts.
+
+### P0: Product assets and delivery
+
+- Keep original files in private S3. Public product images can be served
+  through CloudFront; paid assets must use short-lived signed delivery.
+- Verify upload completion through S3 metadata/head-object checks before a
+  product can publish.
+- Add malware scanning/content review for seller-uploaded files before release.
+- Add download limits, expiry rules, retry behavior, and clear error states in
+  the customer library.
+
+### P1: Auth, security, and compliance
+
+- Add email verification, password reset, password policy, account lock/rate
+  limiting, and admin-created user safeguards.
+- Add complete RBAC tests for customer, seller, admin, suspended seller, and
+  inactive user flows.
+- Add audit logs for admin approvals, seller KYC decisions, payout changes,
+  refunds, moderation actions, and secret/config changes.
+- Add Terms of Service, Privacy Policy, Refund Policy, seller agreement, tax
+  invoice rules, data retention policy, and KYC-data handling rules.
+- Keep PCI scope limited by using Razorpay-hosted checkout and never storing
+  card data.
+
+### P1: Admin and operations
+
+- Build admin dashboards for seller requests, KYC review, payments, refunds,
+  payouts, support tickets, product moderation, and reconciliation failures.
+- Add filters, status tabs, detail views, notes, confirmation dialogs, and audit
+  trails for all admin actions.
+- Add operational runbooks for failed webhooks, stuck payouts, disputed orders,
+  seller suspension, refund escalation, and database restore.
+
+### P1: Frontend completion
+
+- Add visible logout and account settings in all authenticated layouts.
+- Add seller application status, KYC progress, request-information resubmission,
+  approval/rejection messaging, and seller activation checklist.
+- Add checkout success/failure/pending pages and customer library downloads.
+- Add seller dashboard pages for products, sales, payouts, KYC status, and
+  account readiness.
+- Add admin seller/KYC review pages, payout review pages, refund pages, and
+  reconciliation views.
+- Add loading, empty, error, retry, forbidden, expired-session, and duplicate
+  submit states on every critical screen.
+
+### P1: Testing and release gates
+
+- Add backend unit and integration tests for migrations, auth, seller KYC,
+  checkout, webhooks, refunds, payouts, asset delivery, and admin actions.
+- Add Playwright end-to-end tests for signup, login, seller application, admin
+  approval, checkout, library download, refund request, and logout.
+- Add CI steps for linting, backend tests, frontend syntax checks, migration
+  upgrade on a clean DB, and Docker image build.
+- Add staging smoke tests before production deploy: health check, login,
+  product listing, checkout test order, webhook test, seller application, admin
+  queue, and protected download.
 
 ## Current Priorities
 
