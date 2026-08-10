@@ -63,10 +63,13 @@ class UserSerializer(object):
         if not validated_data['username']:
             raise IndefiniteUserProfileData('Unable to generate username')
 
-        if 'firstname' in validated_data and 'first_name' not in validated_data:
-            validated_data['first_name'] = validated_data.pop('firstname')
-        if 'lastname' in validated_data and 'last_name' not in validated_data:
-            validated_data['last_name'] = validated_data.pop('lastname')
+        if 'first_name' not in validated_data:
+            validated_data['first_name'] = first_name
+        validated_data.pop('firstname', None)
+
+        if 'last_name' not in validated_data:
+            validated_data['last_name'] = last_name
+        validated_data.pop('lastname', None)
 
         validated_data['email'] = str(email).lower()
         user_type = validated_data.get('user_type')

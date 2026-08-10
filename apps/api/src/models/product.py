@@ -8,7 +8,7 @@ class Product(db.Model):
     __tablename__ = "product"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     owner_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     owner = db.relationship("User", backref=db.backref("products", lazy="dynamic"))
     title = db.Column(db.String(150), nullable=False)
@@ -45,7 +45,7 @@ class ProductAsset(db.Model):
     __tablename__ = "product_asset"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
     product = db.relationship("Product", backref=db.backref("assets", lazy="dynamic"))
     storage_provider = db.Column(db.String(50), nullable=False, default="s3")
@@ -74,10 +74,10 @@ class ProductAssetDownload(db.Model):
     __tablename__ = "product_asset_download"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     asset_id = db.Column(db.Integer, db.ForeignKey("product_asset.id"), nullable=False)
     asset = db.relationship("ProductAsset", backref=db.backref("download_events", lazy="dynamic"))
-    order_uuid = db.Column(db.String(50))
+    order_uuid = db.Column(db.String(100))
     downloaded_by = db.Column(db.String(50))
     download_url = db.Column(db.String(2048))
     user_agent = db.Column(db.String(500))

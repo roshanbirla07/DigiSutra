@@ -7,7 +7,7 @@ class SupportTicket(db.Model):
     __tablename__ = "support_ticket"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     created_by = db.relationship("User", foreign_keys=[created_by_id], backref=db.backref("support_tickets", lazy="dynamic"))
     subject = db.Column(db.String(200), nullable=False)
@@ -25,7 +25,7 @@ class ProductFlag(db.Model):
     __tablename__ = "product_flag"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
     product = db.relationship("Product", backref=db.backref("flags", lazy="dynamic"))
     reported_by_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)

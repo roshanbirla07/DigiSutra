@@ -15,7 +15,7 @@ class User(db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50))
     phone_number = db.Column(db.String(13))
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     created_on = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     modified_on = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     changed_by = db.Column(db.String(50))

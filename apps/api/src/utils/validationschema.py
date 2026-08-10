@@ -1,8 +1,11 @@
 from utils.constants import USER_TYPE
 
 UserCreateSchema = {
-    'firstname': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'firstname': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': False},
+    'first_name': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': False},
     'lastname': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': False},
+    'last_name': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': False},
+    'username': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
     'email': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
     'password': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
     'user_type': {'type': 'string', 'allowed': USER_TYPE.values() + ['creator'], 'nullable': True, 'required': False},
@@ -15,7 +18,7 @@ UserLoginSchema = {
 }
 
 ProductCreateSchema = {
-    'owner_uuid': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'owner_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
     'title': {'type': 'string', 'maxlength': 150, 'nullable': False, 'required': True},
     'description': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
     'price': {'type': ['string', 'integer', 'float'], 'nullable': False, 'required': True},
@@ -36,7 +39,7 @@ ProductCreateSchema = {
 }
 
 ProductAssetCreateSchema = {
-    'product_uuid': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'product_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
     'original_filename': {'type': 'string', 'maxlength': 255, 'nullable': True, 'required': False},
     'content_type': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
     'size_bytes': {'type': ['string', 'integer'], 'nullable': True, 'required': False},
@@ -48,10 +51,10 @@ ProductAssetCompleteSchema = {
 }
 
 LedgerOrderCreateSchema = {
-    'uuid': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
-    'buyer_uuid': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
-    'seller_uuid': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
-    'product_uuid': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'uuid': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
+    'buyer_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
+    'seller_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
+    'product_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
     'gross_amount': {'type': ['string', 'integer', 'float'], 'nullable': False, 'required': True},
     'platform_fee': {'type': ['string', 'integer', 'float'], 'nullable': True, 'required': False},
     'tax_amount': {'type': ['string', 'integer', 'float'], 'nullable': True, 'required': False},
@@ -64,14 +67,14 @@ LedgerOrderCreateSchema = {
 }
 
 LedgerRefundCreateSchema = {
-    'uuid': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
+    'uuid': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
     'amount': {'type': ['string', 'integer', 'float'], 'nullable': True, 'required': False},
     'reason': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
     'status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
 }
 
 PaymentOrderCreateSchema = {
-    'order_uuid': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'order_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
 }
 
 PaymentConfirmSchema = {
@@ -87,8 +90,8 @@ PaymentWebhookSchema = {
 }
 
 PayoutCreateSchema = {
-    'uuid': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
-    'seller_uuid': {'type': 'string', 'maxlength': 50, 'nullable': False, 'required': True},
+    'uuid': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
+    'seller_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
     'amount': {'type': ['string', 'integer', 'float'], 'nullable': False, 'required': True},
     'status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
     'payout_method': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},

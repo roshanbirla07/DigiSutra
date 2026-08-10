@@ -7,7 +7,7 @@ class SellerApplication(db.Model):
     __tablename__ = "seller_applications"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
     status = db.Column(db.String(30), nullable=False, default="draft")
     store_name = db.Column(db.String(120), nullable=True)
@@ -39,7 +39,7 @@ class SellerProfile(db.Model):
     __tablename__ = "seller_profiles"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
     store_name = db.Column(db.String(120), nullable=False)
     store_description = db.Column(db.String(5000), nullable=True)

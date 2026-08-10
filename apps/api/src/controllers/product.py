@@ -5,6 +5,7 @@ from flask import g, Response, request
 from flask.views import View
 from utils.auth import require_auth
 
+from models.product import Product
 from serializers.productSerializers import ProductSerializer
 from utils.user import schema_validation
 from utils.seller import require_operational_seller

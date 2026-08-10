@@ -1,3 +1,5 @@
+import os
+
 FLASK_ENV = "development"
 FLASK_DEBUG = "1"
 SECRET_KEY = "dev-secret-key"
@@ -5,7 +7,7 @@ SECRET_KEY = "dev-secret-key"
 POSTGRES_DB = "digisutra"
 POSTGRES_USER = "postgres"
 POSTGRES_PASSWORD = "postgres"
-POSTGRES_HOST = "localhost"
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_DB_PORT = "5432"
 POSTGRES_DB_URI = (
     f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}"

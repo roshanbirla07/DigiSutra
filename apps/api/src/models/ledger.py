@@ -7,7 +7,7 @@ class MarketplaceOrder(db.Model):
     __tablename__ = "marketplace_order"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     buyer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     buyer = db.relationship(
         "User",
@@ -61,7 +61,7 @@ class SellerPayout(db.Model):
     __tablename__ = "seller_payout"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     seller_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     seller = db.relationship("User", backref=db.backref("seller_payouts", lazy="dynamic"))
     amount = db.Column(db.Numeric(10, 2), nullable=False)
@@ -84,7 +84,7 @@ class RefundRecord(db.Model):
     __tablename__ = "refund_record"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     order_id = db.Column(db.Integer, db.ForeignKey("marketplace_order.id"), nullable=False)
     order = db.relationship("MarketplaceOrder", backref=db.backref("refund_records", lazy="dynamic"))
     amount = db.Column(db.Numeric(10, 2), nullable=False)
@@ -108,7 +108,7 @@ class InvoiceRecord(db.Model):
     __tablename__ = "invoice_record"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     order_id = db.Column(db.Integer, db.ForeignKey("marketplace_order.id"), nullable=False, unique=True)
     order = db.relationship("MarketplaceOrder", backref=db.backref("invoice", uselist=False))
     invoice_number = db.Column(db.String(80), unique=True, nullable=False)
@@ -124,7 +124,7 @@ class ProductAccess(db.Model):
     __tablename__ = "product_access"
 
     id = db.Column(db.Integer, primary_key=True)
-    uuid = db.Column(db.String(50), unique=True, nullable=False)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
     order_id = db.Column(db.Integer, db.ForeignKey("marketplace_order.id"), nullable=False)
     order = db.relationship("MarketplaceOrder", backref=db.backref("product_access_records", lazy="dynamic"))
     asset_id = db.Column(db.String(100))
