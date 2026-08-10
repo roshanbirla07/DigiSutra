@@ -16,7 +16,9 @@ export const ROUTES = Object.freeze({
   sellerProductNew: "/seller/products/new",
   sellerPayouts: "/seller/payouts",
   becomeSeller: "/become-seller",
+  adminSellerApplications: "/admin/seller-applications",
   settings: "/settings",
+  checkout: (uuid) => `/checkout/${encodeURIComponent(uuid)}`,
 });
 
 export const API_PATHS = Object.freeze({
@@ -26,11 +28,16 @@ export const API_PATHS = Object.freeze({
   signup: "/v1/users/",
   login: "/v1/users/login/",
   purchases: "/v1/ledger/purchases/",
+  ledgerOrders: "/v1/ledger/orders/",
+  paymentOrders: "/v1/payments/orders/",
+  paymentConfirm: "/v1/payments/confirm/",
   dashboard: "/v1/dashboard/summary/",
   payouts: "/v1/payouts/",
   payoutSummary: "/v1/payouts/summary/",
   sellerApplication: "/v1/seller-applications/",
   sellerApplicationSubmit: "/v1/seller-applications/submit/",
+  adminSellerApplications: "/v1/admin/seller-applications/",
+  adminSellerApplicationAction: (uuid, action) => `/v1/admin/seller-applications/${encodeURIComponent(uuid)}/${action}/`,
 });
 
 export const COPY = Object.freeze({
