@@ -76,6 +76,88 @@ The product should not ship to real users until these gaps are closed:
 - Document the deployment order: backup database, run migrations, start API,
   run smoke tests, then enable traffic.
 
+### P0: RDS PostgreSQL 18.3 compatibility subtasks
+
+Status: compatibility verified for SQLAlchemy model DDL and app connectivity;
+not yet verified for a clean Alembic-managed database because current
+migrations start after the base schema already exists.
+
+Operating rule for every subtask:
+- Before implementation, check current official documentation and best
+  practices for the affected flow.
+- Record the edge cases that can break production behavior.
+- Implement only the scoped task.
+- Run the narrow test for the task plus the PostgreSQL 18.3 migration smoke
+  test when schema/config is touched.
+- Update `README.md` with the task outcome, required commands, and operational
+  notes.
+- Commit that task before starting the next flow.
+
+Subtasks:
+
+1. RDS-01: Pin database/runtime dependencies.
+- Review current SQLAlchemy, Flask-SQLAlchemy, Alembic, psycopg2-binary, Flask,
+  and Flask-CORS compatibility.
+- Pin versions in `requirements.txt` and document the supported Python version.
+- Edge cases: SQLAlchemy 1.x versus 2.x behavior, raw SQL requiring `text()`,
+  psycopg2 wheel availability, and accidental major-version upgrades in CI.
+- README update: dependency policy and upgrade command.
+
+2. RDS-02: Make database configuration environment-driven.
+- Build the SQLAlchemy URL from environment variables or accept a full
+  `POSTGRES_DB_URI` without hard-coding local credentials.
+- Support RDS SSL mode, at minimum `sslmode=require`, with room for
+  certificate verification later.
+- Edge cases: special characters in passwords, missing `digisutra` database,
+  private RDS hostname, wrong security group, SSL-required RDS connections, and
+  local Docker hostname differences.
+- README update: local Docker, staging, and RDS connection examples without
+  real secrets.
+
+3. RDS-03: Add a base Alembic migration for the current core schema.
+- Create the missing base migration for `user`, `sellers`, `product`,
+  `product_asset`, `product_asset_download`, `marketplace_order`,
+  `seller_balance`, `seller_payout`, `refund_record`, `product_access`,
+  `delivery_token_use`, `support_ticket`, and `product_flag`.
+- Edge cases: reserved table name `"user"`, foreign-key creation order,
+  expression indexes, unique constraints, numeric precision, default values,
+  and idempotent fresh-database creation.
+- README update: clean database bootstrap command.
+
+4. RDS-04: Reconcile existing migrations with current models.
+- Add follow-up migrations for product image metadata, UUID-like column widths
+  now using `String(100)`, invoice UUID width, seller profile/application UUID
+  width, and any missing indexes.
+- Edge cases: existing data longer than 50 chars, duplicate provider IDs,
+  nullable-to-not-null changes, server defaults versus Python defaults, and
+  downgrade safety.
+- README update: migration history and how to verify `alembic current/head`.
+
+5. RDS-05: Remove production reliance on `db.create_all()`.
+- Keep direct table creation only for local/test bootstrap where explicitly
+  enabled, and require Alembic for production.
+- Edge cases: app startup racing migrations, partial schema from failed deploy,
+  accidental table creation on wrong database, and health checks passing while
+  migrations are missing.
+- README update: production startup order and migration gate.
+
+6. RDS-06: Add PostgreSQL 18.3 migration smoke testing.
+- Add a repeatable check that starts PostgreSQL 18.3, creates `digisutra`, runs
+  `alembic upgrade head`, creates the Flask app, and runs the backend tests.
+- Edge cases: local PostgreSQL 17 hiding PostgreSQL 18 behavior, Docker image
+  minor version drift, CI networking, stale containers, and read-only bind
+  mounts.
+- README update: exact smoke-test commands.
+
+7. RDS-07: Validate RDS operational settings before production traffic.
+- Confirm RDS PostgreSQL 18.3, `db.t4g.micro` capacity limits, backups,
+  point-in-time recovery, maintenance window, monitoring, private networking,
+  and SSL enforcement.
+- Edge cases: connection limits on small instances, cold starts, storage
+  autoscaling, backup retention, parameter group drift, public exposure, and
+  unavailable extension assumptions.
+- README update: RDS production checklist.
+
 ### P0: Infrastructure and secrets
 
 - Use AWS RDS PostgreSQL for production; keep Docker PostgreSQL for local

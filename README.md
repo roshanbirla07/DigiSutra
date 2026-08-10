@@ -152,6 +152,44 @@ Service URLs:
 - Web: `http://localhost:3000`
 - PostgreSQL: `localhost:5432`
 
+## PostgreSQL and RDS Compatibility
+
+Production target: Amazon RDS PostgreSQL 18.3 with database name `digisutra`.
+Local Docker PostgreSQL should match the production major/minor version for
+schema work; PostgreSQL 17 can stay available for older local data, but it must
+not be the only migration test target.
+
+Current compatibility verdict: compatible with changes. The SQLAlchemy models
+and app connection work on PostgreSQL 18.3, but a clean `alembic upgrade head`
+does not yet build the complete schema because the migration history starts
+after the base tables already exist. See [plan.md](plan.md#p0-rds-postgresql-183-compatibility-subtasks)
+for the committed remediation subtasks.
+
+Rules for every database compatibility task:
+- Check current official documentation before implementation.
+- List production edge cases before changing code.
+- Implement one scoped task at a time.
+- Run the relevant backend tests and PostgreSQL 18.3 migration smoke test when
+  schema or connection behavior changes.
+- Update this README with the new command, policy, or operational note.
+- Commit the completed task before starting the next flow.
+
+References used for the compatibility plan:
+- AWS RDS PostgreSQL SSL guidance: RDS PostgreSQL 15 and later can require SSL
+  by default through `rds.force_ssl`, so production URLs should support SSL
+  mode.
+- Alembic guidance: migration environments may source database URLs from
+  environment variables rather than only `alembic.ini`.
+- SQLAlchemy guidance: PostgreSQL URLs should use the
+  `postgresql+psycopg2://` driver form with explicit user, password, host,
+  port, database, and optional query parameters.
+- PostgreSQL 18 release notes: MD5 password authentication is deprecated, so
+  production should use SCRAM-compatible users and modern clients.
+
+Do not commit real RDS endpoints, passwords, AWS access keys, Razorpay secrets,
+or private EdDSA keys. Use placeholders in documentation and secret managers in
+deployed environments.
+
 ## Asset Storage
 
 Original product files are stored in private S3 buckets.
