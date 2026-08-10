@@ -100,6 +100,15 @@ class AdminSellerApplicationReview(View):
             if self.action == "reject":
                 result = SellerApplicationSerializer.reject(application_uuid, payload.get("note"))
                 return _response(SellerApplicationSerializer.serialize_application(result))
+            if self.action == "start-kyc-review":
+                result = SellerApplicationSerializer.start_kyc_review(application_uuid, payload)
+                return _response(SellerApplicationSerializer.serialize_application(result))
+            if self.action == "verify-kyc":
+                result = SellerApplicationSerializer.verify_kyc(application_uuid, payload)
+                return _response(SellerApplicationSerializer.serialize_application(result))
+            if self.action == "fail-kyc":
+                result = SellerApplicationSerializer.fail_kyc(application_uuid, payload)
+                return _response(SellerApplicationSerializer.serialize_application(result))
             result, profile = SellerApplicationSerializer.approve(application_uuid, payload.get("note"))
             return _response({
                 "application": SellerApplicationSerializer.serialize_application(result),
@@ -121,3 +130,14 @@ class AdminSellerApplicationReject(AdminSellerApplicationReview):
 class AdminSellerApplicationApprove(AdminSellerApplicationReview):
     action = "approve"
 
+
+class AdminSellerApplicationStartKycReview(AdminSellerApplicationReview):
+    action = "start-kyc-review"
+
+
+class AdminSellerApplicationVerifyKyc(AdminSellerApplicationReview):
+    action = "verify-kyc"
+
+
+class AdminSellerApplicationFailKyc(AdminSellerApplicationReview):
+    action = "fail-kyc"

@@ -115,8 +115,12 @@ class PayoutSerializer(object):
     def validate_create_data(self, validated_data):
         seller = self.validate_seller(validated_data.get("seller_uuid"))
         profile = SellerProfile.query.filter_by(user_id=seller.id).first()
+        if seller.user_type == USER_TYPE.SELLER.value and not profile:
+            raise PayoutInputError("Seller profile is required before payouts")
         if profile and (profile.is_suspended or profile.payout_hold):
             raise PayoutInputError("Seller payouts are currently on hold")
+        if profile and (profile.kyc_status != "verified" or profile.fund_account_status != "validated" or not profile.payout_ready):
+            raise PayoutInputError("Seller KYC, fund account validation, and payout readiness are required")
 
         try:
             amount = Decimal(str(validated_data.get("amount")))

@@ -1,4 +1,5 @@
 import datetime
+import re
 import uuid
 
 from flask import g
@@ -19,7 +20,24 @@ class SellerApplicationInputError(HTTPException):
 
 
 class SellerApplicationSerializer(object):
-    STATUSES = {"draft", "submitted", "under_review", "needs_information", "approved", "rejected", "withdrawn"}
+    STATUSES = {
+        "draft",
+        "submitted",
+        "under_review",
+        "kyc_pending",
+        "kyc_in_review",
+        "kyc_verified",
+        "kyc_failed",
+        "needs_information",
+        "approved",
+        "rejected",
+        "withdrawn",
+        "suspended",
+    }
+    KYC_STATUSES = {"not_started", "pending", "in_review", "verified", "failed", "needs_information"}
+    PROVIDER_STATUSES = {"not_started", "created", "under_review", "activated", "needs_clarification", "suspended"}
+    FUND_ACCOUNT_STATUSES = {"not_started", "pending", "validated", "failed"}
+    BUSINESS_TYPES = {"individual", "proprietorship", "partnership", "llp", "private_limited", "public_limited", "trust", "ngo", "society"}
     EDITABLE_FIELDS = {
         "store_name",
         "store_description",
@@ -28,8 +46,17 @@ class SellerApplicationSerializer(object):
         "website_url",
         "portfolio_url",
         "legal_name",
+        "business_type",
+        "business_address",
+        "pan_number",
+        "gstin",
         "country",
         "phone_number",
+        "bank_account_holder_name",
+        "bank_account_last4",
+        "bank_ifsc",
+        "kyc_document_type",
+        "kyc_document_reference",
         "terms_accepted",
     }
 
@@ -63,8 +90,24 @@ class SellerApplicationSerializer(object):
             "website_url": application.website_url,
             "portfolio_url": application.portfolio_url,
             "legal_name": application.legal_name,
+            "business_type": application.business_type,
+            "business_address": application.business_address,
+            "pan_number": application.pan_number,
+            "gstin": application.gstin,
             "country": application.country,
             "phone_number": application.phone_number,
+            "bank_account_holder_name": application.bank_account_holder_name,
+            "bank_account_last4": application.bank_account_last4,
+            "bank_ifsc": application.bank_ifsc,
+            "kyc_document_type": application.kyc_document_type,
+            "kyc_document_reference": application.kyc_document_reference,
+            "kyc_status": application.kyc_status,
+            "kyc_review_note": application.kyc_review_note,
+            "kyc_reviewed_on": application.kyc_reviewed_on.isoformat() if application.kyc_reviewed_on else None,
+            "provider": application.provider,
+            "provider_account_id": application.provider_account_id,
+            "provider_account_status": application.provider_account_status,
+            "fund_account_status": application.fund_account_status,
             "terms_accepted": application.terms_accepted,
             "submitted_on": application.submitted_on.isoformat() if application.submitted_on else None,
             "reviewed_on": application.reviewed_on.isoformat() if application.reviewed_on else None,
@@ -84,6 +127,14 @@ class SellerApplicationSerializer(object):
             "category": profile.category,
             "website_url": profile.website_url,
             "portfolio_url": profile.portfolio_url,
+            "legal_name": profile.legal_name,
+            "business_type": profile.business_type,
+            "country": profile.country,
+            "kyc_status": profile.kyc_status,
+            "provider": profile.provider,
+            "provider_account_id": profile.provider_account_id,
+            "provider_account_status": profile.provider_account_status,
+            "fund_account_status": profile.fund_account_status,
             "payout_ready": profile.payout_ready,
             "payout_hold": profile.payout_hold,
             "is_suspended": profile.is_suspended,
@@ -99,6 +150,8 @@ class SellerApplicationSerializer(object):
                 value = payload[field]
                 if isinstance(value, str):
                     value = value.strip()
+                if field in {"pan_number", "gstin", "bank_ifsc"} and value:
+                    value = str(value).upper()
                 values[field] = value
 
         if require_submit:
@@ -108,18 +161,52 @@ class SellerApplicationSerializer(object):
                 "category": "Category is required",
                 "product_types": "Product types are required",
                 "legal_name": "Legal name is required",
+                "business_type": "Business type is required",
+                "business_address": "Business address is required",
+                "pan_number": "PAN is required",
                 "country": "Country is required",
                 "phone_number": "Phone number is required",
+                "bank_account_holder_name": "Bank account holder name is required",
+                "bank_account_last4": "Bank account last 4 digits are required",
+                "bank_ifsc": "Bank IFSC is required",
+                "kyc_document_type": "KYC document type is required",
+                "kyc_document_reference": "KYC document reference is required",
             }
             for field, message in required.items():
                 if not str(values.get(field) or "").strip():
                     raise SellerApplicationInputError(message)
+            business_type = str(values.get("business_type") or "").strip().lower()
+            if business_type not in cls.BUSINESS_TYPES:
+                raise SellerApplicationInputError("Invalid business type")
+            pan_number = str(values.get("pan_number") or "")
+            if not re.match(r"^[A-Z]{5}[0-9]{4}[A-Z]$", pan_number):
+                raise SellerApplicationInputError("PAN format is invalid")
+            gstin = str(values.get("gstin") or "")
+            if gstin and not re.match(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$", gstin):
+                raise SellerApplicationInputError("GSTIN format is invalid")
+            bank_last4 = str(values.get("bank_account_last4") or "")
+            if not re.match(r"^[0-9]{4}$", bank_last4):
+                raise SellerApplicationInputError("Bank account last 4 digits are invalid")
+            bank_ifsc = str(values.get("bank_ifsc") or "")
+            if not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", bank_ifsc):
+                raise SellerApplicationInputError("Bank IFSC format is invalid")
             if values.get("terms_accepted") is not True:
                 raise SellerApplicationInputError("Seller terms must be accepted")
 
         if "store_name" in values and len(str(values["store_name"] or "")) > 120:
             raise SellerApplicationInputError("Store name is too long")
         return values
+
+    @staticmethod
+    def _normalize_review_payload(payload):
+        payload = payload or {}
+        return {
+            "note": str(payload.get("note") or "").strip() or None,
+            "provider": str(payload.get("provider") or "manual").strip().lower() or "manual",
+            "provider_account_id": str(payload.get("provider_account_id") or "").strip() or None,
+            "provider_account_status": str(payload.get("provider_account_status") or "").strip().lower() or None,
+            "fund_account_status": str(payload.get("fund_account_status") or "").strip().lower() or None,
+        }
 
     @classmethod
     def _get_owned(cls, application_uuid=None):
@@ -163,7 +250,7 @@ class SellerApplicationSerializer(object):
         if user.user_type != USER_TYPE.CUSTOMER.value:
             raise SellerApplicationInputError("Only customers can apply to become sellers")
         application = cls._get_owned()
-        if application and application.status not in {"draft", "needs_information", "rejected"}:
+        if application and application.status not in {"draft", "needs_information", "kyc_failed", "rejected"}:
             raise SellerApplicationInputError("This application cannot be edited in its current state")
         values = cls._validate_fields(payload)
         if not application:
@@ -171,6 +258,10 @@ class SellerApplicationSerializer(object):
                 uuid=f"seller-application::{uuid.uuid4()}",
                 user_id=user.id,
                 status="draft",
+                kyc_status="not_started",
+                provider="manual",
+                provider_account_status="not_started",
+                fund_account_status="not_started",
             )
             db.session.add(application)
         for field, value in values.items():
@@ -190,17 +281,26 @@ class SellerApplicationSerializer(object):
                 uuid=f"seller-application::{uuid.uuid4()}",
                 user_id=user.id,
                 status="draft",
+                kyc_status="not_started",
+                provider="manual",
+                provider_account_status="not_started",
+                fund_account_status="not_started",
             )
             db.session.add(application)
-        if application.status not in {"draft", "needs_information", "rejected"}:
+        if application.status not in {"draft", "needs_information", "kyc_failed", "rejected"}:
             raise SellerApplicationInputError("This application cannot be submitted in its current state")
         values = cls._validate_fields(payload, require_submit=False)
         for field, value in values.items():
             setattr(application, field, value)
         cls._validate_fields({field: getattr(application, field) for field in cls.EDITABLE_FIELDS}, require_submit=True)
-        application.status = "submitted"
+        application.status = "kyc_pending"
+        application.kyc_status = "pending"
+        application.provider = application.provider or "manual"
+        application.provider_account_status = application.provider_account_status or "not_started"
+        application.fund_account_status = application.fund_account_status or "pending"
         application.submitted_on = datetime.datetime.utcnow()
         application.review_note = None
+        application.kyc_review_note = None
         db.session.commit()
         return application
 
@@ -208,7 +308,7 @@ class SellerApplicationSerializer(object):
     @session_rollback(db)
     def withdraw(cls, application_uuid):
         application = cls._get_owned(application_uuid)
-        if application.status not in {"submitted", "under_review", "needs_information"}:
+        if application.status not in {"submitted", "under_review", "kyc_pending", "kyc_in_review", "needs_information"}:
             raise SellerApplicationInputError("This application cannot be withdrawn in its current state")
         application.status = "withdrawn"
         db.session.commit()
@@ -219,15 +319,18 @@ class SellerApplicationSerializer(object):
     def request_information(cls, application_uuid, note):
         admin = cls._require_admin()
         application = cls._get_owned(application_uuid)
-        if application.status not in {"submitted", "under_review"}:
+        if application.status not in {"submitted", "under_review", "kyc_pending", "kyc_in_review", "kyc_failed"}:
             raise SellerApplicationInputError("This application is not awaiting review")
         note = str(note or "").strip()
         if not note:
             raise SellerApplicationInputError("A request for information is required")
         application.status = "needs_information"
+        application.kyc_status = "needs_information"
         application.reviewer_id = admin.id
         application.review_note = note
+        application.kyc_review_note = note
         application.reviewed_on = datetime.datetime.utcnow()
+        application.kyc_reviewed_on = application.reviewed_on
         db.session.commit()
         return application
 
@@ -236,15 +339,96 @@ class SellerApplicationSerializer(object):
     def reject(cls, application_uuid, note):
         admin = cls._require_admin()
         application = cls._get_owned(application_uuid)
-        if application.status not in {"submitted", "under_review", "needs_information"}:
+        if application.status not in {"submitted", "under_review", "kyc_pending", "kyc_in_review", "kyc_failed", "needs_information"}:
             raise SellerApplicationInputError("This application is not awaiting review")
         note = str(note or "").strip()
         if not note:
             raise SellerApplicationInputError("A rejection reason is required")
         application.status = "rejected"
+        application.kyc_status = "failed"
         application.reviewer_id = admin.id
         application.review_note = note
+        application.kyc_review_note = note
         application.reviewed_on = datetime.datetime.utcnow()
+        application.kyc_reviewed_on = application.reviewed_on
+        db.session.commit()
+        return application
+
+    @classmethod
+    @session_rollback(db)
+    def start_kyc_review(cls, application_uuid, payload=None):
+        admin = cls._require_admin()
+        application = cls._get_owned(application_uuid)
+        if application.status not in {"kyc_pending", "submitted", "under_review"}:
+            raise SellerApplicationInputError("This application is not ready for KYC review")
+        review = cls._normalize_review_payload(payload)
+        application.status = "kyc_in_review"
+        application.kyc_status = "in_review"
+        application.reviewer_id = admin.id
+        application.review_note = review["note"] or application.review_note
+        application.kyc_review_note = review["note"] or application.kyc_review_note
+        application.provider = review["provider"]
+        application.provider_account_id = review["provider_account_id"] or application.provider_account_id
+        application.provider_account_status = review["provider_account_status"] or "under_review"
+        application.fund_account_status = review["fund_account_status"] or application.fund_account_status or "pending"
+        application.reviewed_on = datetime.datetime.utcnow()
+        application.kyc_reviewed_on = application.reviewed_on
+        db.session.commit()
+        return application
+
+    @classmethod
+    @session_rollback(db)
+    def verify_kyc(cls, application_uuid, payload=None):
+        admin = cls._require_admin()
+        application = cls._get_owned(application_uuid)
+        if application.status not in {"kyc_pending", "kyc_in_review", "kyc_failed"}:
+            raise SellerApplicationInputError("This application is not ready for KYC verification")
+        review = cls._normalize_review_payload(payload)
+        provider_status = review["provider_account_status"] or application.provider_account_status or "activated"
+        fund_status = review["fund_account_status"] or application.fund_account_status or "validated"
+        if provider_status not in cls.PROVIDER_STATUSES:
+            raise SellerApplicationInputError("Invalid provider account status")
+        if fund_status not in cls.FUND_ACCOUNT_STATUSES:
+            raise SellerApplicationInputError("Invalid fund account status")
+        if provider_status not in {"activated", "created"}:
+            raise SellerApplicationInputError("Provider account must be created or activated before KYC verification")
+        if fund_status != "validated":
+            raise SellerApplicationInputError("Fund account must be validated before KYC verification")
+        application.status = "kyc_verified"
+        application.kyc_status = "verified"
+        application.reviewer_id = admin.id
+        application.review_note = review["note"] or application.review_note
+        application.kyc_review_note = review["note"] or application.kyc_review_note
+        application.provider = review["provider"]
+        application.provider_account_id = review["provider_account_id"] or application.provider_account_id
+        application.provider_account_status = provider_status
+        application.fund_account_status = fund_status
+        application.reviewed_on = datetime.datetime.utcnow()
+        application.kyc_reviewed_on = application.reviewed_on
+        db.session.commit()
+        return application
+
+    @classmethod
+    @session_rollback(db)
+    def fail_kyc(cls, application_uuid, payload=None):
+        admin = cls._require_admin()
+        application = cls._get_owned(application_uuid)
+        if application.status not in {"kyc_pending", "kyc_in_review", "kyc_failed"}:
+            raise SellerApplicationInputError("This application is not in KYC review")
+        review = cls._normalize_review_payload(payload)
+        if not review["note"]:
+            raise SellerApplicationInputError("A KYC failure reason is required")
+        application.status = "kyc_failed"
+        application.kyc_status = "failed"
+        application.reviewer_id = admin.id
+        application.review_note = review["note"]
+        application.kyc_review_note = review["note"]
+        application.provider = review["provider"]
+        application.provider_account_id = review["provider_account_id"] or application.provider_account_id
+        application.provider_account_status = review["provider_account_status"] or application.provider_account_status or "needs_clarification"
+        application.fund_account_status = review["fund_account_status"] or application.fund_account_status or "failed"
+        application.reviewed_on = datetime.datetime.utcnow()
+        application.kyc_reviewed_on = application.reviewed_on
         db.session.commit()
         return application
 
@@ -253,8 +437,10 @@ class SellerApplicationSerializer(object):
     def approve(cls, application_uuid, note=None):
         admin = cls._require_admin()
         application = cls._get_owned(application_uuid)
-        if application.status not in {"submitted", "under_review", "needs_information"}:
-            raise SellerApplicationInputError("This application is not awaiting approval")
+        if application.status != "kyc_verified" or application.kyc_status != "verified":
+            raise SellerApplicationInputError("KYC must be verified before seller approval")
+        if application.fund_account_status != "validated":
+            raise SellerApplicationInputError("Fund account must be validated before seller approval")
         user = application.applicant
         if not user or user.user_type != USER_TYPE.CUSTOMER.value:
             raise SellerApplicationInputError("Only customer accounts can be promoted")
@@ -273,8 +459,27 @@ class SellerApplicationSerializer(object):
                 category=application.category,
                 website_url=application.website_url,
                 portfolio_url=application.portfolio_url,
+                legal_name=application.legal_name,
+                business_type=application.business_type,
+                country=application.country,
+                kyc_status=application.kyc_status,
+                provider=application.provider,
+                provider_account_id=application.provider_account_id,
+                provider_account_status=application.provider_account_status,
+                fund_account_status=application.fund_account_status,
+                payout_ready=True,
             )
             db.session.add(profile)
+        else:
+            profile.legal_name = application.legal_name
+            profile.business_type = application.business_type
+            profile.country = application.country
+            profile.kyc_status = application.kyc_status
+            profile.provider = application.provider
+            profile.provider_account_id = application.provider_account_id
+            profile.provider_account_status = application.provider_account_status
+            profile.fund_account_status = application.fund_account_status
+            profile.payout_ready = True
         db.session.commit()
         return application, profile
 
@@ -310,6 +515,8 @@ class SellerApplicationSerializer(object):
         profile = SellerProfile.query.filter_by(user_id=user.id).first()
         if not profile:
             raise SellerApplicationInputError("Seller profile not found")
+        if ready and (profile.kyc_status != "verified" or profile.fund_account_status != "validated"):
+            raise SellerApplicationInputError("KYC and fund account validation are required for payout readiness")
         profile.payout_ready = bool(ready)
         db.session.commit()
         return profile

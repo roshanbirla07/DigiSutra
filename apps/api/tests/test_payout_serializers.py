@@ -32,6 +32,12 @@ class PayoutSerializerTests(unittest.TestCase):
         payout = MagicMock()
         payout.seller = seller
         payout.amount = "100.00"
+        profile = MagicMock()
+        profile.is_suspended = False
+        profile.payout_hold = False
+        profile.kyc_status = "verified"
+        profile.fund_account_status = "validated"
+        profile.payout_ready = True
 
         with patch("serializers.payoutSerializers.User") as user_model, \
                 patch("serializers.payoutSerializers.SellerBalance") as seller_balance_model, \
@@ -39,7 +45,7 @@ class PayoutSerializerTests(unittest.TestCase):
                 patch("serializers.payoutSerializers.SellerPayout") as seller_payout_model, \
                 patch("serializers.payoutSerializers.db") as db_mock:
             user_model.query.filter_by.return_value.first.return_value = seller
-            seller_profile_model.query.filter_by.return_value.first.return_value = None
+            seller_profile_model.query.filter_by.return_value.first.return_value = profile
             seller_balance_model.query.filter_by.return_value.first.return_value = seller_balance
             db_mock.session.add = MagicMock()
             db_mock.session.commit = MagicMock()

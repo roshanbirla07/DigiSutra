@@ -93,8 +93,11 @@ Role intent:
 - `GET /v1/admin/seller-applications/` - list seller applications as admin
 - `GET /v1/admin/seller-applications/<application_uuid>/` - view an application as admin
 - `POST /v1/admin/seller-applications/<application_uuid>/request-information/` - request more information
+- `POST /v1/admin/seller-applications/<application_uuid>/start-kyc-review/` - move a seller application into KYC review
+- `POST /v1/admin/seller-applications/<application_uuid>/verify-kyc/` - mark KYC and fund-account validation complete
+- `POST /v1/admin/seller-applications/<application_uuid>/fail-kyc/` - fail KYC with a required reason
 - `POST /v1/admin/seller-applications/<application_uuid>/reject/` - reject an application
-- `POST /v1/admin/seller-applications/<application_uuid>/approve/` - approve and promote the customer to seller
+- `POST /v1/admin/seller-applications/<application_uuid>/approve/` - approve and promote a KYC-verified customer to seller
 - `POST /v1/payments/orders/` - create a Razorpay order for an internal ledger order
 - `POST /v1/payments/confirm/` - verify checkout signature and mark payment paid
 - `POST /v1/payments/webhook/razorpay/` - process Razorpay payment webhooks idempotently
@@ -235,18 +238,45 @@ Optional access policy values:
 
 ### Seller onboarding workflow
 
-Seller access is granted through a controlled application lifecycle:
+Seller access is granted through a controlled application and KYC lifecycle:
 
 ```text
-customer -> draft -> submitted -> under review
-                              -> needs information -> submitted
-                              -> approved -> seller
+customer -> draft -> kyc_pending -> kyc_in_review
+                              -> needs_information -> kyc_pending
+                              -> kyc_failed -> kyc_pending
+                              -> kyc_verified -> approved -> seller
                               -> rejected or withdrawn
 ```
 
 Public signup always creates a customer. Admin approval atomically changes the
-user role to `seller` and creates a seller profile. Pending applicants cannot
-use seller product, payout, or dashboard endpoints.
+user role to `seller` and creates a seller profile only after KYC is verified
+and fund-account validation is marked complete. Pending applicants cannot use
+seller product, payout, or dashboard endpoints.
+
+The current implementation is provider-neutral and records the state needed for
+manual review or a future Razorpay integration:
+- `kyc_status`: `not_started`, `pending`, `in_review`, `verified`, `failed`, or
+  `needs_information`
+- `provider`: `manual` by default, later usable for `razorpay_route`,
+  `razorpayx`, or another gateway
+- `provider_account_id` and `provider_account_status`
+- `fund_account_status`, which must be `validated` before seller approval and
+  payout readiness
+
+Razorpay-aligned flow notes:
+- Razorpay Custom Onboarding SDK supports creating client accounts, uploading
+  KYC details, generating onboarding URLs, fetching merchant access tokens, and
+  receiving activation webhooks.
+- Razorpay Route linked accounts expose account states such as created,
+  under review, needs clarification, activated, and suspended.
+- RazorpayX payouts require contacts, fund accounts, fund-account validation,
+  and completed account activation/KYC before payouts.
+
+Sources:
+- https://razorpay.com/docs/partners/technology-partners/onboard-businesses/onboarding-sdk/
+- https://razorpay.com/docs/api/payments/route/create-linked-account/
+- https://razorpay.com/docs/x/fund-account-validation/api/
+- https://razorpay.com/docs/x/payouts/
 
 ### Phase 1: Core marketplace foundation
 - user signup and login

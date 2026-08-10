@@ -2,8 +2,11 @@ from controllers.seller import (
     AdminSellerApplicationApprove,
     AdminSellerApplicationCollection,
     AdminSellerApplicationDetail,
+    AdminSellerApplicationFailKyc,
     AdminSellerApplicationReject,
     AdminSellerApplicationRequestInformation,
+    AdminSellerApplicationStartKycReview,
+    AdminSellerApplicationVerifyKyc,
     SellerApplicationCollection,
     SellerApplicationSubmit,
     SellerApplicationWithdraw,
@@ -62,4 +65,22 @@ class SellerRoutes(object):
             view_func=AdminSellerApplicationApprove.as_view("admin_seller_application_approve"),
             methods=["POST"],
             endpoint="should_be_v1_only_admin_seller_application_approve",
+        )
+        v1.add_url_rule(
+            "admin/seller-applications/<string:application_uuid>/start-kyc-review/",
+            view_func=AdminSellerApplicationStartKycReview.as_view("admin_seller_application_start_kyc_review"),
+            methods=["POST"],
+            endpoint="should_be_v1_only_admin_seller_application_start_kyc_review",
+        )
+        v1.add_url_rule(
+            "admin/seller-applications/<string:application_uuid>/verify-kyc/",
+            view_func=AdminSellerApplicationVerifyKyc.as_view("admin_seller_application_verify_kyc"),
+            methods=["POST"],
+            endpoint="should_be_v1_only_admin_seller_application_verify_kyc",
+        )
+        v1.add_url_rule(
+            "admin/seller-applications/<string:application_uuid>/fail-kyc/",
+            view_func=AdminSellerApplicationFailKyc.as_view("admin_seller_application_fail_kyc"),
+            methods=["POST"],
+            endpoint="should_be_v1_only_admin_seller_application_fail_kyc",
         )

@@ -7,6 +7,7 @@ from werkzeug.exceptions import HTTPException
 
 from configuration.db_routing import db, session_rollback
 from models.product import Product
+from models.seller import SellerProfile
 from models.user import User
 from utils.constants import USER_TYPE
 
@@ -56,6 +57,14 @@ class ProductSerializer(object):
             raise ProductInputError("Only seller or admin users can own products")
         if owner.is_active and str(owner.is_active).lower() in ("false", "0", "inactive"):
             raise ProductInputError("Inactive users cannot own products")
+        if owner.user_type == USER_TYPE.SELLER.value:
+            profile = SellerProfile.query.filter_by(user_id=owner.id).first()
+            if not profile:
+                raise ProductInputError("Seller profile is required before publishing products")
+            if profile.is_suspended:
+                raise ProductInputError("Seller account is suspended")
+            if profile.kyc_status != "verified" or profile.fund_account_status != "validated":
+                raise ProductInputError("Seller KYC and fund account validation are required before publishing products")
         return owner
 
     def prepare_create_data(self, validated_data):

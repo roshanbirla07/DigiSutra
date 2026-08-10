@@ -172,19 +172,35 @@ export function createApp() {
   }
 
   async function reviewSellerApplication(uuid, action) {
-    const needsNote = action === "reject" || action === "request-information";
+    const needsNote = action === "reject" || action === "request-information" || action === "fail-kyc";
     const note = window.prompt(
       action === "approve"
-        ? "Optional approval note:"
-        : action === "reject"
+        ? "Optional seller approval note:"
+        : action === "verify-kyc"
+          ? "Optional KYC verification note:"
+          : action === "start-kyc-review"
+            ? "Optional KYC review note:"
+            : action === "fail-kyc"
+              ? "Reason KYC failed:"
+              : action === "reject"
           ? "Reason for rejection:"
           : "What information is needed:"
     ) || "";
     if (needsNote && !note.trim()) return;
+    const body = { note };
+    if (action === "verify-kyc") {
+      body.provider = "manual";
+      body.provider_account_status = "activated";
+      body.fund_account_status = "validated";
+    }
+    if (action === "fail-kyc") {
+      body.provider_account_status = "needs_clarification";
+      body.fund_account_status = "failed";
+    }
     try {
       await api.request(API_PATHS.adminSellerApplicationAction(uuid, action), {
         method: "POST",
-        body: JSON.stringify({ note }),
+        body: JSON.stringify(body),
       });
       toast(action === "approve" ? "Seller approved" : "Seller request updated");
       const applications = await api.request(API_PATHS.adminSellerApplications);

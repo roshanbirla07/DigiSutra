@@ -112,13 +112,26 @@ SellerApplicationSchema = {
     'website_url': {'type': 'string', 'maxlength': 2048, 'nullable': True, 'required': False},
     'portfolio_url': {'type': 'string', 'maxlength': 2048, 'nullable': True, 'required': False},
     'legal_name': {'type': 'string', 'maxlength': 120, 'nullable': True, 'required': False},
+    'business_type': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
+    'business_address': {'type': 'string', 'maxlength': 500, 'nullable': True, 'required': False},
+    'pan_number': {'type': 'string', 'maxlength': 10, 'nullable': True, 'required': False},
+    'gstin': {'type': 'string', 'maxlength': 15, 'nullable': True, 'required': False},
     'country': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
     'phone_number': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
+    'bank_account_holder_name': {'type': 'string', 'maxlength': 120, 'nullable': True, 'required': False},
+    'bank_account_last4': {'type': 'string', 'maxlength': 4, 'nullable': True, 'required': False},
+    'bank_ifsc': {'type': 'string', 'maxlength': 11, 'nullable': True, 'required': False},
+    'kyc_document_type': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
+    'kyc_document_reference': {'type': 'string', 'maxlength': 500, 'nullable': True, 'required': False},
     'terms_accepted': {'type': 'boolean', 'nullable': True, 'required': False},
 }
 
 SellerApplicationReviewSchema = {
     'note': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
+    'provider': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
+    'provider_account_id': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
+    'provider_account_status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
+    'fund_account_status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
 }
 
 validationschema = {

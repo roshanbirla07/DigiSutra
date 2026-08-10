@@ -176,6 +176,10 @@ Subtasks:
 
 ### P0: Seller onboarding and KYC
 
+Status: manual/provider-neutral KYC workflow is implemented in the API and
+static web client. Razorpay API calls, hosted onboarding redirects, KYC
+document upload endpoints, and activation webhooks remain to be integrated.
+
 - Replace the basic seller application with a proper seller state machine:
   `draft`, `submitted`, `kyc_pending`, `kyc_in_review`, `kyc_verified`,
   `kyc_failed`, `approved`, `rejected`, `suspended`.
@@ -190,6 +194,16 @@ Subtasks:
   approval is complete.
 - Add admin actions for request information, approve, reject, suspend, resume,
   payout hold, KYC override, and note history.
+
+Implemented edge-case handling:
+- approval is blocked until KYC is verified and fund-account status is
+  validated
+- seller product creation is blocked until seller profile KYC is verified
+- payout creation and payout readiness are blocked until KYC, fund-account
+  validation, and admin payout readiness are complete
+- PAN, GSTIN, IFSC, bank account last-4, business type, document reference, and
+  seller terms are validated before submission
+- admin KYC failure and request-information actions require a note
 
 ### P0: Payments, orders, and access
 
