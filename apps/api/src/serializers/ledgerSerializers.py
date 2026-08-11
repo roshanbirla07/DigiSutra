@@ -329,11 +329,16 @@ class LedgerSerializer(object):
                 refund.status = "approved"
                 refund.failure_reason = str(exc)
                 refund.resolved_on = None
+                order.refund_status = "approved"
                 db.session.add(refund)
                 db.session.commit()
                 return refund
             refund.provider_refund_id = provider_refund.get("id")
             refund.provider_status = provider_refund.get("status") or "created"
+            if str(refund.provider_status).lower() != "processed":
+                refund.status = "approved"
+                refund.resolved_on = None
+                refund_status = "approved"
         db.session.add(refund)
 
         if refund_status == "processed":

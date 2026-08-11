@@ -102,6 +102,65 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
             self.assertEqual(verify_signature.call_count, 2)
             db_mock.session.commit.assert_not_called()
 
+    def test_refund_processed_webhook_finalizes_order_access_and_balance(self):
+        order = MagicMock()
+        order.id = 1
+        order.uuid = "order::abc"
+        order.provider_payment_id = "pay_razorpay_123"
+        order.payment_status = "paid"
+        order.delivery_status = "ready"
+        order.refund_status = "approved"
+        order.seller_id = 10
+        order.product.currency = "INR"
+        access_record = MagicMock()
+        order.product_access_records.all.return_value = [access_record]
+
+        refund = MagicMock()
+        refund.status = "approved"
+        refund.amount = "25.00"
+
+        seller_balance = MagicMock()
+        seller_balance.pending_payout = 10
+        seller_balance.available_for_payout = 100
+        seller_balance.currency = "INR"
+
+        with patch("serializers.paymentSerializers.MarketplaceOrder") as marketplace_order, \
+                patch("serializers.paymentSerializers.RefundRecord") as refund_record, \
+                patch("serializers.paymentSerializers.SellerBalance") as seller_balance_model, \
+                patch("serializers.paymentSerializers.db") as db_mock, \
+                patch.object(RazorpayGateway, "verify_webhook_signature", return_value=True):
+            marketplace_order.query.filter_by.return_value.first.return_value = order
+            refund_record.query.filter_by.return_value.first.return_value = refund
+            seller_balance_model.query.filter_by.return_value.first.return_value = seller_balance
+
+            payload = {
+                "event": "refund.processed",
+                "payload": {
+                    "refund": {
+                        "entity": {
+                            "id": "rfnd_123",
+                            "payment_id": "pay_razorpay_123",
+                            "status": "processed",
+                        }
+                    }
+                },
+                "x_razorpay_signature": "valid_signature",
+            }
+
+            result = PaymentSerializer().process_webhook_event(payload, b"{}")
+
+            self.assertIs(result, order)
+            self.assertEqual(refund.provider_refund_id, "rfnd_123")
+            self.assertEqual(refund.provider_status, "processed")
+            self.assertEqual(refund.status, "processed")
+            self.assertEqual(order.payment_status, "refunded")
+            self.assertEqual(order.delivery_status, "revoked")
+            self.assertEqual(order.refund_status, "processed")
+            self.assertEqual(access_record.access_status, "revoked")
+            self.assertEqual(seller_balance.pending_payout, 0)
+            self.assertEqual(seller_balance.available_for_payout, 85)
+            self.assertTrue(db_mock.session.commit.called)
+
 
 class LedgerRefundTransitionTests(unittest.TestCase):
     def test_create_refund_processed_updates_order_and_access(self):
@@ -147,6 +206,51 @@ class LedgerRefundTransitionTests(unittest.TestCase):
             self.assertEqual(access_record.access_status, "revoked")
             self.assertEqual(seller_balance.pending_payout, 60)
             self.assertEqual(seller_balance.available_for_payout, 10)
+            self.assertTrue(db_mock.session.commit.called)
+
+    def test_create_razorpay_refund_waits_for_provider_processed_status(self):
+        order = MagicMock()
+        order.id = 1
+        order.uuid = "order::abc"
+        order.provider = "razorpay"
+        order.provider_payment_id = "pay_razorpay_123"
+        order.payment_status = "paid"
+        order.delivery_status = "ready"
+        order.refund_status = "none"
+        order.gross_amount = "100.00"
+        order.net_seller_amount = "85.00"
+        order.seller = MagicMock()
+        order.seller.id = 10
+        order.product = MagicMock()
+        order.product.currency = "INR"
+        order.product_access_records.all.return_value = []
+
+        with patch("serializers.ledgerSerializers.MarketplaceOrder") as marketplace_order, \
+                patch("serializers.ledgerSerializers.RefundRecord") as refund_record, \
+                patch("serializers.ledgerSerializers.db") as db_mock, \
+                patch("serializers.ledgerSerializers.RazorpayGateway") as gateway:
+            marketplace_order.query.filter_by.return_value.first.return_value = order
+            refund_record.query.filter_by.return_value.first.return_value = None
+            gateway.return_value.create_refund.return_value = {
+                "id": "rfnd_123",
+                "status": "pending",
+            }
+            db_mock.session.add = MagicMock()
+            db_mock.session.commit = MagicMock()
+
+            from serializers.ledgerSerializers import LedgerSerializer
+
+            ledger = LedgerSerializer()
+            result = ledger.create_refund("order::abc", {"status": "processed", "amount": "25.00"})
+
+            self.assertEqual(result.status, "approved")
+            self.assertIsNone(result.resolved_on)
+            self.assertEqual(result.provider_refund_id, "rfnd_123")
+            self.assertEqual(result.provider_status, "pending")
+            self.assertEqual(order.payment_status, "paid")
+            self.assertEqual(order.delivery_status, "ready")
+            self.assertEqual(order.refund_status, "approved")
+            gateway.return_value.create_refund.assert_called_once()
             self.assertTrue(db_mock.session.commit.called)
 
     def test_create_refund_rejects_invalid_status(self):

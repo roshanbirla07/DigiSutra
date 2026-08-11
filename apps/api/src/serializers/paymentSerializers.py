@@ -93,6 +93,31 @@ class PaymentSerializer(object):
         seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
         return seller_balance
 
+    def _sync_seller_balance_on_refund(self, order, refund_amount):
+        seller_balance = SellerBalance.query.filter_by(seller_id=order.seller_id).first()
+        if not seller_balance:
+            return None
+
+        refund_amount = Decimal(str(refund_amount))
+        current_pending = Decimal(str(seller_balance.pending_payout or 0))
+        current_available = Decimal(str(seller_balance.available_for_payout or 0))
+
+        if refund_amount <= current_pending:
+            seller_balance.pending_payout = current_pending - refund_amount
+        else:
+            seller_balance.pending_payout = Decimal("0")
+            seller_balance.available_for_payout = max(
+                current_available - (refund_amount - current_pending),
+                Decimal("0"),
+            )
+        seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
+        return seller_balance
+
+    def _revoke_access_for_order(self, order):
+        for access_record in order.product_access_records.all():
+            access_record.access_status = "revoked"
+            access_record.revoked_at = datetime.datetime.utcnow()
+
     def _mark_order_paid(self, order, payment_id):
         if order.payment_status == "paid" and order.provider_payment_id == payment_id:
             return order, False
@@ -103,6 +128,19 @@ class PaymentSerializer(object):
         order.delivery_status = "ready"
         self._grant_access_if_needed(order)
         self._move_funds_to_available(order)
+        return order, True
+
+    def _mark_order_refunded(self, order, refund):
+        if order.payment_status == "refunded" and order.refund_status == "processed":
+            return order, False
+
+        refund.status = "processed"
+        refund.resolved_on = datetime.datetime.utcnow()
+        order.payment_status = "refunded"
+        order.delivery_status = "revoked"
+        order.refund_status = "processed"
+        self._sync_seller_balance_on_refund(order, refund.amount)
+        self._revoke_access_for_order(order)
         return order, True
 
     @session_rollback(db)
@@ -147,11 +185,7 @@ class PaymentSerializer(object):
             refund.provider_refund_id = refund_id
             refund.provider_status = entity.get("status") or event.rsplit(".", 1)[-1]
             if event == "refund.processed" and refund.status != "processed":
-                refund.status = "processed"
-                refund.resolved_on = datetime.datetime.utcnow()
-                order.payment_status = "refunded"
-                order.delivery_status = "revoked"
-                order.refund_status = "processed"
+                self._mark_order_refunded(order, refund)
             elif event == "refund.failed":
                 refund.failure_reason = entity.get("error_description") or "Provider refund failed"
             db.session.commit()
