@@ -113,3 +113,8 @@ Production deploys must follow this order:
 
 Use `ENABLE_DB_CREATE_ALL=true` only for disposable local/test databases where
 Alembic is not being exercised.
+
+## RDS Production Gate
+
+Before routing production traffic to RDS, complete the checklist in
+`docs/rds_production_checklist.md`.
