@@ -72,16 +72,7 @@ class UserSerializer(object):
         validated_data.pop('lastname', None)
 
         validated_data['email'] = str(email).lower()
-        user_type = validated_data.get('user_type')
-        if user_type:
-            user_type = str(user_type).lower()
-            if user_type == 'creator':
-                user_type = USER_TYPE.SELLER.value
-            if user_type not in USER_TYPE.values():
-                raise IndefiniteUserProfileData('Invalid user_type')
-            validated_data['user_type'] = user_type
-        else:
-            validated_data['user_type'] = USER_TYPE.CUSTOMER
+        validated_data['user_type'] = USER_TYPE.CUSTOMER.value
         validated_data['password'] = generate_password_hash(password)
 
         return validated_data

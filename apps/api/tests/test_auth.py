@@ -69,6 +69,19 @@ class AuthTests(unittest.TestCase):
             with self.assertRaises(IndefiniteUserProfileData):
                 UserSerializer({"username": "inactive", "password": "password"}).login()
 
+    def test_user_creation_ignores_privileged_user_type(self):
+        serializer = UserSerializer()
+
+        prepared = serializer.prepare_create_data({
+            "first_name": "New",
+            "last_name": "Admin",
+            "email": "new@example.com",
+            "password": "password",
+            "user_type": "admin",
+        })
+
+        self.assertEqual(prepared["user_type"], "customer")
+
 
 if __name__ == "__main__":
     unittest.main()
