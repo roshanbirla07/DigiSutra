@@ -2,6 +2,7 @@ from flask import Flask, jsonify
 from configuration.db_routing import db
 from flask_cors import CORS
 import logging
+import os
 from configuration.urls import V1Version
 from configuration.variables import LOG_LEVEL, POSTGRES_DB_URI
 from sqlalchemy.exc import OperationalError
@@ -10,6 +11,10 @@ from sqlalchemy import text
 BLUEPRINT = [
     V1Version().get_blueprint()
 ]
+
+def _schema_bootstrap_enabled():
+    return os.getenv("ENABLE_DB_CREATE_ALL", "").lower() in {"1", "true", "yes"}
+
 
 def create_app():
 
@@ -22,13 +27,14 @@ def create_app():
         }
     })
     db.init_app(app)
-    with app.app_context():
-        try:
-            db.create_all()
-        except OperationalError:
-            logging.exception(
-                "Database is unavailable; skipping schema creation during startup."
-            )
+    if _schema_bootstrap_enabled():
+        with app.app_context():
+            try:
+                db.create_all()
+            except OperationalError:
+                logging.exception(
+                    "Database is unavailable; skipping schema creation during startup."
+                )
 
     for urls in BLUEPRINT:
         app.register_blueprint(urls)

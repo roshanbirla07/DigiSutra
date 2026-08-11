@@ -11,8 +11,9 @@ separates deployable apps from shared packages.
 - Backend source of truth remains the Flask app and PostgreSQL models.
 - Frontend should not introduce business logic that belongs to the API.
 - Apply schema changes with `alembic upgrade head` from the repository root.
-- `db.create_all()` remains available for local bootstrap only; production
-  deployments must run migrations before starting the API.
+- `db.create_all()` is disabled by default and is available only when
+  `ENABLE_DB_CREATE_ALL=true` is explicitly set for local or test bootstrap.
+  Production deployments must run migrations before starting the API.
 
 ## Runtime Dependencies
 
@@ -90,3 +91,18 @@ PostgreSQL 18.3 database before deploying schema changes.
 Downgrading `005_reconcile_identifier_widths` is intentionally blocked because
 shrinking UUID or provider identifier columns can truncate production data. Use
 a pre-migration database backup or point-in-time restore for rollback.
+
+## Startup Order
+
+Production deploys must follow this order:
+
+```text
+1. Back up the database or verify point-in-time recovery.
+2. Run `alembic upgrade head`.
+3. Start the API with `ENABLE_DB_CREATE_ALL` unset.
+4. Run health and application smoke tests.
+5. Enable traffic.
+```
+
+Use `ENABLE_DB_CREATE_ALL=true` only for disposable local/test databases where
+Alembic is not being exercised.
