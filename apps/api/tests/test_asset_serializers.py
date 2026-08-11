@@ -21,6 +21,27 @@ class AssetAuthorizationTests(unittest.TestCase):
     def tearDown(self):
         self.app_context.pop()
 
+    def test_serialize_asset_does_not_expose_cloudfront_url(self):
+        asset = MagicMock()
+        asset.uuid = "asset::1"
+        asset.product.uuid = "product::1"
+        asset.storage_provider = "s3"
+        asset.bucket_name = "bucket"
+        asset.object_key = "products/product::1/asset.pdf"
+        asset.original_filename = "asset.pdf"
+        asset.content_type = "application/pdf"
+        asset.size_bytes = 123
+        asset.checksum_sha256 = "checksum"
+        asset.cloudfront_url = "https://cdn.example.com/asset.pdf"
+        asset.asset_status = "verified"
+        asset.created_on = None
+        asset.modified_on = None
+
+        result = AssetSerializer().serialize_asset(asset)
+
+        self.assertNotIn("cloudfront_url", result)
+        self.assertEqual(result["object_key"], "products/product::1/asset.pdf")
+
     def test_authorize_download_allows_owner_with_granted_access(self):
         asset = MagicMock()
         asset.uuid = "asset::1"
@@ -56,7 +77,7 @@ class AssetAuthorizationTests(unittest.TestCase):
             product_asset_model.query.filter_by.return_value.first.return_value = asset
             marketplace_order_model.query.filter_by.return_value.first.return_value = order
             product_access_model.query.filter_by.return_value.first.return_value = access
-            gateway.return_value.create_presigned_get_url.return_value = asset.cloudfront_url
+            gateway.return_value.create_presigned_get_url.return_value = "https://s3.example.com/protected"
             db_mock.session.commit = MagicMock()
 
             serializer = AssetSerializer()
@@ -64,9 +85,15 @@ class AssetAuthorizationTests(unittest.TestCase):
 
             self.assertEqual(result["asset_uuid"], "asset::1")
             self.assertEqual(result["order_uuid"], "order::1")
-            self.assertEqual(result["download_url"], asset.cloudfront_url)
+            self.assertEqual(result["download_url"], "https://s3.example.com/protected")
+            self.assertNotEqual(result["download_url"], asset.cloudfront_url)
             self.assertTrue(result["delivery_token"])
             self.assertEqual(result["download_count"], 2)
+            gateway.return_value.create_presigned_get_url.assert_called_once_with(
+                asset.object_key,
+                asset.bucket_name,
+                result["delivery_token_ttl_seconds"],
+            )
             db_mock.session.commit.assert_not_called()
 
     def test_authorize_download_rejects_revoked_access(self):

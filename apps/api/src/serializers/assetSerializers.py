@@ -59,7 +59,6 @@ class AssetSerializer(object):
             "content_type": asset.content_type,
             "size_bytes": asset.size_bytes,
             "checksum_sha256": asset.checksum_sha256,
-            "cloudfront_url": asset.cloudfront_url,
             "asset_status": asset.asset_status,
             "created_on": asset.created_on.isoformat() if asset.created_on else None,
             "modified_on": asset.modified_on.isoformat() if asset.modified_on else None,
