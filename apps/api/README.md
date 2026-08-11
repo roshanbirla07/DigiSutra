@@ -92,6 +92,13 @@ Downgrading `005_reconcile_identifier_widths` is intentionally blocked because
 shrinking UUID or provider identifier columns can truncate production data. Use
 a pre-migration database backup or point-in-time restore for rollback.
 
+Run the repeatable PostgreSQL 18.3 migration and backend test smoke check from
+the repository root:
+
+```bash
+scripts/smoke_postgres_18_3.sh
+```
+
 ## Startup Order
 
 Production deploys must follow this order:
