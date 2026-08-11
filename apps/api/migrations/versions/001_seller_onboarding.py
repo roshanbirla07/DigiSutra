@@ -1,14 +1,14 @@
 """Add seller application and profile tables.
 
 Revision ID: 001_seller_onboarding
-Revises:
+Revises: 000_core_schema
 """
 from alembic import op
 import sqlalchemy as sa
 
 
 revision = "001_seller_onboarding"
-down_revision = None
+down_revision = "000_core_schema"
 branch_labels = None
 depends_on = None
 

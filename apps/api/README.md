@@ -68,3 +68,21 @@ POSTGRES_SSLMODE=require
 Use a private RDS endpoint, keep the `digisutra` database created before
 startup, and verify the security group allows the API runtime to connect before
 running migrations.
+
+## Schema Bootstrap
+
+Clean databases are created through Alembic from `000_core_schema` through the
+current head:
+
+```bash
+POSTGRES_DB_URI=postgresql+psycopg2://postgres:postgres@localhost:5432/digisutra \
+  alembic upgrade head
+```
+
+The base migration creates the core user, seller marker, product, asset,
+marketplace order, balance, payout, refund, access, delivery-token, support,
+and moderation tables. Later revisions add seller onboarding, refund-provider,
+invoice, and KYC fields.
+
+For PostgreSQL 18.3 compatibility checks, run the upgrade against an empty
+PostgreSQL 18.3 database before deploying schema changes.
