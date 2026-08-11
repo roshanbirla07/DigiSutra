@@ -5,9 +5,11 @@ import hmac
 import unittest
 from unittest.mock import MagicMock, patch
 
+from flask import Flask
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from serializers.paymentSerializers import PaymentSerializer
+from serializers.paymentSerializers import PaymentInputError, PaymentSerializer
 from services.razorpay_gateway import RazorpayGateway
 
 
@@ -55,7 +57,17 @@ class PaymentGatewayTests(unittest.TestCase):
 
 
 class PaymentWebhookIdempotencyTests(unittest.TestCase):
-    def test_process_webhook_event_is_idempotent_for_paid_order(self):
+    def setUp(self):
+        self.app = Flask(__name__)
+        self.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+        self.app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+
+    def tearDown(self):
+        self.app_context.pop()
+
+    def test_process_webhook_event_rejects_replayed_paid_order_event(self):
         order = MagicMock()
         order.id = 1
         order.uuid = "order::abc"
@@ -72,10 +84,12 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
         order.product_access_records.all.return_value = []
 
         with patch("serializers.paymentSerializers.MarketplaceOrder") as marketplace_order, \
+                patch("serializers.paymentSerializers.PaymentWebhookEvent") as webhook_event, \
                 patch("serializers.paymentSerializers.db") as db_mock, \
                 patch.object(PaymentSerializer, "_grant_access_if_needed") as grant_access, \
                 patch.object(RazorpayGateway, "verify_webhook_signature") as verify_signature:
             marketplace_order.query.filter_by.return_value.first.return_value = order
+            webhook_event.query.filter_by.return_value.first.side_effect = [None, MagicMock()]
             verify_signature.return_value = True
             db_mock.session.commit = MagicMock()
 
@@ -94,13 +108,13 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
             }
 
             first = serializer.process_webhook_event(payload, b"{}")
-            second = serializer.process_webhook_event(payload, b"{}")
+            with self.assertRaises(PaymentInputError):
+                serializer.process_webhook_event(payload, b"{}")
 
             self.assertIs(first, order)
-            self.assertIs(second, order)
             grant_access.assert_not_called()
             self.assertEqual(verify_signature.call_count, 2)
-            db_mock.session.commit.assert_not_called()
+            db_mock.session.commit.assert_called_once()
 
     def test_refund_processed_webhook_finalizes_order_access_and_balance(self):
         order = MagicMock()
@@ -126,11 +140,13 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
 
         with patch("serializers.paymentSerializers.MarketplaceOrder") as marketplace_order, \
                 patch("serializers.paymentSerializers.RefundRecord") as refund_record, \
+                patch("serializers.paymentSerializers.PaymentWebhookEvent") as webhook_event, \
                 patch("serializers.paymentSerializers.SellerBalance") as seller_balance_model, \
                 patch("serializers.paymentSerializers.db") as db_mock, \
                 patch.object(RazorpayGateway, "verify_webhook_signature", return_value=True):
             marketplace_order.query.filter_by.return_value.first.return_value = order
             refund_record.query.filter_by.return_value.first.return_value = refund
+            webhook_event.query.filter_by.return_value.first.return_value = None
             seller_balance_model.query.filter_by.return_value.first.return_value = seller_balance
 
             payload = {

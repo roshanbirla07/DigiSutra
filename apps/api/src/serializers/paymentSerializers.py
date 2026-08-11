@@ -1,11 +1,13 @@
 import datetime
+import hashlib
+import uuid
 from decimal import Decimal
 
 from werkzeug.exceptions import HTTPException
 from flask import g
 
 from configuration.db_routing import db, session_rollback
-from models.ledger import MarketplaceOrder, ProductAccess, RefundRecord, SellerBalance
+from models.ledger import MarketplaceOrder, PaymentWebhookEvent, ProductAccess, RefundRecord, SellerBalance
 from services.razorpay_gateway import RazorpayGateway
 
 
@@ -143,6 +145,29 @@ class PaymentSerializer(object):
         self._revoke_access_for_order(order)
         return order, True
 
+    def _webhook_event_key(self, payload, raw_body):
+        provider_event_id = payload.get("id") or payload.get("event_id")
+        if provider_event_id:
+            return str(provider_event_id)
+        return hashlib.sha256(raw_body or b"").hexdigest()
+
+    def _record_webhook_event(self, payload, raw_body, provider_entity_id=None):
+        event_key = self._webhook_event_key(payload, raw_body)
+        if PaymentWebhookEvent.query.filter_by(event_key=event_key).first():
+            raise PaymentInputError("Webhook event replay detected")
+
+        event = PaymentWebhookEvent(
+            uuid=f"webhook::{uuid.uuid4()}",
+            provider="razorpay",
+            event_key=event_key,
+            event_type=payload.get("event") or "unknown",
+            provider_entity_id=provider_entity_id,
+            received_on=datetime.datetime.utcnow(),
+            processed_on=datetime.datetime.utcnow(),
+        )
+        db.session.add(event)
+        return event
+
     @session_rollback(db)
     def confirm_checkout_payment(self, payload):
         provider_order_id = payload.get("razorpay_order_id")
@@ -174,6 +199,7 @@ class PaymentSerializer(object):
             refund_id = entity.get("id")
             if not payment_id or not refund_id:
                 raise PaymentInputError("Refund webhook missing provider identifiers")
+            self._record_webhook_event(payload, raw_body, refund_id)
             order = MarketplaceOrder.query.filter_by(provider_payment_id=payment_id).first()
             if not order:
                 raise PaymentInputError("Marketplace order not found for refund webhook")
@@ -202,13 +228,13 @@ class PaymentSerializer(object):
         payment_id = entity.get("id")
         if not provider_order_id or not payment_id:
             raise PaymentInputError("Webhook payload missing payment identifiers")
+        self._record_webhook_event(payload, raw_body, payment_id)
 
         order = MarketplaceOrder.query.filter_by(provider_order_id=provider_order_id).first()
         if not order:
             raise PaymentInputError("Marketplace order not found for webhook payment")
         order, changed = self._mark_order_paid(order, payment_id)
-        if changed:
-            db.session.commit()
+        db.session.commit()
         return order
 
     def serialize_order(self, order):

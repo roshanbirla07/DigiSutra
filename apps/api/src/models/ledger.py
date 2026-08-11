@@ -155,3 +155,21 @@ class DeliveryTokenUse(db.Model):
         db.Index("delivery_token_use_asset_uuid_idx", asset_uuid),
         db.Index("delivery_token_use_order_uuid_idx", order_uuid),
     )
+
+
+class PaymentWebhookEvent(db.Model):
+    __tablename__ = "payment_webhook_event"
+
+    id = db.Column(db.Integer, primary_key=True)
+    uuid = db.Column(db.String(100), unique=True, nullable=False)
+    provider = db.Column(db.String(50), nullable=False)
+    event_key = db.Column(db.String(100), unique=True, nullable=False)
+    event_type = db.Column(db.String(100), nullable=False)
+    provider_entity_id = db.Column(db.String(100))
+    received_on = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    processed_on = db.Column(db.DateTime)
+
+    __table_args__ = (
+        db.Index("payment_webhook_event_key_idx", event_key),
+        db.Index("payment_webhook_event_type_idx", event_type),
+    )
