@@ -31,3 +31,40 @@ python -m pip freeze
 After changing database, auth, payment, or storage dependencies, run the
 focused backend tests plus a clean PostgreSQL migration smoke test before
 deploying.
+
+## Database Configuration
+
+`POSTGRES_DB_URI` takes precedence when set. If it is omitted, the API builds a
+PostgreSQL URL from `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+`POSTGRES_HOST`, `POSTGRES_DB_PORT`, and optional `POSTGRES_SSLMODE`.
+
+Local Docker example:
+
+```bash
+POSTGRES_DB=digisutra
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_HOST=postgres
+POSTGRES_DB_PORT=5432
+```
+
+Staging example with a full URL:
+
+```bash
+POSTGRES_DB_URI=postgresql+psycopg2://digisutra_app:<password>@staging-db.example.internal:5432/digisutra
+```
+
+RDS example with SSL required:
+
+```bash
+POSTGRES_DB=digisutra
+POSTGRES_USER=digisutra_app
+POSTGRES_PASSWORD=<password>
+POSTGRES_HOST=<rds-private-endpoint>
+POSTGRES_DB_PORT=5432
+POSTGRES_SSLMODE=require
+```
+
+Use a private RDS endpoint, keep the `digisutra` database created before
+startup, and verify the security group allows the API runtime to connect before
+running migrations.
