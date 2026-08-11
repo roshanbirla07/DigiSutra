@@ -13,3 +13,21 @@ separates deployable apps from shared packages.
 - Apply schema changes with `alembic upgrade head` from the repository root.
 - `db.create_all()` remains available for local bootstrap only; production
   deployments must run migrations before starting the API.
+
+## Runtime Dependencies
+
+The backend container uses Python 3.13. Runtime dependencies are pinned in
+`requirements.txt` so local, CI, and deployment installs resolve the same
+Flask, SQLAlchemy, Alembic, psycopg2, Razorpay-adjacent, and AWS client
+behavior.
+
+Upgrade dependencies deliberately in a dedicated change:
+
+```bash
+python -m pip install --upgrade -r requirements.txt
+python -m pip freeze
+```
+
+After changing database, auth, payment, or storage dependencies, run the
+focused backend tests plus a clean PostgreSQL migration smoke test before
+deploying.
