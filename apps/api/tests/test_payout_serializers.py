@@ -32,6 +32,10 @@ class PayoutSerializerTests(unittest.TestCase):
         payout = MagicMock()
         payout.seller = seller
         payout.amount = "100.00"
+        payout.status = "pending"
+        payout.payout_method = "manual"
+        payout.batch_id = None
+        payout.failure_reason = None
         profile = MagicMock()
         profile.is_suspended = False
         profile.payout_hold = False
@@ -46,7 +50,7 @@ class PayoutSerializerTests(unittest.TestCase):
                 patch("serializers.payoutSerializers.db") as db_mock:
             user_model.query.filter_by.return_value.first.return_value = seller
             seller_profile_model.query.filter_by.return_value.first.return_value = profile
-            seller_balance_model.query.filter_by.return_value.first.return_value = seller_balance
+            seller_balance_model.query.filter_by.return_value.with_for_update.return_value.first.return_value = seller_balance
             db_mock.session.add = MagicMock()
             db_mock.session.commit = MagicMock()
             seller_payout_model.return_value = payout
@@ -56,7 +60,45 @@ class PayoutSerializerTests(unittest.TestCase):
 
             self.assertIsNotNone(result)
             self.assertEqual(seller_balance.available_for_payout, 150)
+            self.assertEqual(seller_balance.pending_payout, 100)
+            self.assertEqual(payout.status, "pending")
+            self.assertEqual(payout.payout_method, "manual")
             db_mock.session.commit.assert_called()
+
+    def test_create_payout_ignores_client_controlled_state(self):
+        seller = MagicMock(id=7, uuid="seller::1", username="seller1", user_type="seller")
+        seller_balance = MagicMock(available_for_payout=250, pending_payout=0, currency="INR")
+        profile = MagicMock(
+            is_suspended=False,
+            payout_hold=False,
+            kyc_status="verified",
+            fund_account_status="validated",
+            payout_ready=True,
+        )
+        payout = MagicMock(amount="100.00")
+
+        with patch("serializers.payoutSerializers.User") as user_model, \
+                patch("serializers.payoutSerializers.SellerBalance") as seller_balance_model, \
+                patch("serializers.payoutSerializers.SellerProfile") as seller_profile_model, \
+                patch("serializers.payoutSerializers.SellerPayout", return_value=payout) as payout_model, \
+                patch("serializers.payoutSerializers.db") as db_mock:
+            user_model.query.filter_by.return_value.first.return_value = seller
+            seller_profile_model.query.filter_by.return_value.first.return_value = profile
+            seller_balance_model.query.filter_by.return_value.with_for_update.return_value.first.return_value = seller_balance
+
+            PayoutSerializer().create({
+                "seller_uuid": seller.uuid,
+                "amount": "100.00",
+                "status": "paid",
+                "payout_method": "bank_transfer",
+                "batch_id": "attacker-controlled",
+            })
+
+            created = payout_model.call_args.kwargs
+            self.assertEqual(created["status"], "pending")
+            self.assertEqual(created["payout_method"], "manual")
+            self.assertIsNone(created["batch_id"])
+            self.assertIsNone(created["processed_at"])
 
     def test_create_payout_rejects_amount_above_available_balance(self):
         seller = MagicMock()
@@ -72,7 +114,7 @@ class PayoutSerializerTests(unittest.TestCase):
                 patch("serializers.payoutSerializers.SellerBalance") as seller_balance_model, \
                 patch("serializers.payoutSerializers.SellerProfile") as seller_profile_model:
             user_model.query.filter_by.return_value.first.return_value = seller
-            seller_balance_model.query.filter_by.return_value.first.return_value = seller_balance
+            seller_balance_model.query.filter_by.return_value.with_for_update.return_value.first.return_value = seller_balance
             seller_profile_model.query.filter_by.return_value.first.return_value = None
 
             serializer = PayoutSerializer()
@@ -118,6 +160,8 @@ class PayoutSerializerTests(unittest.TestCase):
         payout_one.uuid = "payout::1"
         payout_one.status = "pending"
         payout_one.batch_id = None
+        payout_one.seller_id = 7
+        payout_one.amount = 25
         payout_one.failure_reason = None
         payout_one.processed_at = None
 
@@ -125,12 +169,17 @@ class PayoutSerializerTests(unittest.TestCase):
         payout_two.uuid = "payout::2"
         payout_two.status = "processing"
         payout_two.batch_id = None
+        payout_two.seller_id = 8
+        payout_two.amount = 10
         payout_two.failure_reason = None
         payout_two.processed_at = None
 
-        with patch.object(PayoutSerializer, "get_payout_by_uuid") as get_payout, \
+        balance = MagicMock(pending_payout=25)
+        with patch.object(PayoutSerializer, "get_payout_by_uuid_for_update") as get_payout, \
+                patch("serializers.payoutSerializers.SellerBalance") as balance_model, \
                 patch("serializers.payoutSerializers.db") as db_mock:
             get_payout.side_effect = [payout_one, payout_two]
+            balance_model.query.filter_by.return_value.with_for_update.return_value.first.return_value = balance
             db_mock.session.commit = MagicMock()
 
             serializer = PayoutSerializer()
@@ -148,6 +197,7 @@ class PayoutSerializerTests(unittest.TestCase):
             self.assertEqual(payout_two.batch_id, "batch::1")
             self.assertEqual(payout_two.status, "failed")
             self.assertEqual(payout_two.failure_reason, "bank rejected")
+            self.assertEqual(balance.pending_payout, 0)
             db_mock.session.commit.assert_called()
 
     def test_process_batch_rejects_invalid_final_status(self):
@@ -156,7 +206,7 @@ class PayoutSerializerTests(unittest.TestCase):
         payout.status = "pending"
         payout.batch_id = None
 
-        with patch.object(PayoutSerializer, "get_payout_by_uuid", return_value=payout):
+        with patch.object(PayoutSerializer, "get_payout_by_uuid_for_update", return_value=payout):
             serializer = PayoutSerializer()
             with self.assertRaises(PayoutInputError):
                 serializer.process_batch("batch::1", [{"payout_uuid": "payout::1", "status": "cancelled"}])
@@ -188,6 +238,30 @@ class PayoutSerializerTests(unittest.TestCase):
             serializer = PayoutSerializer()
             with self.assertRaises(PayoutInputError):
                 serializer.retry_payout("payout::retry")
+
+    def test_cancel_payout_restores_reserved_balance(self):
+        actor = MagicMock(id=7, user_type="seller")
+        payout = MagicMock(seller_id=7, status="pending", amount="100.00")
+        balance = MagicMock(available_for_payout=150, pending_payout=100)
+
+        with patch.object(PayoutSerializer, "get_payout_by_uuid_for_update", return_value=payout), \
+                patch("serializers.payoutSerializers.SellerBalance") as balance_model, \
+                patch("serializers.payoutSerializers.db") as db_mock:
+            balance_model.query.filter_by.return_value.with_for_update.return_value.first.return_value = balance
+            result = PayoutSerializer().cancel_payout("payout::1", actor)
+
+            self.assertIs(result, payout)
+            self.assertEqual(payout.status, "cancelled")
+            self.assertEqual(balance.available_for_payout, 250)
+            self.assertEqual(balance.pending_payout, 0)
+            db_mock.session.commit.assert_called_once()
+
+    def test_cancel_payout_rejects_non_owner(self):
+        actor = MagicMock(id=8, user_type="seller")
+        payout = MagicMock(seller_id=7, status="pending", amount="100.00")
+        with patch.object(PayoutSerializer, "get_payout_by_uuid_for_update", return_value=payout):
+            with self.assertRaises(PayoutInputError):
+                PayoutSerializer().cancel_payout("payout::1", actor)
 
     def test_reconciliation_summary_groups_failed_and_open_payouts(self):
         failed = MagicMock()

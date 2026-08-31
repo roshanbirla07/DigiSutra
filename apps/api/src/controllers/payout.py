@@ -113,6 +113,29 @@ class PayoutRetry(View):
         )
 
 
+class PayoutCancel(View):
+    methods = ["POST"]
+
+    @require_auth(roles=["seller", "admin"], methods=["POST"])
+    def dispatch_request(self, payout_uuid, *args, **kwargs):
+        serializer = PayoutSerializer()
+        try:
+            payout = serializer.cancel_payout(payout_uuid, getattr(g, "user", None))
+        except Exception as e:
+            logging.error("Payout cancellation error :: %s :: %s", e, payout_uuid)
+            return Response(
+                response=json.dumps({"error": f"Error cancelling payout {str(e)}"}),
+                status=400,
+                mimetype="application/json",
+            )
+
+        return Response(
+            response=json.dumps(serializer.serialize_payout(payout)),
+            status=200,
+            mimetype="application/json",
+        )
+
+
 class PayoutReconciliationSummary(View):
     methods = ["GET"]
 
