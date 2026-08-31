@@ -51,19 +51,7 @@ ProductAssetCompleteSchema = {
 }
 
 LedgerOrderCreateSchema = {
-    'uuid': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
-    'buyer_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
-    'seller_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
     'product_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
-    'gross_amount': {'type': ['string', 'integer', 'float'], 'nullable': False, 'required': True},
-    'platform_fee': {'type': ['string', 'integer', 'float'], 'nullable': True, 'required': False},
-    'tax_amount': {'type': ['string', 'integer', 'float'], 'nullable': True, 'required': False},
-    'payment_status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
-    'delivery_status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
-    'refund_status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
-    'provider': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
-    'provider_order_id': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
-    'provider_payment_id': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
 }
 
 LedgerRefundCreateSchema = {
