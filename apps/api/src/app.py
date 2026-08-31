@@ -2,9 +2,8 @@ from flask import Flask, jsonify
 from configuration.db_routing import db
 from flask_cors import CORS
 import logging
-import os
 from configuration.urls import V1Version
-from configuration.variables import CORS_ALLOWED_ORIGINS, POSTGRES_DB_URI
+from configuration.variables import CORS_ALLOWED_ORIGINS, ENABLE_DB_CREATE_ALL, POSTGRES_DB_URI
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
 import models.user  # noqa: F401
@@ -18,7 +17,7 @@ BLUEPRINT = [
 
 
 def _schema_bootstrap_enabled():
-    return os.getenv("ENABLE_DB_CREATE_ALL", "").lower() in {"1", "true", "yes"}
+    return bool(ENABLE_DB_CREATE_ALL)
 
 
 def create_app():

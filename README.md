@@ -118,18 +118,21 @@ a valid signature before any event is processed.
 
 ## Local Development
 
-Copy the environment template, install dependencies, and apply migrations:
+Install dependencies and create the machine-specific configuration file:
 
 ```bash
-cp .env.example .env
 python -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
+cp apps/api/src/configuration/instance_config.example.py \
+  apps/api/src/configuration/instance_config.py
 alembic upgrade head
 ```
 
-Set real EdDSA, Razorpay, and S3 values in `.env` for their respective flows.
-Never commit `.env`; it is ignored.
+Put the database, EdDSA, Razorpay, S3, application URL, and CORS values directly
+in `instance_config.py`. This file overrides `local_config.py` and is ignored by
+Git, so the server-specific values are not committed. The API does not read
+runtime configuration through `os.getenv`.
 
 Start the backend:
 
@@ -158,8 +161,16 @@ clean PostgreSQL 18.3 migration in GitHub Actions.
 Start the full stack:
 
 ```bash
+cp .env.example .env
+cp apps/api/src/configuration/instance_config.example.py \
+  apps/api/src/configuration/instance_config.py
 docker compose up --build
 ```
+
+For Docker development, set `POSTGRES_HOST = "postgres"` in
+`instance_config.py` and keep its database name, user, and password aligned
+with the three PostgreSQL values in `.env`. Docker Compose uses `.env` only to
+initialize its PostgreSQL container; the API reads `instance_config.py`.
 
 Start in detached mode:
 
@@ -201,8 +212,8 @@ References used for the compatibility plan:
 - AWS RDS PostgreSQL SSL guidance: RDS PostgreSQL 15 and later can require SSL
   by default through `rds.force_ssl`, so production URLs should support SSL
   mode.
-- Alembic guidance: migration environments may source database URLs from
-  environment variables rather than only `alembic.ini`.
+- Alembic reads the database URL from the same Python configuration used by the
+  application.
 - SQLAlchemy guidance: PostgreSQL URLs should use the
   `postgresql+psycopg2://` driver form with explicit user, password, host,
   port, database, and optional query parameters.
@@ -210,8 +221,8 @@ References used for the compatibility plan:
   production should use SCRAM-compatible users and modern clients.
 
 Do not commit real RDS endpoints, passwords, AWS access keys, Razorpay secrets,
-or private EdDSA keys. Use placeholders in documentation and secret managers in
-deployed environments.
+or private EdDSA keys. Put them only in the ignored server-side
+`instance_config.py` file and restrict that file's operating-system permissions.
 
 ## Asset Storage
 
@@ -222,7 +233,7 @@ Downloads use short-lived presigned S3 `GET` URLs and a single-use application
 token. Downloads are logged in PostgreSQL and each asset keeps a status field.
 The configured bucket must allow browser CORS for the deployed web origin.
 
-Required environment values for asset delivery:
+Required `instance_config.py` values for asset delivery:
 - `AWS_REGION`
 - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` when an IAM role is not used
 - `AWS_S3_BUCKET_NAME`
@@ -240,18 +251,18 @@ The platform keeps its own internal ledger for:
 - refund tracking
 - webhook idempotency
 
-Required environment values for payment flow integration:
+Required `instance_config.py` values for payment flow integration:
 - `RAZORPAY_KEY_ID`
 - `RAZORPAY_KEY_SECRET`
 - `RAZORPAY_WEBHOOK_SECRET`
 - `PAYMENT_MODE` (`test` or `live`)
 - `PLATFORM_FEE_PERCENT`
 
-Required environment values for auth tokens:
+Required `instance_config.py` values for auth tokens:
 - `AUTH_EDDSA_PRIVATE_KEY_PEM`
 - `AUTH_EDDSA_PUBLIC_KEY_PEM`
 
-Optional access policy values:
+Optional `instance_config.py` access policy values:
 - `ASSET_ACCESS_MAX_DOWNLOADS`
 - `ASSET_ACCESS_EXPIRES_IN_DAYS`
 - `ASSET_DELIVERY_TOKEN_TTL_SECONDS`
@@ -265,7 +276,7 @@ operator-owned configuration outside the repository:
 - EdDSA signing keys
 - a private S3 bucket with web-origin CORS and either an IAM role or AWS keys
 - Razorpay test/live credentials and a webhook configured with the same secret
-- `CORS_ALLOWED_ORIGINS` set to the deployed frontend origin(s)
+- `CORS_ALLOWED_ORIGINS` in `instance_config.py` set to the deployed frontend origin(s)
 - a real KYC/fund-account provider if onboarding should be automated; the
   current workflow remains provider-neutral and supports controlled manual review
 

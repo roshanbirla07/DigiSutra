@@ -12,20 +12,16 @@ jobs:
       postgres:
         image: postgres:18.3-alpine
         env:
-          POSTGRES_DB: digisutra_test
+          POSTGRES_DB: digisutra
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d digisutra_test"
+          --health-cmd "pg_isready -U postgres -d digisutra"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-    env:
-      POSTGRES_DB_URI: postgresql+psycopg2://postgres:postgres@localhost:5432/digisutra_test
-      APP_BASE_URL: http://localhost:3000
-      CORS_ALLOWED_ORIGINS: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
