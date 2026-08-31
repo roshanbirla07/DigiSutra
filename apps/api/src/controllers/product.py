@@ -49,6 +49,7 @@ class ProductCollection(View):
             user = getattr(g, "user", None)
             if user and str(user.user_type).lower() == "seller":
                 require_operational_seller(user)
+            if user and not payload.get("owner_uuid"):
                 payload["owner_uuid"] = user.uuid
             serializer = ProductSerializer(payload)
             try:

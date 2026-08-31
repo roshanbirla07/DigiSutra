@@ -18,7 +18,7 @@ UserLoginSchema = {
 }
 
 ProductCreateSchema = {
-    'owner_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
+    'owner_uuid': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
     'title': {'type': 'string', 'maxlength': 150, 'nullable': False, 'required': True},
     'description': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
     'price': {'type': ['string', 'integer', 'float'], 'nullable': False, 'required': True},
