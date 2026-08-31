@@ -4,3 +4,8 @@
 *.swn
 *.swo
 *_config.py
+.env
+.venv/
+.audit-venv/
+__pycache__/
+.pytest_cache/

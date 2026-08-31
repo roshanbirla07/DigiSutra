@@ -4,7 +4,7 @@ from flask_cors import CORS
 import logging
 import os
 from configuration.urls import V1Version
-from configuration.variables import POSTGRES_DB_URI
+from configuration.variables import CORS_ALLOWED_ORIGINS, POSTGRES_DB_URI
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
 import models.user  # noqa: F401
@@ -25,11 +25,8 @@ def create_app():
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = POSTGRES_DB_URI
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    CORS(app, resources={
-        r"/*": {
-            "origins": "*"
-        }
-    })
+    allowed_origins = [origin.strip() for origin in CORS_ALLOWED_ORIGINS.split(",") if origin.strip()]
+    CORS(app, resources={r"/*": {"origins": allowed_origins}})
     db.init_app(app)
     if _schema_bootstrap_enabled():
         with app.app_context():
