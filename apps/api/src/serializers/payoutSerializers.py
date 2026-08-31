@@ -90,6 +90,12 @@ class PayoutSerializer(object):
             raise PayoutInputError("Payout not found")
         return payout
 
+    def get_payout_by_uuid_for_update(self, payout_uuid):
+        payout = SellerPayout.query.filter_by(uuid=payout_uuid).with_for_update().first()
+        if not payout:
+            raise PayoutInputError("Payout not found")
+        return payout
+
     def validate_seller(self, seller_uuid):
         seller = User.query.filter_by(uuid=seller_uuid).first()
         if not seller:
@@ -130,28 +136,28 @@ class PayoutSerializer(object):
         if amount <= 0:
             raise PayoutInputError("amount must be greater than zero")
 
-        seller_balance = self.get_or_create_seller_balance(seller)
+        seller_balance = SellerBalance.query.filter_by(seller_id=seller.id).with_for_update().first()
+        if not seller_balance:
+            raise PayoutInputError("Seller balance is not available for payout")
         available_for_payout = Decimal(str(seller_balance.available_for_payout or 0))
         if amount > available_for_payout:
             raise PayoutInputError("amount exceeds available payout balance")
 
-        status = validated_data.get("status") or "pending"
-        if status not in self.PAYOUT_STATES:
-            raise PayoutInputError("Invalid payout status")
-
         validated_data["uuid"] = validated_data.get("uuid") or f"payout::{uuid.uuid4()}"
         validated_data["seller_id"] = seller.id
         validated_data["amount"] = amount
-        validated_data["status"] = status
-        validated_data["payout_method"] = validated_data.get("payout_method") or "manual"
-        validated_data["batch_id"] = validated_data.get("batch_id")
-        validated_data["failure_reason"] = validated_data.get("failure_reason")
+        validated_data["status"] = "pending"
+        validated_data["payout_method"] = "manual"
+        validated_data["batch_id"] = None
+        validated_data["failure_reason"] = None
+        validated_data["seller_balance"] = seller_balance
         return validated_data
 
     @session_rollback(db)
     def create(self, validated_data=None):
         validated_data = dict(validated_data or self.data)
         validated_data = self.validate_create_data(validated_data)
+        seller_balance = validated_data.pop("seller_balance")
 
         payout = SellerPayout(
             uuid=validated_data["uuid"],
@@ -166,12 +172,36 @@ class PayoutSerializer(object):
         db.session.add(payout)
         db.session.flush()
 
-        seller_balance = self.get_or_create_seller_balance(payout.seller)
         seller_balance.available_for_payout = Decimal(str(seller_balance.available_for_payout or 0)) - Decimal(
             str(payout.amount)
         )
-        seller_balance.pending_payout = Decimal(str(seller_balance.pending_payout or 0))
+        seller_balance.pending_payout = Decimal(str(seller_balance.pending_payout or 0)) + Decimal(
+            str(payout.amount)
+        )
 
+        db.session.commit()
+        return payout
+
+    @session_rollback(db)
+    def cancel_payout(self, payout_uuid, actor):
+        payout = self.get_payout_by_uuid_for_update(payout_uuid)
+        is_admin = str(actor.user_type).lower() == USER_TYPE.ADMIN.value
+        if not is_admin and payout.seller_id != actor.id:
+            raise PayoutInputError("You do not own this payout")
+        if payout.status not in {"pending", "failed"}:
+            raise PayoutInputError("Only pending or failed payouts can be cancelled")
+
+        balance = SellerBalance.query.filter_by(seller_id=payout.seller_id).with_for_update().first()
+        if not balance:
+            raise PayoutInputError("Seller balance not found")
+        balance.available_for_payout = Decimal(str(balance.available_for_payout or 0)) + Decimal(
+            str(payout.amount)
+        )
+        balance.pending_payout = max(
+            Decimal("0"),
+            Decimal(str(balance.pending_payout or 0)) - Decimal(str(payout.amount)),
+        )
+        self.transition_payout(payout, "cancelled", failure_reason="Cancelled by user")
         db.session.commit()
         return payout
 
@@ -189,7 +219,7 @@ class PayoutSerializer(object):
             if not payout_uuid or not next_status:
                 raise PayoutInputError("Each payout update requires payout_uuid and status")
 
-            payout = self.get_payout_by_uuid(payout_uuid)
+            payout = self.get_payout_by_uuid_for_update(payout_uuid)
             if payout.batch_id and payout.batch_id != batch_id:
                 raise PayoutInputError("Payout already belongs to a different batch")
 
@@ -199,6 +229,13 @@ class PayoutSerializer(object):
                 self.transition_payout(payout, "failed", failure_reason=update.get("failure_reason"))
             elif next_status == "paid":
                 self.transition_payout(payout, "paid")
+                balance = SellerBalance.query.filter_by(seller_id=payout.seller_id).with_for_update().first()
+                if not balance:
+                    raise PayoutInputError("Seller balance not found")
+                balance.pending_payout = max(
+                    Decimal("0"),
+                    Decimal(str(balance.pending_payout or 0)) - Decimal(str(payout.amount)),
+                )
             else:
                 raise PayoutInputError("Batch processing only supports paid or failed final states")
 

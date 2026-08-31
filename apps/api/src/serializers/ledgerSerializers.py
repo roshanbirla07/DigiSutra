@@ -1,7 +1,7 @@
 import datetime
 import logging
 import uuid
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from flask import abort
 from flask import g
@@ -14,6 +14,7 @@ from models.product import Product
 from models.user import User
 from services.razorpay_gateway import RazorpayGateway, RazorpayGatewayError
 from utils.constants import USER_TYPE
+from configuration.variables import PLATFORM_FEE_PERCENT
 
 
 class LedgerInputError(HTTPException):
@@ -29,6 +30,7 @@ class LedgerSerializer(object):
     ORDER_PAYMENT_STATES = {"pending", "paid", "refunded", "failed"}
     ORDER_DELIVERY_STATES = {"pending", "ready", "revoked"}
     REFUND_STATES = {"none", "requested", "approved", "processed", "rejected"}
+    MONEY_QUANTUM = Decimal("0.01")
 
     def __init__(self, data=None):
         self.data = data or {}
@@ -219,6 +221,27 @@ class LedgerSerializer(object):
             raise LedgerInputError("Product is inactive")
         return product
 
+    def _server_order_amounts(self, product):
+        try:
+            gross_amount = Decimal(str(product.price)).quantize(
+                self.MONEY_QUANTUM, rounding=ROUND_HALF_UP
+            )
+            fee_percent = Decimal(str(PLATFORM_FEE_PERCENT))
+        except (InvalidOperation, TypeError, ValueError):
+            raise LedgerInputError("Product price or platform fee configuration is invalid")
+
+        if gross_amount <= 0:
+            raise LedgerInputError("Product price must be greater than zero")
+        if fee_percent < 0 or fee_percent >= 100:
+            raise LedgerInputError("PLATFORM_FEE_PERCENT must be between 0 and 100")
+
+        platform_fee = (gross_amount * fee_percent / Decimal("100")).quantize(
+            self.MONEY_QUANTUM, rounding=ROUND_HALF_UP
+        )
+        tax_amount = Decimal("0.00")
+        net_seller_amount = gross_amount - platform_fee - tax_amount
+        return gross_amount, platform_fee, tax_amount, net_seller_amount
+
     def _prepare_order_state(self, validated_data):
         payment_status = validated_data.get("payment_status") or "pending"
         delivery_status = validated_data.get("delivery_status") or "pending"
@@ -233,32 +256,32 @@ class LedgerSerializer(object):
 
     def prepare_create_data(self, validated_data):
         auth_user = getattr(g, "user", None)
-        buyer_uuid = validated_data.get("buyer_uuid") or (auth_user.uuid if auth_user else None)
-        buyer = self.validate_user(buyer_uuid, "Buyer")
-        if auth_user and buyer.uuid != auth_user.uuid:
-            raise LedgerInputError("Authenticated buyer must match buyer_uuid")
-        seller = self.validate_seller(self.validate_user(validated_data.get("seller_uuid"), "Seller"))
-        product = self.validate_product(validated_data.get("product_uuid"), seller)
+        if not auth_user:
+            raise LedgerInputError("Authentication required")
+        buyer = self.validate_user(auth_user.uuid, "Buyer")
+        product = Product.query.filter_by(uuid=validated_data.get("product_uuid")).first()
+        if not product:
+            raise LedgerInputError("Product not found")
+        seller = self.validate_seller(product.owner)
+        product = self.validate_product(product.uuid, seller)
+        gross_amount, platform_fee, tax_amount, net_seller_amount = self._server_order_amounts(product)
 
-        try:
-            gross_amount = Decimal(str(validated_data.get("gross_amount")))
-            platform_fee = Decimal(str(validated_data.get("platform_fee") or 0))
-            tax_amount = Decimal(str(validated_data.get("tax_amount") or 0))
-        except (InvalidOperation, TypeError, ValueError):
-            raise LedgerInputError("gross_amount, platform_fee, and tax_amount must be numeric")
-
-        validated_data["uuid"] = validated_data.get("uuid") or f"order::{uuid.uuid4()}"
-        validated_data["buyer_id"] = buyer.id
-        validated_data["seller_id"] = seller.id
-        validated_data["product_id"] = product.id
-        validated_data["gross_amount"] = gross_amount
-        validated_data["platform_fee"] = platform_fee
-        validated_data["tax_amount"] = tax_amount
-        validated_data["net_seller_amount"] = gross_amount - platform_fee - tax_amount
-        validated_data = self._prepare_order_state(validated_data)
-        validated_data.pop("buyer_uuid", None)
-        validated_data.pop("seller_uuid", None)
-        validated_data.pop("product_uuid", None)
+        validated_data = {
+            "uuid": f"order::{uuid.uuid4()}",
+            "buyer_id": buyer.id,
+            "seller_id": seller.id,
+            "product_id": product.id,
+            "gross_amount": gross_amount,
+            "platform_fee": platform_fee,
+            "tax_amount": tax_amount,
+            "net_seller_amount": net_seller_amount,
+            "payment_status": "pending",
+            "delivery_status": "pending",
+            "refund_status": "none",
+            "provider": None,
+            "provider_order_id": None,
+            "provider_payment_id": None,
+        }
         return validated_data
 
     @session_rollback(db)
@@ -278,12 +301,6 @@ class LedgerSerializer(object):
         order = MarketplaceOrder(**validated_data)
         db.session.add(order)
         db.session.flush()
-
-        seller_balance = self.get_or_create_seller_balance(order.seller)
-        seller_balance.pending_payout = Decimal(str(seller_balance.pending_payout or 0)) + Decimal(
-            str(order.net_seller_amount)
-        )
-        seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
 
         try:
             db.session.commit()

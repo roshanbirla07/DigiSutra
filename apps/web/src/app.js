@@ -1,6 +1,7 @@
 import { APP, API_PATHS, ROUTES } from "./constants/app.js";
 import { createApi, isSellerOrAdmin } from "./services/api.js";
 import { readSession, writeSession } from "./services/storage.js";
+import { authorizeAndLogDownload, uploadProductAsset } from "./services/assetTransfers.js";
 import * as view from "./views/marketplace.js";
 
 export function createApp() {
@@ -217,12 +218,7 @@ export function createApp() {
       const product = await api.request(API_PATHS.product(productUuid));
       const order = await api.request(API_PATHS.ledgerOrders, {
         method: "POST",
-        body: JSON.stringify({
-          buyer_uuid: state.session.uuid,
-          seller_uuid: product.owner_uuid,
-          product_uuid: product.uuid,
-          gross_amount: product.price,
-        }),
+        body: JSON.stringify({ product_uuid: product.uuid }),
       });
       const provider = await api.request(API_PATHS.paymentOrders, {
         method: "POST",
@@ -327,6 +323,23 @@ export function createApp() {
       await reviewSellerApplication(adminAction.dataset.applicationUuid, adminAction.dataset.adminSellerAction);
       return;
     }
+    const libraryItem = event.target.closest("[data-library-order]");
+    if (libraryItem) {
+      const button = libraryItem;
+      button.disabled = true;
+      try {
+        const downloadUrl = await authorizeAndLogDownload({
+          api,
+          orderUuid: button.dataset.libraryOrder,
+          assetUuid: button.dataset.libraryAsset,
+        });
+        window.location.assign(downloadUrl);
+      } catch (error) {
+        button.disabled = false;
+        toast(error.message);
+      }
+      return;
+    }
     if (event.target.closest("[data-refresh-admin-sellers]")) {
       const applications = await api.request(API_PATHS.adminSellerApplications);
       root.innerHTML = view.adminSellerApplications({ session: state.session, applications });
@@ -353,10 +366,14 @@ export function createApp() {
     const form = event.target;
     const errorNode = form.querySelector("[data-form-error]");
     errorNode.textContent = "";
-    const data = Object.fromEntries(new FormData(form).entries());
+    const formData = new FormData(form);
+    const file = formData.get("asset_file");
+    formData.delete("asset_file");
+    const data = Object.fromEntries(formData.entries());
     try {
-      await api.request(API_PATHS.products, { method: "POST", body: JSON.stringify(data) });
-      toast("Product created");
+      const product = await api.request(API_PATHS.products, { method: "POST", body: JSON.stringify(data) });
+      await uploadProductAsset({ api, productUuid: product.uuid, file });
+      toast("Product created and file verified");
       navigate(ROUTES.sellerProducts, true);
     } catch (error) {
       errorNode.textContent = error.message;

@@ -84,13 +84,16 @@ class PaymentSerializer(object):
     def _move_funds_to_available(self, order):
         seller_balance = SellerBalance.query.filter_by(seller_id=order.seller_id).first()
         if not seller_balance:
-            return None
+            seller_balance = SellerBalance(
+                seller_id=order.seller_id,
+                available_for_payout=Decimal("0"),
+                pending_payout=Decimal("0"),
+                currency=order.product.currency or "INR",
+            )
+            db.session.add(seller_balance)
 
         net_amount = Decimal(str(order.net_seller_amount))
-        current_pending = Decimal(str(seller_balance.pending_payout or 0))
         current_available = Decimal(str(seller_balance.available_for_payout or 0))
-
-        seller_balance.pending_payout = max(current_pending - net_amount, Decimal("0"))
         seller_balance.available_for_payout = current_available + net_amount
         seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
         return seller_balance
@@ -121,7 +124,9 @@ class PaymentSerializer(object):
             access_record.revoked_at = datetime.datetime.utcnow()
 
     def _mark_order_paid(self, order, payment_id):
-        if order.payment_status == "paid" and order.provider_payment_id == payment_id:
+        if order.payment_status == "paid":
+            if order.provider_payment_id and order.provider_payment_id != payment_id:
+                raise PaymentInputError("Order is already paid with a different payment id")
             return order, False
 
         order.provider = "razorpay"
@@ -189,11 +194,14 @@ class PaymentSerializer(object):
 
     @session_rollback(db)
     def process_webhook_event(self, payload, raw_body):
+        signature = payload.get("x_razorpay_signature") or self.data.get("x_razorpay_signature")
+        if not signature:
+            raise PaymentInputError("X-Razorpay-Signature header is required")
+        if not self.gateway.verify_webhook_signature(raw_body, signature):
+            raise PaymentInputError("Webhook signature mismatch")
+
         event = payload.get("event")
         if event in {"refund.processed", "refund.failed"}:
-            signature = payload.get("x_razorpay_signature") or self.data.get("x_razorpay_signature")
-            if signature and not self.gateway.verify_webhook_signature(raw_body, signature):
-                raise PaymentInputError("Webhook signature mismatch")
             entity = payload.get("payload", {}).get("refund", {}).get("entity", {})
             payment_id = entity.get("payment_id")
             refund_id = entity.get("id")
@@ -218,10 +226,6 @@ class PaymentSerializer(object):
             return order
         if event not in {"payment.captured", "order.paid"}:
             return None
-
-        signature = payload.get("x_razorpay_signature") or self.data.get("x_razorpay_signature")
-        if signature and not self.gateway.verify_webhook_signature(raw_body, signature):
-            raise PaymentInputError("Webhook signature mismatch")
 
         entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
         provider_order_id = entity.get("order_id")

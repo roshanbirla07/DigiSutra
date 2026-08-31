@@ -22,20 +22,21 @@ The current backend already includes:
 - refund bookkeeping with access revocation hooks
 - product image and asset metadata
 - S3 presigned upload target generation
-- CloudFront URL generation for public delivery
+- verified private S3 uploads and short-lived signed downloads
 - authenticated asset delivery authorization tied to paid orders
 - configurable download limit and access-expiry enforcement
 - download logging and asset status tracking
 - support ticket creation and admin resolution
 - product flagging and admin moderation actions
 
-The current frontend is a static client that talks to the Flask API.
+The frontend is a static client that talks to the Flask API. Sellers can create
+a product and upload its file directly to private S3; paid buyers can download
+verified assets from their library through single-use delivery authorization.
 
 Authentication is implemented with EdDSA-signed bearer tokens and route-level
 role guards. The main resource-ownership and collection-scoping checks are now
-implemented in the API; integration regression coverage and delivery-token
-consumption hardening remain. See [plan.md](plan.md#authorization-completion-subtasks)
-for the remaining subtasks and commit messages.
+implemented in the API, with regression coverage for authorization, payment
+integrity, payout reserves, asset delivery, and token replay prevention.
 
 ## Roles
 
@@ -58,6 +59,7 @@ Role intent:
 - `POST /v1/products/` - create a product for a seller or admin owner
 - `GET /v1/products/<product_uuid>/` - fetch a public active product by uuid
 - `POST /v1/assets/upload-target/` - create a product asset and return a presigned upload URL
+- `POST /v1/assets/<asset_uuid>/complete/` - verify a direct S3 upload
 - `POST /v1/assets/<asset_uuid>/deliver/` - authorize a download for a purchased asset and return a short-lived delivery token
 - `POST /v1/assets/<asset_uuid>/downloads/` - log a product asset download (requires `X-Asset-Delivery-Token`)
 - `GET /v1/ledger/orders/` - list marketplace ledger orders (buyer/seller scoped, admin all)
@@ -69,6 +71,7 @@ Role intent:
 - `POST /v1/payouts/` - create a payout record for a seller or admin
 - `POST /v1/payouts/batch/` - process a payout batch as admin
 - `POST /v1/payouts/<payout_uuid>/retry/` - retry a failed payout as admin
+- `POST /v1/payouts/<payout_uuid>/cancel/` - cancel an eligible payout and release its reserve
 - `GET /v1/payouts/reconciliation-summary/` - get payout reconciliation details for admin
 - `GET /v1/ledger/orders/<order_uuid>/` - fetch a marketplace ledger order by uuid (buyer, seller, or admin)
 - `POST /v1/ledger/orders/` - create a marketplace ledger order (authenticated buyer identity enforced)
@@ -109,14 +112,27 @@ regression tests cover the protected route matrix, signup role stripping,
 inactive users, tampered delivery data, and replay handling. Running those
 tests still requires the API dependencies and a working test environment.
 
-The next release-blocking work is to keep public signup customer-only and
-harden the remaining production release blockers,
-protect the final CloudFront delivery URL, connect provider refunds, verify
-completed uploads, and add production payment/operations safeguards.
+Public signup is customer-only. Prices, fees, order ownership, payment state,
+and payout state are derived or enforced by the server. Razorpay webhooks require
+a valid signature before any event is processed.
 
 ## Local Development
 
-Run the Flask app directly only if PostgreSQL is available locally and `POSTGRES_DB_URI` or `local_config.py` points to the correct host.
+Install dependencies and create the machine-specific configuration file:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+cp apps/api/src/configuration/instance_config.example.py \
+  apps/api/src/configuration/instance_config.py
+alembic upgrade head
+```
+
+Put the database, EdDSA, Razorpay, S3, application URL, and CORS values directly
+in `instance_config.py`. This file overrides `local_config.py` and is ignored by
+Git, so the server-specific values are not committed. The API does not read
+runtime configuration through `os.getenv`.
 
 Start the backend:
 
@@ -130,13 +146,31 @@ Serve the frontend:
 python apps/web/server.py
 ```
 
+Run verification locally:
+
+```bash
+python -m unittest discover -s apps/api/tests -p 'test_*.py'
+node --test apps/web/tests/*.test.js
+```
+
+Pull requests and pushes to `main` run the same backend/frontend checks plus a
+clean PostgreSQL 18.3 migration in GitHub Actions.
+
 ## Docker
 
 Start the full stack:
 
 ```bash
+cp .env.example .env
+cp apps/api/src/configuration/instance_config.example.py \
+  apps/api/src/configuration/instance_config.py
 docker compose up --build
 ```
+
+For Docker development, set `POSTGRES_HOST = "postgres"` in
+`instance_config.py` and keep its database name, user, and password aligned
+with the three PostgreSQL values in `.env`. Docker Compose uses `.env` only to
+initialize its PostgreSQL container; the API reads `instance_config.py`.
 
 Start in detached mode:
 
@@ -162,11 +196,8 @@ Local Docker PostgreSQL should match the production major/minor version for
 schema work; PostgreSQL 17 can stay available for older local data, but it must
 not be the only migration test target.
 
-Current compatibility verdict: compatible with changes. The SQLAlchemy models
-and app connection work on PostgreSQL 18.3, but a clean `alembic upgrade head`
-does not yet build the complete schema because the migration history starts
-after the base tables already exist. See [plan.md](plan.md#p0-rds-postgresql-183-compatibility-subtasks)
-for the committed remediation subtasks.
+The migration chain includes the core schema and is exercised from an empty
+PostgreSQL 18.3 database in CI.
 
 Rules for every database compatibility task:
 - Check current official documentation before implementation.
@@ -181,8 +212,8 @@ References used for the compatibility plan:
 - AWS RDS PostgreSQL SSL guidance: RDS PostgreSQL 15 and later can require SSL
   by default through `rds.force_ssl`, so production URLs should support SSL
   mode.
-- Alembic guidance: migration environments may source database URLs from
-  environment variables rather than only `alembic.ini`.
+- Alembic reads the database URL from the same Python configuration used by the
+  application.
 - SQLAlchemy guidance: PostgreSQL URLs should use the
   `postgresql+psycopg2://` driver form with explicit user, password, host,
   port, database, and optional query parameters.
@@ -190,21 +221,21 @@ References used for the compatibility plan:
   production should use SCRAM-compatible users and modern clients.
 
 Do not commit real RDS endpoints, passwords, AWS access keys, Razorpay secrets,
-or private EdDSA keys. Use placeholders in documentation and secret managers in
-deployed environments.
+or private EdDSA keys. Put them only in the ignored server-side
+`instance_config.py` file and restrict that file's operating-system permissions.
 
 ## Asset Storage
 
 Original product files are stored in private S3 buckets.
 Canonical asset metadata is stored in PostgreSQL.
-Public delivery happens through CloudFront URLs.
 Uploads use presigned S3 `PUT` URLs generated by the API.
-Downloads are logged in the database and each asset keeps a status field.
+Downloads use short-lived presigned S3 `GET` URLs and a single-use application
+token. Downloads are logged in PostgreSQL and each asset keeps a status field.
+The configured bucket must allow browser CORS for the deployed web origin.
 
-Required environment values for asset delivery:
+Required `instance_config.py` values for asset delivery:
 - `AWS_REGION`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` when an IAM role is not used
 - `AWS_S3_BUCKET_NAME`
 - `AWS_CLOUDFRONT_DOMAIN`
 - `AWS_S3_PRESIGN_EXPIRES_IN`
@@ -220,19 +251,34 @@ The platform keeps its own internal ledger for:
 - refund tracking
 - webhook idempotency
 
-Required environment values for payment flow integration:
+Required `instance_config.py` values for payment flow integration:
 - `RAZORPAY_KEY_ID`
 - `RAZORPAY_KEY_SECRET`
 - `RAZORPAY_WEBHOOK_SECRET`
+- `PAYMENT_MODE` (`test` or `live`)
+- `PLATFORM_FEE_PERCENT`
 
-Required environment values for auth tokens:
+Required `instance_config.py` values for auth tokens:
 - `AUTH_EDDSA_PRIVATE_KEY_PEM`
 - `AUTH_EDDSA_PUBLIC_KEY_PEM`
 
-Optional access policy values:
+Optional `instance_config.py` access policy values:
 - `ASSET_ACCESS_MAX_DOWNLOADS`
 - `ASSET_ACCESS_EXPIRES_IN_DAYS`
 - `ASSET_DELIVERY_TOKEN_TTL_SECONDS`
+
+## Deployment dependencies
+
+The code-level release blockers are covered, but a real deployment still needs
+operator-owned configuration outside the repository:
+
+- PostgreSQL/RDS credentials and migrations
+- EdDSA signing keys
+- a private S3 bucket with web-origin CORS and either an IAM role or AWS keys
+- Razorpay test/live credentials and a webhook configured with the same secret
+- `CORS_ALLOWED_ORIGINS` in `instance_config.py` set to the deployed frontend origin(s)
+- a real KYC/fund-account provider if onboarding should be automated; the
+  current workflow remains provider-neutral and supports controlled manual review
 
 ## Roadmap
 

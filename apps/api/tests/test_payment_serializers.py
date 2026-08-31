@@ -67,6 +67,18 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
     def tearDown(self):
         self.app_context.pop()
 
+    def test_process_webhook_event_rejects_missing_signature(self):
+        serializer = PaymentSerializer()
+        with patch.object(RazorpayGateway, "verify_webhook_signature") as verify_signature:
+            with self.assertRaises(PaymentInputError) as error:
+                serializer.process_webhook_event(
+                    {"event": "payment.captured", "payload": {}},
+                    b"{}",
+                )
+
+        self.assertIn("X-Razorpay-Signature", str(error.exception))
+        verify_signature.assert_not_called()
+
     def test_process_webhook_event_rejects_replayed_paid_order_event(self):
         order = MagicMock()
         order.id = 1

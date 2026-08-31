@@ -18,7 +18,7 @@ UserLoginSchema = {
 }
 
 ProductCreateSchema = {
-    'owner_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
+    'owner_uuid': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
     'title': {'type': 'string', 'maxlength': 150, 'nullable': False, 'required': True},
     'description': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
     'price': {'type': ['string', 'integer', 'float'], 'nullable': False, 'required': True},
@@ -51,19 +51,7 @@ ProductAssetCompleteSchema = {
 }
 
 LedgerOrderCreateSchema = {
-    'uuid': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
-    'buyer_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
-    'seller_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
     'product_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
-    'gross_amount': {'type': ['string', 'integer', 'float'], 'nullable': False, 'required': True},
-    'platform_fee': {'type': ['string', 'integer', 'float'], 'nullable': True, 'required': False},
-    'tax_amount': {'type': ['string', 'integer', 'float'], 'nullable': True, 'required': False},
-    'payment_status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
-    'delivery_status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
-    'refund_status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
-    'provider': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
-    'provider_order_id': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
-    'provider_payment_id': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
 }
 
 LedgerRefundCreateSchema = {
@@ -90,13 +78,8 @@ PaymentWebhookSchema = {
 }
 
 PayoutCreateSchema = {
-    'uuid': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
-    'seller_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
+    'seller_uuid': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
     'amount': {'type': ['string', 'integer', 'float'], 'nullable': False, 'required': True},
-    'status': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
-    'payout_method': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
-    'batch_id': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
-    'failure_reason': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
 }
 
 PayoutBatchProcessSchema = {

@@ -1,4 +1,11 @@
-from controllers.payout import PayoutBatch, PayoutCollection, PayoutReconciliationSummary, PayoutRetry, PayoutSummary
+from controllers.payout import (
+    PayoutBatch,
+    PayoutCancel,
+    PayoutCollection,
+    PayoutReconciliationSummary,
+    PayoutRetry,
+    PayoutSummary,
+)
 
 
 class PayoutRoutes(object):
@@ -29,6 +36,12 @@ class PayoutRoutes(object):
             view_func=PayoutRetry.as_view("payout_retry"),
             methods=["POST"],
             endpoint="should_be_v1_only_payout_retry",
+        )
+        v1.add_url_rule(
+            "payouts/<string:payout_uuid>/cancel/",
+            view_func=PayoutCancel.as_view("payout_cancel"),
+            methods=["POST"],
+            endpoint="should_be_v1_only_payout_cancel",
         )
         v1.add_url_rule(
             "payouts/reconciliation-summary/",
