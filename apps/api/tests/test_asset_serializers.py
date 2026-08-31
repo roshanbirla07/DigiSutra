@@ -42,6 +42,41 @@ class AssetAuthorizationTests(unittest.TestCase):
         self.assertNotIn("cloudfront_url", result)
         self.assertEqual(result["object_key"], "products/product::1/asset.pdf")
 
+    def test_upload_target_uses_configured_private_bucket(self):
+        product = MagicMock(id=11, uuid="product::1", owner_id=7)
+        user = MagicMock(id=7, user_type="seller")
+        gateway = MagicMock()
+        gateway.cloudfront_url_for.return_value = "https://cdn.example.com/private"
+        gateway.create_presigned_put_url.return_value = {"upload_url": "https://signed.example/upload"}
+
+        with patch("serializers.assetSerializers.g", new=SimpleNamespace(user=user)), \
+                patch("serializers.assetSerializers.AWS_S3_BUCKET_NAME", "digisutra-assets"), \
+                patch("serializers.assetSerializers.Product") as product_model, \
+                patch("serializers.assetSerializers.ProductAsset") as asset_model, \
+                patch("serializers.assetSerializers.db") as db_mock:
+            product_model.query.filter_by.return_value.first.return_value = product
+            asset = MagicMock(
+                object_key="products/product::1/file",
+                content_type="application/pdf",
+                asset_status="pending_upload",
+            )
+            asset_model.return_value = asset
+            serializer = AssetSerializer()
+            serializer.gateway = gateway
+
+            created, signed = serializer.create_upload_target({
+                "product_uuid": "product::1",
+                "original_filename": "guide.pdf",
+                "content_type": "application/pdf",
+                "size_bytes": 42,
+            })
+
+            self.assertIs(created, asset)
+            self.assertEqual(signed["upload_url"], "https://signed.example/upload")
+            self.assertEqual(asset_model.call_args.kwargs["bucket_name"], "digisutra-assets")
+            self.assertEqual(asset.asset_status, "upload_url_issued")
+            self.assertEqual(db_mock.session.commit.call_count, 2)
+
     def test_authorize_download_allows_owner_with_granted_access(self):
         asset = MagicMock()
         asset.uuid = "asset::1"

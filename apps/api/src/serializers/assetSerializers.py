@@ -12,6 +12,7 @@ from configuration.variables import (
     ASSET_ACCESS_EXPIRES_IN_DAYS,
     ASSET_ACCESS_MAX_DOWNLOADS,
     ASSET_DELIVERY_TOKEN_TTL_SECONDS,
+    AWS_S3_BUCKET_NAME,
 )
 from models.ledger import DeliveryTokenUse, MarketplaceOrder, ProductAccess
 from models.product import Product, ProductAsset, ProductAssetDownload
@@ -161,7 +162,7 @@ class AssetSerializer(object):
             uuid=f"asset::{uuid.uuid4()}",
             product_id=product.id,
             storage_provider="s3",
-            bucket_name=validated_data.get("bucket_name") or "",
+            bucket_name=AWS_S3_BUCKET_NAME,
             object_key=object_key,
             original_filename=validated_data.get("original_filename"),
             content_type=validated_data.get("content_type") or "application/octet-stream",
