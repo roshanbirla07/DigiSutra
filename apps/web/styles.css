@@ -302,6 +302,14 @@ input:disabled, textarea:disabled, select:disabled { color: #667085; background:
 .file-drop { position: relative; min-height: 160px; padding: 26px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; border: 1px dashed #9b8bf7; border-radius: 12px; color: #344054; background: #faf9ff; text-align: center; }
 .file-drop input { position: absolute; inset: 0; height: 100%; opacity: 0; cursor: pointer; }
 .file-drop small { color: var(--ink-soft); font-weight: 400; }
+.upload-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.preview-upload { min-height: 160px; padding: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); text-align: center; }
+.preview-upload > small, .preview-output small { color: var(--ink-soft); }
+.preview-upload .button { position: relative; overflow: hidden; }
+.preview-upload .button input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.preview-output { width: 100%; min-height: 78px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; overflow: hidden; border-radius: 9px; }
+.preview-output.has-image { min-height: 150px; }
+.preview-output img { width: 100%; height: 150px; display: block; object-fit: cover; border-radius: 9px; }
 .upload-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; color: var(--primary); background: var(--primary-soft); font-size: 20px; }
 .info-note, .locked-note { padding: 13px; border-radius: 9px; color: #475467; background: #f5f7ff; }
 .locked-note { font-size: 11px; }
@@ -405,7 +413,7 @@ input:disabled, textarea:disabled, select:disabled { color: #667085; background:
   .hero-actions { align-items: stretch; flex-direction: column; }
   .hero-visual { min-height: 330px; transform: scale(.88); margin: -20px; }
   .hero-trust { display: grid; gap: 12px; }
-  .trust-strip, .product-grid, .metric-grid, .account-cards, .form-row { grid-template-columns: 1fr; }
+  .trust-strip, .product-grid, .metric-grid, .account-cards, .form-row, .upload-grid { grid-template-columns: 1fr; }
   .section-heading, .workspace-heading { align-items: flex-start; flex-direction: column; }
   .section-heading h2 { font-size: 29px; }
   .catalog-toolbar { align-items: stretch; flex-direction: column; }

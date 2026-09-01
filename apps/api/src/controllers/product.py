@@ -12,6 +12,7 @@ from utils.seller import require_operational_seller
 
 
 def serialize_product(product):
+    preview_uri = ProductSerializer().preview_url(product)
     return {
         "uuid": product.uuid,
         "title": product.title,
@@ -19,7 +20,7 @@ def serialize_product(product):
         "price": str(product.price),
         "currency": product.currency,
         "category": product.category,
-        "image_uri": product.image_uri,
+        "image_uri": preview_uri,
         "image_alt": product.image_alt,
         "image_provider": product.image_provider,
         "image_key": product.image_key,
@@ -134,6 +135,56 @@ class ProductDetail(View):
                 mimetype="application/json",
             )
 
+        return Response(
+            response=json.dumps(serialize_product(product)),
+            status=200,
+            mimetype="application/json",
+        )
+
+
+class ProductPreviewUploadTarget(View):
+    methods = ["POST"]
+
+    @require_auth(roles=["seller", "admin"], methods=["POST"])
+    @schema_validation("ProductPreviewUpload", methods=["POST"])
+    def dispatch_request(self, product_uuid, *args, **kwargs):
+        serializer = ProductSerializer()
+        try:
+            product, presigned = serializer.create_preview_upload_target(
+                product_uuid, request.get_json(silent=True) or {}
+            )
+        except Exception as exc:
+            logging.error("Product preview target error :: %s :: %s", exc, product_uuid)
+            return Response(
+                response=json.dumps({"error": str(exc)}),
+                status=400,
+                mimetype="application/json",
+            )
+        return Response(
+            response=json.dumps({"product": serialize_product(product), "presigned_upload": presigned}),
+            status=201,
+            mimetype="application/json",
+        )
+
+
+class ProductPreviewUploadComplete(View):
+    methods = ["POST"]
+
+    @require_auth(roles=["seller", "admin"], methods=["POST"])
+    @schema_validation("ProductPreviewComplete", methods=["POST"])
+    def dispatch_request(self, product_uuid, *args, **kwargs):
+        serializer = ProductSerializer()
+        try:
+            product = serializer.complete_preview_upload(
+                product_uuid, request.get_json(silent=True) or {}
+            )
+        except Exception as exc:
+            logging.error("Product preview completion error :: %s :: %s", exc, product_uuid)
+            return Response(
+                response=json.dumps({"error": str(exc)}),
+                status=400,
+                mimetype="application/json",
+            )
         return Response(
             response=json.dumps(serialize_product(product)),
             status=200,

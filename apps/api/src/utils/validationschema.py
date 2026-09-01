@@ -50,6 +50,17 @@ ProductAssetCompleteSchema = {
     'checksum_sha256': {'type': 'string', 'maxlength': 64, 'nullable': True, 'required': False},
 }
 
+ProductPreviewUploadSchema = {
+    'original_filename': {'type': 'string', 'maxlength': 255, 'nullable': False, 'required': True},
+    'content_type': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
+    'size_bytes': {'type': ['string', 'integer'], 'nullable': False, 'required': True},
+    'image_alt': {'type': 'string', 'maxlength': 255, 'nullable': True, 'required': False},
+}
+
+ProductPreviewCompleteSchema = {
+    'size_bytes': {'type': ['string', 'integer'], 'nullable': True, 'required': False},
+}
+
 LedgerOrderCreateSchema = {
     'product_uuid': {'type': 'string', 'maxlength': 100, 'nullable': False, 'required': True},
 }
@@ -123,6 +134,8 @@ validationschema = {
     'ProductCreate': ProductCreateSchema,
     'ProductAssetCreate': ProductAssetCreateSchema,
     'ProductAssetComplete': ProductAssetCompleteSchema,
+    'ProductPreviewUpload': ProductPreviewUploadSchema,
+    'ProductPreviewComplete': ProductPreviewCompleteSchema,
     'LedgerOrderCreate': LedgerOrderCreateSchema,
     'LedgerRefundCreate': LedgerRefundCreateSchema,
     'PaymentOrderCreate': PaymentOrderCreateSchema,

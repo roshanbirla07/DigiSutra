@@ -1,4 +1,10 @@
-from controllers.product import OwnedProductCollection, ProductCollection, ProductDetail
+from controllers.product import (
+    OwnedProductCollection,
+    ProductCollection,
+    ProductDetail,
+    ProductPreviewUploadComplete,
+    ProductPreviewUploadTarget,
+)
 
 
 class ProductRoutes(object):
@@ -23,4 +29,16 @@ class ProductRoutes(object):
             view_func=ProductDetail.as_view("product_detail"),
             methods=["GET", "DELETE"],
             endpoint="should_be_v1_only_product_detail",
+        )
+        v1.add_url_rule(
+            "products/<string:product_uuid>/preview-upload-target/",
+            view_func=ProductPreviewUploadTarget.as_view("product_preview_upload_target"),
+            methods=["POST"],
+            endpoint="should_be_v1_only_product_preview_upload_target",
+        )
+        v1.add_url_rule(
+            "products/<string:product_uuid>/preview-complete/",
+            view_func=ProductPreviewUploadComplete.as_view("product_preview_upload_complete"),
+            methods=["POST"],
+            endpoint="should_be_v1_only_product_preview_upload_complete",
         )
