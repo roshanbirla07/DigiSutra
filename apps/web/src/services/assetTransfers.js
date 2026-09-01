@@ -34,6 +34,36 @@ export async function uploadProductAsset({ api, productUuid, file, fetchImpl = g
   });
 }
 
+export async function uploadProductPreview({ api, productUuid, file, fetchImpl = globalThis.fetch }) {
+  if (!file?.name || typeof file.arrayBuffer !== "function") return null;
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    throw new Error("Preview image must be JPEG, PNG, or WebP.");
+  }
+  if (!file.size || file.size > 5 * 1024 * 1024) {
+    throw new Error("Preview image must be smaller than 5 MB.");
+  }
+  const target = await api.request(API_PATHS.productPreviewUploadTarget(productUuid), {
+    method: "POST",
+    body: JSON.stringify({
+      original_filename: file.name,
+      content_type: file.type,
+      size_bytes: file.size,
+    }),
+  });
+  const signed = target.presigned_upload;
+  if (!signed?.upload_url) throw new Error("The preview upload target did not include a signed URL.");
+  const uploaded = await fetchImpl(signed.upload_url, {
+    method: signed.method || "PUT",
+    headers: signed.headers || { "Content-Type": file.type },
+    body: file,
+  });
+  if (!uploaded.ok) throw new Error(`Preview image upload failed (${uploaded.status}).`);
+  return api.request(API_PATHS.productPreviewUploadComplete(productUuid), {
+    method: "POST",
+    body: JSON.stringify({ size_bytes: file.size }),
+  });
+}
+
 export async function authorizeAndLogDownload({ api, orderUuid, assetUuid }) {
   const delivery = await api.request(API_PATHS.assetDeliver(assetUuid), {
     method: "POST",

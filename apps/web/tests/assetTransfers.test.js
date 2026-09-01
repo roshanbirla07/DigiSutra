@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { authorizeAndLogDownload, uploadProductAsset } from "../src/services/assetTransfers.js";
+import { authorizeAndLogDownload, uploadProductAsset, uploadProductPreview } from "../src/services/assetTransfers.js";
 
 test("uploadProductAsset completes a signed upload", async () => {
   const calls = [];
@@ -46,4 +46,37 @@ test("authorizeAndLogDownload consumes the delivery token before returning the U
   assert.equal(url, "https://s3.example/file");
   assert.equal(JSON.parse(calls[0].options.body).order_uuid, "order::1");
   assert.equal(calls[1].options.headers["X-Asset-Delivery-Token"], "token-1");
+});
+
+test("uploadProductPreview uploads and verifies a browser preview", async () => {
+  const calls = [];
+  const api = { request: async (path, options) => {
+    calls.push({ path, options });
+    if (path.endsWith("preview-upload-target/")) return {
+      presigned_upload: { upload_url: "https://s3.example/preview", method: "PUT", headers: { "Content-Type": "image/webp" } },
+    };
+    return { uuid: "product::1", image_uri: "https://signed.example/preview" };
+  } };
+  const file = { name: "cover.webp", type: "image/webp", size: 42, arrayBuffer: async () => new ArrayBuffer(42) };
+  const fetchCalls = [];
+
+  const result = await uploadProductPreview({
+    api,
+    productUuid: "product::1",
+    file,
+    fetchImpl: async (...args) => { fetchCalls.push(args); return { ok: true, status: 200 }; },
+  });
+
+  assert.equal(result.image_uri, "https://signed.example/preview");
+  assert.match(calls[0].path, /preview-upload-target/);
+  assert.match(calls[1].path, /preview-complete/);
+  assert.equal(fetchCalls[0][1].body, file);
+});
+
+test("uploadProductPreview rejects unsupported image types", async () => {
+  const file = { name: "cover.svg", type: "image/svg+xml", size: 42, arrayBuffer: async () => new ArrayBuffer(42) };
+  await assert.rejects(
+    uploadProductPreview({ api: {}, productUuid: "product::1", file }),
+    /JPEG, PNG, or WebP/,
+  );
 });

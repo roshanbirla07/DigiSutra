@@ -1,7 +1,7 @@
 import { APP, API_PATHS, ROUTES } from "./constants/app.js";
 import { createApi, isSellerOrAdmin } from "./services/api.js";
 import { readSession, writeSession } from "./services/storage.js";
-import { authorizeAndLogDownload, uploadProductAsset } from "./services/assetTransfers.js";
+import { authorizeAndLogDownload, uploadProductAsset, uploadProductPreview } from "./services/assetTransfers.js";
 import * as view from "./views/marketplace.js";
 
 export function createApp() {
@@ -368,16 +368,32 @@ export function createApp() {
     errorNode.textContent = "";
     const formData = new FormData(form);
     const file = formData.get("asset_file");
+    const previewImage = formData.get("preview_image");
     formData.delete("asset_file");
+    formData.delete("preview_image");
     const data = Object.fromEntries(formData.entries());
     try {
       const product = await api.request(API_PATHS.products, { method: "POST", body: JSON.stringify(data) });
       await uploadProductAsset({ api, productUuid: product.uuid, file });
-      toast("Product created and file verified");
+      await uploadProductPreview({ api, productUuid: product.uuid, file: previewImage });
+      toast(previewImage?.name ? "Product file and preview verified" : "Product created and file verified");
       navigate(ROUTES.sellerProducts, true);
     } catch (error) {
       errorNode.textContent = error.message;
     }
+  });
+
+  root.addEventListener("change", (event) => {
+    if (!event.target.matches("[data-preview-input]")) return;
+    const output = event.target.closest("[data-preview-section]")?.querySelector("[data-preview-output]");
+    const file = event.target.files?.[0];
+    if (!output || !file) return;
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      output.innerHTML = `<img src="${reader.result}" alt="Selected product preview" />`;
+      output.classList.add("has-image");
+    });
+    reader.readAsDataURL(file);
   });
 
   root.addEventListener("submit", async (event) => {

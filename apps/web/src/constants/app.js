@@ -24,6 +24,8 @@ export const ROUTES = Object.freeze({
 export const API_PATHS = Object.freeze({
   products: "/v1/products/",
   product: (uuid) => `/v1/products/${encodeURIComponent(uuid)}/`,
+  productPreviewUploadTarget: (uuid) => `/v1/products/${encodeURIComponent(uuid)}/preview-upload-target/`,
+  productPreviewUploadComplete: (uuid) => `/v1/products/${encodeURIComponent(uuid)}/preview-complete/`,
   ownedProducts: "/v1/products/mine/",
   signup: "/v1/users/",
   login: "/v1/users/login/",

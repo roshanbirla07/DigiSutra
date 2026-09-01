@@ -65,6 +65,8 @@ test("seller workspace pages preserve operational forms and navigation", () => {
   assert.match(sellerProducts({ session: creator, products: [product] }), /Product Strategy Toolkit/);
   assert.match(sellerProductNew({ session: creator }), /data-product-form/);
   assert.match(sellerProductNew({ session: creator }), /name="asset_file"/);
+  assert.match(sellerProductNew({ session: creator }), /name="preview_image"/);
+  assert.match(sellerProductNew({ session: creator }), /Visible in the catalogue before payment/);
   assert.match(sellerPayouts({ session: creator, summary }), /Payout history/);
 });
 
