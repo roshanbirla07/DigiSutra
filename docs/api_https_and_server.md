@@ -24,3 +24,20 @@ Restrict direct inbound access to port 5000 to the trusted proxy or load balance
 Binary request logs beginning with `\\x16\\x03\\x01` typically represent a TLS ClientHello delivered to this HTTP listener. A `GET /` 404 is expected because the API implements `/health` and `/v1/...` routes, not a root page; the web frontend runs separately on port 3000. Unknown internet requests to `/mcp`, `/sse`, and `/favicon.ico` do not identify an API failure.
 
 A 200 from `/health` verifies the process and database query. It does not by itself validate DNS, TLS termination, frontend routing, or product/payment flows.
+
+## Instance-local PostgreSQL image and credentials
+
+Compose defaults to PostgreSQL 18.3 for a fresh installation. If the existing EC2 data volume was initialized on PostgreSQL 17, keep that major version in the ignored `.env` file before recreating containers:
+
+```dotenv
+POSTGRES_IMAGE=postgres:17-alpine
+POSTGRES_DB=digisutra
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=<instance-specific-password>
+```
+
+Check the running major version with `docker compose exec postgres psql -U postgres -d digisutra -Atqc 'SHOW server_version;'`. Never point a PostgreSQL 18 image at a PostgreSQL 17 data directory without a planned backup and migration. `docker compose restart` does not apply Compose image or configuration changes; `docker compose up -d --build app` rebuilds the API without recreating PostgreSQL.
+
+## S3 signed URL behavior
+
+The S3 gateway now signs requests against the configured AWS Region using SigV4 and virtual-hosted bucket URLs. This affects URL format and signature validation, not IAM authorization: the signing IAM principal still needs `s3:PutObject` for uploads and `s3:GetObject` for downloads on the relevant key prefixes. Browser uploads must send the exact signed `Content-Type` header, and the S3 bucket CORS policy must allow the web origin and `PUT`.
