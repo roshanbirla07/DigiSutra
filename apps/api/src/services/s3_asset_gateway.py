@@ -50,9 +50,17 @@ class S3AssetGateway(object):
         self._require_config()
         try:
             import boto3
+            from botocore.config import Config
         except ImportError as exc:
             raise S3AssetGatewayError("boto3 is required for protected asset delivery") from exc
-        client_options = {"region_name": AWS_REGION}
+        client_options = {
+            "region_name": AWS_REGION,
+            "endpoint_url": f"https://s3.{AWS_REGION}.amazonaws.com",
+            "config": Config(
+                signature_version="s3v4",
+                s3={"addressing_style": "virtual"},
+            ),
+        }
         if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
             client_options.update(
                 aws_access_key_id=AWS_ACCESS_KEY_ID,

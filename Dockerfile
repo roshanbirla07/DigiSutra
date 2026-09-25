@@ -14,4 +14,4 @@ COPY apps ./apps
 
 EXPOSE 5000
 
-CMD ["python", "apps/api/src/runserver.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--access-logfile", "-", "--error-logfile", "-", "runserver:app"]

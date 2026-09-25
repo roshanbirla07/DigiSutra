@@ -8,3 +8,4 @@ PyJWT[crypto]==2.13.0
 cryptography==45.0.5
 alembic==1.19.1
 boto3==1.43.68
+gunicorn==23.0.0
