@@ -1,10 +1,10 @@
 try:
-    from .stage_config import *
+    from .local_config import *
 except ImportError:
     pass
 
 try:
-    from .local_config import *
+    from .stage_config import *
 except ImportError:
     pass
 
