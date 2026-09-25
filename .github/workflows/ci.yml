@@ -34,6 +34,7 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements.txt
       - run: python -m compileall -q apps/api/src
+      - run: PYTHONPATH=apps/api/src gunicorn --check-config runserver:app
       - run: python -m unittest discover -s apps/api/tests -p 'test_*.py'
       - run: alembic upgrade head
       - run: node --test apps/web/tests/*.test.js
