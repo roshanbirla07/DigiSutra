@@ -33,13 +33,26 @@ const product = {
 };
 
 test("customer pages render their primary interaction hooks", () => {
-  assert.match(home({ session: customer, products: [product] }), /Discover digital work/);
-  assert.match(catalog({ session: customer, products: [product] }), /data-catalog-form/);
+  const homepage = home({ session: customer, products: [product] });
+  assert.match(homepage, /Find your next <em>useful thing/);
+  assert.match(homepage, /data-home-search/);
+  assert.match(homepage, /data-category="Templates"/);
+  const catalogue = catalog({ session: customer, products: [product] });
+  assert.match(catalogue, /data-catalog-form/);
+  assert.match(catalogue, /product-card-media/);
   assert.match(detail({ session: customer, product }), /data-buy-product="product::1"/);
   assert.match(auth({ mode: "signup" }), /data-auth-form data-mode="signup"/);
   assert.match(settings({ session: customer }), /data-logout/);
   assert.match(checkout({ session: customer, product }), /data-start-checkout="product::1"/);
   assert.match(checkout({ session: customer, product, checkout: { order: { uuid: "order::1" } } }), /data-open-razorpay/);
+});
+
+test("catalogue retains all category choices while showing filtered products", () => {
+  const other = { ...product, uuid: "product::2", title: "Writing guide", category: "Guides" };
+  const html = catalog({ session: customer, products: [product], availableProducts: [product, other], category: "Templates" });
+  assert.match(html, /<option value="Guides"/);
+  assert.match(html, /<option value="Templates" selected>/);
+  assert.doesNotMatch(html, /Writing guide/);
 });
 
 test("library only enables verified paid downloads", () => {
