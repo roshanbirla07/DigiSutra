@@ -68,7 +68,7 @@ export function createApp() {
       try {
         await loadProducts();
       } catch (error) {
-        root.innerHTML = view.catalog({ session: state.session, products: [], query: state.query, category: state.category });
+        root.innerHTML = view.catalog({ session: state.session, products: [], availableProducts: state.products, query: state.query, category: state.category });
         toast(error.message);
         return;
       }
@@ -78,8 +78,8 @@ export function createApp() {
         !state.query || `${p.title} ${p.description} ${p.category}`.toLowerCase().includes(state.query.toLowerCase())
       ));
       root.innerHTML = current.name === ROUTES.home
-        ? view.home({ session: state.session, products })
-        : view.catalog({ session: state.session, products, query: state.query, category: state.category });
+        ? view.home({ session: state.session, products: state.products })
+        : view.catalog({ session: state.session, products, availableProducts: state.products, query: state.query, category: state.category });
       return;
     }
     if (current.name === "detail") {
@@ -289,6 +289,13 @@ export function createApp() {
       navigate(link.getAttribute("href"));
       return;
     }
+    const category = event.target.closest("[data-category]");
+    if (category) {
+      state.query = "";
+      state.category = category.dataset.category;
+      navigate(ROUTES.catalog);
+      return;
+    }
     const tab = event.target.closest("[data-auth-mode]");
     if (tab) {
       navigate(`${ROUTES.auth}?mode=${tab.dataset.authMode}`);
@@ -347,6 +354,13 @@ export function createApp() {
   });
 
   root.addEventListener("submit", async (event) => {
+    if (event.target.matches("[data-home-search]")) {
+      event.preventDefault();
+      state.query = String(new FormData(event.target).get("q") || "").trim();
+      state.category = "all";
+      navigate(ROUTES.catalog);
+      return;
+    }
     if (event.target.matches("[data-auth-form]")) {
       event.preventDefault();
       await submitAuth(event.target);
