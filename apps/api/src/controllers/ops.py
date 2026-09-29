@@ -17,7 +17,7 @@ class OpsReconciliationSummary(View):
         try:
             summary = serializer.summary()
         except Exception as e:
-            logging.error(f"Ops reconciliation summary error :: {e}")
+            logging.error("event=%s error_type=%s", 'Ops reconciliation summary error', type(e).__name__)
             return Response(
                 response=json.dumps({"error": f"Error loading reconciliation summary {str(e)}"}),
                 status=400,
