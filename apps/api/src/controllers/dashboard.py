@@ -21,7 +21,7 @@ class DashboardSummary(View):
         try:
             summary = serializer.admin_summary() if user.user_type == "admin" else serializer.seller_summary(user.id)
         except Exception as e:
-            logging.error(f"Dashboard summary error :: {e} :: {user.uuid if user else None}")
+            logging.error("event=%s error_type=%s", 'Dashboard summary error', type(e).__name__)
             return Response(
                 response=json.dumps({"error": f"Error loading dashboard summary {str(e)}"}),
                 status=400,
