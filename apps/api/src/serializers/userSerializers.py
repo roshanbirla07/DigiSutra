@@ -94,7 +94,7 @@ class UserSerializer(object):
             db.session.commit()
             logging.info('User created Successfully')
         except Exception as e:
-            logging.error(f'::Exception in User Creation Serializer :: Exception: {e}')
+            logging.error("event=%s error_type=%s", 'Exception in User Creation Serializer', type(e).__name__)
             abort(400)
 
         self.is_valid = True
@@ -138,7 +138,7 @@ class UserSerializer(object):
         try:
             db.session.commit()
         except Exception as e:
-            logging.error(f'::Exception in User Update Serializer :: Exception: {e}')
+            logging.error("event=%s error_type=%s", 'Exception in User Update Serializer', type(e).__name__)
             abort(400)
         return user
 
