@@ -37,7 +37,7 @@ class LedgerCollection(View):
             try:
                 order = serializer.create()
             except Exception as e:
-                logging.error(f"Ledger order create error :: {e} :: {payload}")
+                logging.error("event=%s error_type=%s", 'Ledger order create error', type(e).__name__)
                 return Response(
                     response=json.dumps({"error": f"Error creating ledger order {str(e)}"}),
                     status=400,
@@ -102,7 +102,7 @@ class LedgerDetail(View):
             try:
                 refund = serializer.create_refund(order_uuid, payload)
             except Exception as e:
-                logging.error(f"Ledger refund create error :: {e} :: {payload} :: {order_uuid}")
+                logging.error("event=%s error_type=%s", 'Ledger refund create error', type(e).__name__)
                 return Response(
                     response=json.dumps({"error": f"Error creating refund {str(e)}"}),
                     status=400,
