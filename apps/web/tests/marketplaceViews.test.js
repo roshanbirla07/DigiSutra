@@ -93,3 +93,10 @@ test("seller onboarding and admin review preserve workflow hooks", () => {
   assert.match(review, /data-refresh-admin-sellers/);
   assert.match(review, /data-admin-seller-action="start-kyc-review"/);
 });
+
+
+test("seller draft bypasses submit-only required field validation", () => {
+  const html = sellerApplication({ session: customer, application: {} });
+  assert.match(html, /type="submit" formnovalidate data-seller-application-action="draft"/);
+  assert.match(html, /type="submit" data-seller-application-action="submit"/);
+});
