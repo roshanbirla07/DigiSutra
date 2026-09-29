@@ -176,7 +176,7 @@ class AssetSerializer(object):
         try:
             db.session.commit()
         except Exception as e:
-            logging.error(f"Exception in Asset Creation Serializer :: {e}")
+            logging.error("event=%s error_type=%s", 'Exception in Asset Creation Serializer', type(e).__name__)
             abort(400)
 
         try:
@@ -244,7 +244,7 @@ class AssetSerializer(object):
         try:
             db.session.commit()
         except Exception as e:
-            logging.error(f"Exception in Asset Download Log Serializer :: {e}")
+            logging.error("event=%s error_type=%s", 'Exception in Asset Download Log Serializer', type(e).__name__)
             abort(400)
         return download
 
