@@ -65,7 +65,9 @@ class AdminSellerApplicationCollection(View):
     def dispatch_request(self, *args, **kwargs):
         try:
             applications = SellerApplicationSerializer.list_applications(request.args.get("status"))
-            return _response([SellerApplicationSerializer.serialize_application(item) for item in applications])
+            response = _response([SellerApplicationSerializer.serialize_application_summary(item) for item in applications])
+            response.headers["Cache-Control"] = "no-store"
+            return response
         except Exception as exc:
             logging.error("Seller application list error :: %s", exc)
             return _response({"error": str(exc)}, 400)
@@ -78,7 +80,10 @@ class AdminSellerApplicationDetail(View):
     def dispatch_request(self, application_uuid, *args, **kwargs):
         try:
             application = SellerApplicationSerializer._get_owned(application_uuid)
-            return _response(SellerApplicationSerializer.serialize_application(application))
+            response = _response(SellerApplicationSerializer.serialize_application(application))
+            response.headers["Cache-Control"] = "no-store"
+            logging.info("event=admin_seller_application_detail application_uuid=%s", application_uuid)
+            return response
         except Exception as exc:
             logging.error("Seller application detail error :: %s", exc)
             return _response({"error": str(exc)}, 404)
