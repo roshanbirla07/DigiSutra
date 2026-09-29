@@ -19,10 +19,10 @@ class SignUp(View):
         try:
             user = serializer.create()
         except Exception as e:
-            logging.error(f"User Signup Error creating user on service :: {data.get('uuid')} :: {e} :: {data}")
+            logging.error("event=%s error_type=%s", 'User Signup Error creating user on service', type(e).__name__)
 
             return Response(
-                response=json.dumps({"error": f"Error creating user  {str(e)}"}),
+                response=json.dumps({"error": "Request could not be completed"}),
                 status=400,
                 mimetype="application/json"
             )
@@ -45,9 +45,9 @@ class Login(View):
         try:
             user, token = serializer.login_with_token()
         except Exception as e:
-            logging.error(f"User Login Error on service :: {e} :: {data}")
+            logging.error("event=%s error_type=%s", 'User Login Error on service', type(e).__name__)
             return Response(
-                response=json.dumps({"error": f"Error logging in user {str(e)}"}),
+                response=json.dumps({"error": "Request could not be completed"}),
                 status=400,
                 mimetype="application/json"
             )
