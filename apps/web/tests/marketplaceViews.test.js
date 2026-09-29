@@ -93,3 +93,10 @@ test("seller onboarding and admin review preserve workflow hooks", () => {
   assert.match(review, /data-refresh-admin-sellers/);
   assert.match(review, /data-admin-seller-action="start-kyc-review"/);
 });
+
+test("authentication mode cannot inject markup", () => {
+  const html = auth({ mode: 'login"><img src=x onerror=alert(1)>' });
+  assert.match(html, /data-auth-form data-mode="login"/);
+  assert.doesNotMatch(html, /<img/);
+  assert.doesNotMatch(html, /onerror/);
+});
