@@ -128,6 +128,40 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
             self.assertEqual(verify_signature.call_count, 2)
             db_mock.session.commit.assert_called_once()
 
+    def test_old_checkout_confirmation_cannot_reopen_refunded_order(self):
+        from types import SimpleNamespace
+        order = MagicMock()
+        order.id = 1
+        order.buyer_id = 7
+        order.provider_order_id = "order_test_123"
+        order.provider_payment_id = "pay_test_456"
+        order.payment_status = "refunded"
+        order.refund_status = "processed"
+        order.delivery_status = "revoked"
+        signature = hmac.new(
+            b"secret_key", b"order_test_123|pay_test_456", hashlib.sha256,
+        ).hexdigest()
+        with self.app.test_request_context("/"): 
+            from flask import g
+            g.user = SimpleNamespace(id=7)
+            with patch("serializers.paymentSerializers.MarketplaceOrder") as model, \
+                    patch("serializers.paymentSerializers.db") as db_mock, \
+                    patch("services.razorpay_gateway.RAZORPAY_TEST_KEY_SECRET", "secret_key"), \
+                    patch.object(PaymentSerializer, "_grant_access_if_needed") as grant_access, \
+                    patch.object(PaymentSerializer, "_move_funds_to_available") as credit:
+                model.query.filter_by.return_value.first.return_value = order
+                with self.assertRaises(PaymentInputError):
+                    PaymentSerializer().confirm_checkout_payment({
+                        "razorpay_order_id": order.provider_order_id,
+                        "razorpay_payment_id": order.provider_payment_id,
+                        "razorpay_signature": signature,
+                    })
+                grant_access.assert_not_called()
+                credit.assert_not_called()
+                db_mock.session.commit.assert_not_called()
+        self.assertEqual(order.payment_status, "refunded")
+        self.assertEqual(order.delivery_status, "revoked")
+
     def test_refund_processed_webhook_finalizes_order_access_and_balance(self):
         order = MagicMock()
         order.id = 1
