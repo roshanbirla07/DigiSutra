@@ -92,6 +92,21 @@ class AuthorizationIntegrationTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_admin_application_collection_uses_summary_and_no_store(self):
+        admin = SimpleNamespace(user_type="admin")
+        with patch("utils.auth.verify_access_token", return_value=(admin, {})), \
+                patch("controllers.seller.SellerApplicationSerializer") as serializer:
+            serializer.list_applications.return_value = [object()]
+            serializer.serialize_application_summary.return_value = {"uuid": "application::1"}
+            response = self.client.get(
+                "/v1/admin/seller-applications/",
+                headers={"Authorization": "Bearer admin-token"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), [{"uuid": "application::1"}])
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        serializer.serialize_application.assert_not_called()
+
     def test_public_signup_cannot_assign_privileged_role(self):
         created_user = SimpleNamespace(uuid="user::customer")
         serializer = MagicMock()
