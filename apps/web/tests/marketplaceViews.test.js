@@ -94,6 +94,13 @@ test("seller onboarding and admin review preserve workflow hooks", () => {
   assert.match(review, /data-admin-seller-action="start-kyc-review"/);
 });
 
+
+test("seller draft bypasses submit-only required field validation", () => {
+  const html = sellerApplication({ session: customer, application: {} });
+  assert.match(html, /type="submit" formnovalidate data-seller-application-action="draft"/);
+  assert.match(html, /type="submit" data-seller-application-action="submit"/);
+});
+
 test("authentication mode cannot inject markup", () => {
   const html = auth({ mode: 'login"><img src=x onerror=alert(1)>' });
   assert.match(html, /data-auth-form data-mode="login"/);
