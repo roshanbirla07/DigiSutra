@@ -26,7 +26,7 @@ class PayoutCollection(View):
             try:
                 payout = serializer.create()
             except Exception as e:
-                logging.error(f"Payout create error :: {e} :: {payload}")
+                logging.error("event=%s error_type=%s", 'Payout create error', type(e).__name__)
                 return Response(
                     response=json.dumps({"error": f"Error creating payout {str(e)}"}),
                     status=400,
@@ -61,7 +61,7 @@ class PayoutBatch(View):
         try:
             payouts = serializer.process_batch(payload.get("batch_id"), payload.get("payout_updates") or [])
         except Exception as e:
-            logging.error(f"Payout batch error :: {e} :: {payload}")
+            logging.error("event=%s error_type=%s", 'Payout batch error', type(e).__name__)
             return Response(
                 response=json.dumps({"error": f"Error processing payout batch {str(e)}"}),
                 status=400,
@@ -99,7 +99,7 @@ class PayoutRetry(View):
         try:
             payout = serializer.retry_payout(payout_uuid)
         except Exception as e:
-            logging.error(f"Payout retry error :: {e} :: {payout_uuid}")
+            logging.error("event=%s error_type=%s", 'Payout retry error', type(e).__name__)
             return Response(
                 response=json.dumps({"error": f"Error retrying payout {str(e)}"}),
                 status=400,
@@ -122,7 +122,7 @@ class PayoutCancel(View):
         try:
             payout = serializer.cancel_payout(payout_uuid, getattr(g, "user", None))
         except Exception as e:
-            logging.error("Payout cancellation error :: %s :: %s", e, payout_uuid)
+            logging.error("event=%s error_type=%s", 'Payout cancellation error', type(e).__name__)
             return Response(
                 response=json.dumps({"error": f"Error cancelling payout {str(e)}"}),
                 status=400,
@@ -145,7 +145,7 @@ class PayoutReconciliationSummary(View):
         try:
             summary = serializer.reconciliation_summary()
         except Exception as e:
-            logging.error(f"Payout reconciliation summary error :: {e}")
+            logging.error("event=%s error_type=%s", 'Payout reconciliation summary error', type(e).__name__)
             return Response(
                 response=json.dumps({"error": f"Error loading payout reconciliation summary {str(e)}"}),
                 status=400,

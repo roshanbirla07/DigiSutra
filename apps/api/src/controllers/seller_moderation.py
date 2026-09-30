@@ -18,7 +18,7 @@ class SellerSuspension(View):
             profile = SellerApplicationSerializer.set_suspension(user_uuid, self.suspended, (request.get_json(silent=True) or {}).get("note"))
             return Response(response=json.dumps(SellerApplicationSerializer.serialize_profile(profile)), status=200, mimetype="application/json")
         except Exception as exc:
-            logging.error("Seller suspension error :: %s", exc)
+            logging.error("event=%s error_type=%s", 'Seller suspension error', type(exc).__name__)
             return Response(response=json.dumps({"error": str(exc)}), status=400, mimetype="application/json")
 
 

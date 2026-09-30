@@ -305,7 +305,7 @@ class LedgerSerializer(object):
         try:
             db.session.commit()
         except Exception as e:
-            logging.error(f"Exception in Ledger Order Creation Serializer :: {e}")
+            logging.error("event=%s error_type=%s", 'Exception in Ledger Order Creation Serializer', type(e).__name__)
             abort(400)
 
         return order

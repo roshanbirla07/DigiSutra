@@ -125,7 +125,7 @@ class ProductSerializer(object):
         try:
             db.session.commit()
         except Exception as e:
-            logging.error(f"Exception in Product Creation Serializer :: {e}")
+            logging.error("event=%s error_type=%s", 'Exception in Product Creation Serializer', type(e).__name__)
             abort(400)
 
         return product
@@ -223,6 +223,6 @@ class ProductSerializer(object):
         try:
             db.session.commit()
         except Exception as e:
-            logging.error(f"Exception in Product Delete Serializer :: {e}")
+            logging.error("event=%s error_type=%s", 'Exception in Product Delete Serializer', type(e).__name__)
             abort(400)
         return True

@@ -56,7 +56,7 @@ class ProductCollection(View):
             try:
                 product = serializer.create()
             except Exception as e:
-                logging.error(f"Product create error :: {e} :: {payload}")
+                logging.error("event=%s error_type=%s", 'Product create error', type(e).__name__)
                 return Response(
                     response=json.dumps({"error": f"Error creating product {str(e)}"}),
                     status=400,
@@ -154,7 +154,7 @@ class ProductPreviewUploadTarget(View):
                 product_uuid, request.get_json(silent=True) or {}
             )
         except Exception as exc:
-            logging.error("Product preview target error :: %s :: %s", exc, product_uuid)
+            logging.error("event=%s error_type=%s", 'Product preview target error', type(exc).__name__)
             return Response(
                 response=json.dumps({"error": str(exc)}),
                 status=400,
@@ -179,7 +179,7 @@ class ProductPreviewUploadComplete(View):
                 product_uuid, request.get_json(silent=True) or {}
             )
         except Exception as exc:
-            logging.error("Product preview completion error :: %s :: %s", exc, product_uuid)
+            logging.error("event=%s error_type=%s", 'Product preview completion error', type(exc).__name__)
             return Response(
                 response=json.dumps({"error": str(exc)}),
                 status=400,

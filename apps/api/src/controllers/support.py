@@ -19,7 +19,7 @@ class SupportTicketCollection(View):
             try:
                 ticket = serializer.create_ticket(payload)
             except Exception as e:
-                logging.error(f"Support ticket create error :: {e} :: {payload}")
+                logging.error("event=%s error_type=%s", 'Support ticket create error', type(e).__name__)
                 return Response(
                     response=json.dumps({"error": f"Error creating support ticket {str(e)}"}),
                     status=400,
@@ -49,7 +49,7 @@ class SupportTicketResolve(View):
         try:
             ticket = serializer.resolve_ticket(ticket_uuid, payload)
         except Exception as e:
-            logging.error(f"Support ticket resolve error :: {e} :: {payload}")
+            logging.error("event=%s error_type=%s", 'Support ticket resolve error', type(e).__name__)
             return Response(
                 response=json.dumps({"error": f"Error resolving support ticket {str(e)}"}),
                 status=400,
@@ -72,7 +72,7 @@ class ProductFlagCollection(View):
         try:
             flag = serializer.create_product_flag(product_uuid, payload)
         except Exception as e:
-            logging.error(f"Product flag create error :: {e} :: {payload}")
+            logging.error("event=%s error_type=%s", 'Product flag create error', type(e).__name__)
             return Response(
                 response=json.dumps({"error": f"Error creating product flag {str(e)}"}),
                 status=400,
@@ -95,7 +95,7 @@ class ProductFlagResolve(View):
         try:
             flag = serializer.resolve_product_flag(flag_uuid, payload.get("status"))
         except Exception as e:
-            logging.error(f"Product flag resolve error :: {e} :: {payload}")
+            logging.error("event=%s error_type=%s", 'Product flag resolve error', type(e).__name__)
             return Response(
                 response=json.dumps({"error": f"Error resolving product flag {str(e)}"}),
                 status=400,
@@ -117,7 +117,7 @@ class UserSuspend(View):
         try:
             user = serializer.set_user_active_state(user_uuid, False)
         except Exception as e:
-            logging.error(f"User suspend error :: {e} :: {user_uuid}")
+            logging.error("event=%s error_type=%s", 'User suspend error', type(e).__name__)
             return Response(
                 response=json.dumps({"error": f"Error suspending user {str(e)}"}),
                 status=400,
@@ -139,7 +139,7 @@ class UserActivate(View):
         try:
             user = serializer.set_user_active_state(user_uuid, True)
         except Exception as e:
-            logging.error(f"User activate error :: {e} :: {user_uuid}")
+            logging.error("event=%s error_type=%s", 'User activate error', type(e).__name__)
             return Response(
                 response=json.dumps({"error": f"Error activating user {str(e)}"}),
                 status=400,
