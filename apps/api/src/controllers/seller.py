@@ -27,7 +27,7 @@ class SellerApplicationCollection(View):
             application = serializer.save_draft(request.get_json(silent=True) or {})
             return _response(serializer.serialize_application(application), 200)
         except Exception as exc:
-            logging.error("Seller application save/read error :: %s", exc)
+            logging.error("event=%s error_type=%s", 'Seller application save/read error', type(exc).__name__)
             return _response({"error": str(exc)}, 400)
 
 
@@ -41,7 +41,7 @@ class SellerApplicationSubmit(View):
             application = SellerApplicationSerializer.submit(request.get_json(silent=True) or {})
             return _response(SellerApplicationSerializer.serialize_application(application), 200)
         except Exception as exc:
-            logging.error("Seller application submit error :: %s", exc)
+            logging.error("event=%s error_type=%s", 'Seller application submit error', type(exc).__name__)
             return _response({"error": str(exc)}, 400)
 
 
@@ -54,7 +54,7 @@ class SellerApplicationWithdraw(View):
             application = SellerApplicationSerializer.withdraw(application_uuid)
             return _response(SellerApplicationSerializer.serialize_application(application), 200)
         except Exception as exc:
-            logging.error("Seller application withdraw error :: %s", exc)
+            logging.error("event=%s error_type=%s", 'Seller application withdraw error', type(exc).__name__)
             return _response({"error": str(exc)}, 400)
 
 
@@ -65,9 +65,11 @@ class AdminSellerApplicationCollection(View):
     def dispatch_request(self, *args, **kwargs):
         try:
             applications = SellerApplicationSerializer.list_applications(request.args.get("status"))
-            return _response([SellerApplicationSerializer.serialize_application(item) for item in applications])
+            response = _response([SellerApplicationSerializer.serialize_application_summary(item) for item in applications])
+            response.headers["Cache-Control"] = "no-store"
+            return response
         except Exception as exc:
-            logging.error("Seller application list error :: %s", exc)
+            logging.error("event=%s error_type=%s", 'Seller application list error', type(exc).__name__)
             return _response({"error": str(exc)}, 400)
 
 
@@ -78,9 +80,12 @@ class AdminSellerApplicationDetail(View):
     def dispatch_request(self, application_uuid, *args, **kwargs):
         try:
             application = SellerApplicationSerializer._get_owned(application_uuid)
-            return _response(SellerApplicationSerializer.serialize_application(application))
+            response = _response(SellerApplicationSerializer.serialize_application(application))
+            response.headers["Cache-Control"] = "no-store"
+            logging.info("event=admin_seller_application_detail application_uuid=%s", application_uuid)
+            return response
         except Exception as exc:
-            logging.error("Seller application detail error :: %s", exc)
+            logging.error("event=%s error_type=%s", 'Seller application detail error', type(exc).__name__)
             return _response({"error": str(exc)}, 404)
 
 
@@ -115,7 +120,7 @@ class AdminSellerApplicationReview(View):
                 "seller_profile": SellerApplicationSerializer.serialize_profile(profile),
             })
         except Exception as exc:
-            logging.error("Seller application review error :: %s", exc)
+            logging.error("event=%s error_type=%s", 'Seller application review error', type(exc).__name__)
             return _response({"error": str(exc)}, 400)
 
 

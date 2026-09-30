@@ -20,9 +20,9 @@ class PaymentOrderCollection(View):
         try:
             order, provider_order = serializer.create_provider_order(payload["order_uuid"])
         except Exception as e:
-            logging.error(f"Payment order create error :: {e} :: {payload}")
+            logging.error("event=%s error_type=%s", 'Payment order create error', type(e).__name__)
             return Response(
-                response=json.dumps({"error": f"Error creating payment order {str(e)}"}),
+                response=json.dumps({"error": "Request could not be completed"}),
                 status=400,
                 mimetype="application/json",
             )
@@ -49,9 +49,9 @@ class PaymentConfirm(View):
         try:
             order = serializer.confirm_checkout_payment(payload)
         except Exception as e:
-            logging.error(f"Payment confirm error :: {e} :: {payload}")
+            logging.error("event=%s error_type=%s", 'Payment confirm error', type(e).__name__)
             return Response(
-                response=json.dumps({"error": f"Error confirming payment {str(e)}"}),
+                response=json.dumps({"error": "Request could not be completed"}),
                 status=400,
                 mimetype="application/json",
             )
@@ -75,9 +75,9 @@ class PaymentWebhook(View):
         try:
             order = serializer.process_webhook_event(payload, raw_body)
         except Exception as e:
-            logging.error(f"Payment webhook error :: {e} :: {payload}")
+            logging.error("event=%s error_type=%s", 'Payment webhook error', type(e).__name__)
             return Response(
-                response=json.dumps({"error": f"Webhook rejected {str(e)}"}),
+                response=json.dumps({"error": "Request could not be completed"}),
                 status=400,
                 mimetype="application/json",
             )

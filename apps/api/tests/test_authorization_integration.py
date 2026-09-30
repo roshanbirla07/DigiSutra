@@ -92,6 +92,21 @@ class AuthorizationIntegrationTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_admin_application_collection_uses_summary_and_no_store(self):
+        admin = SimpleNamespace(user_type="admin")
+        with patch("utils.auth.verify_access_token", return_value=(admin, {})), \
+                patch("controllers.seller.SellerApplicationSerializer") as serializer:
+            serializer.list_applications.return_value = [object()]
+            serializer.serialize_application_summary.return_value = {"uuid": "application::1"}
+            response = self.client.get(
+                "/v1/admin/seller-applications/",
+                headers={"Authorization": "Bearer admin-token"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), [{"uuid": "application::1"}])
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        serializer.serialize_application.assert_not_called()
+
     def test_public_signup_cannot_assign_privileged_role(self):
         created_user = SimpleNamespace(uuid="user::customer")
         serializer = MagicMock()
@@ -111,6 +126,23 @@ class AuthorizationIntegrationTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(serializer_factory.call_args.args[0]["user_type"], "customer")
+
+    def test_seller_cannot_create_product_for_another_owner(self):
+        seller = SimpleNamespace(id=1, uuid="user::seller-a", user_type="seller")
+        serializer = MagicMock()
+        serializer.create.return_value = object()
+        with patch("utils.auth.verify_access_token", return_value=(seller, {})), \
+                patch("controllers.product.require_operational_seller"), \
+                patch("controllers.product.ProductSerializer", return_value=serializer) as factory, \
+                patch("controllers.product.serialize_product", return_value={"uuid": "product::1"}):
+            response = self.client.post(
+                "/v1/products/",
+                json={"owner_uuid": "user::seller-b", "title": "Example", "price": "100"},
+                headers={"Authorization": "Bearer seller-token"},
+            )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(factory.call_args.args[0]["owner_uuid"], seller.uuid)
+        self.assertNotEqual(factory.call_args.args[0]["owner_uuid"], "user::seller-b")
 
     def test_download_log_passes_verified_claims_to_serializer(self):
         buyer = SimpleNamespace(uuid="user::buyer", user_type="customer")

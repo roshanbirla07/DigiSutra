@@ -82,3 +82,22 @@ class SellerOnboardingValidationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class SellerApplicationSummaryTests(unittest.TestCase):
+    def test_summary_omits_sensitive_kyc_and_bank_fields(self):
+        from unittest.mock import MagicMock
+        application = MagicMock()
+        application.uuid = "application::1"
+        application.applicant = None
+        application.status = "submitted"
+        application.store_name = "Example store"
+        application.category = "Guides"
+        application.kyc_status = "pending"
+        application.fund_account_status = "pending"
+        application.provider = "manual"
+        application.submitted_on = None
+        application.created_on = None
+        summary = SellerApplicationSerializer.serialize_application_summary(application)
+        self.assertEqual(summary["store_name"], "Example store")
+        for field in ("pan_number", "gstin", "business_address", "phone_number", "bank_ifsc", "kyc_document_reference", "provider_account_id"):
+            self.assertNotIn(field, summary)

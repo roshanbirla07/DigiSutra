@@ -24,9 +24,9 @@ class AssetUploadTarget(View):
         try:
             asset, presigned = serializer.create_upload_target(payload)
         except Exception as e:
-            logging.error(f"Asset upload target error :: {e} :: {payload}")
+            logging.error("event=%s error_type=%s", 'Asset upload target error', type(e).__name__)
             return Response(
-                response=json.dumps({"error": f"Error creating upload target {str(e)}"}),
+                response=json.dumps({"error": "Request could not be completed"}),
                 status=400,
                 mimetype="application/json",
             )
@@ -58,9 +58,9 @@ class AssetDownloadLog(View):
             payload["_delivery_claims"] = delivery_claims
             download = serializer.log_download(asset_uuid, payload)
         except Exception as e:
-            logging.error(f"Asset download log error :: {e} :: {payload}")
+            logging.error("event=%s error_type=%s", 'Asset download log error', type(e).__name__)
             return Response(
-                response=json.dumps({"error": f"Error logging download {str(e)}"}),
+                response=json.dumps({"error": "Request could not be completed"}),
                 status=e.code if isinstance(e, HTTPException) else 400,
                 mimetype="application/json",
             )
@@ -82,9 +82,9 @@ class AssetDownloadAuthorize(View):
         try:
             delivery = serializer.authorize_download(asset_uuid, payload)
         except Exception as e:
-            logging.error(f"Asset download authorize error :: {e} :: {payload}")
+            logging.error("event=%s error_type=%s", 'Asset download authorize error', type(e).__name__)
             return Response(
-                response=json.dumps({"error": f"Error authorizing download {str(e)}"}),
+                response=json.dumps({"error": "Request could not be completed"}),
                 status=400,
                 mimetype="application/json",
             )
@@ -107,6 +107,6 @@ class AssetUploadComplete(View):
         try:
             asset = serializer.complete_upload(asset_uuid, payload)
         except Exception as e:
-            logging.error(f"Asset upload completion error :: {e} :: {asset_uuid}")
+            logging.error("event=%s error_type=%s", 'Asset upload completion error', type(e).__name__)
             return Response(response=json.dumps({"error": f"Error completing upload {str(e)}"}), status=400, mimetype="application/json")
         return Response(response=json.dumps(serializer.serialize_asset(asset)), status=200, mimetype="application/json")

@@ -124,6 +124,8 @@ class PaymentSerializer(object):
             access_record.revoked_at = datetime.datetime.utcnow()
 
     def _mark_order_paid(self, order, payment_id):
+        if order.payment_status in {"refunded", "cancelled"} or order.refund_status == "processed":
+            raise PaymentInputError("A terminal order cannot be marked paid")
         if order.payment_status == "paid":
             if order.provider_payment_id and order.provider_payment_id != payment_id:
                 raise PaymentInputError("Order is already paid with a different payment id")

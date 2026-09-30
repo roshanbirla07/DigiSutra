@@ -117,6 +117,22 @@ class SellerApplicationSerializer(object):
             "modified_on": application.modified_on.isoformat() if application.modified_on else None,
         }
 
+    @classmethod
+    def serialize_application_summary(cls, application):
+        return {
+            "uuid": application.uuid,
+            "status": application.status,
+            "applicant": cls._serialize_user(application.applicant) if application.applicant else None,
+            "store_name": application.store_name,
+            "store_description": application.store_description,
+            "category": application.category,
+            "kyc_status": application.kyc_status,
+            "fund_account_status": application.fund_account_status,
+            "provider": application.provider,
+            "submitted_on": application.submitted_on.isoformat() if application.submitted_on else None,
+            "created_on": application.created_on.isoformat() if application.created_on else None,
+        }
+
     @staticmethod
     def serialize_profile(profile):
         return {

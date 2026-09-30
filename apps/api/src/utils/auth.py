@@ -10,6 +10,11 @@ from configuration.variables import AUTH_EDDSA_PRIVATE_KEY_PEM, AUTH_EDDSA_PUBLI
 from models.user import User
 
 
+TOKEN_ISSUER = "digisutra-api"
+ACCESS_AUDIENCE = "digisutra-access"
+DELIVERY_AUDIENCE = "digisutra-delivery"
+
+
 class AuthError(HTTPException):
     code = 401
     description = "Authentication failed"
@@ -35,6 +40,9 @@ def create_access_token(user, expires_in_seconds=86400):
     now = datetime.datetime.now(datetime.timezone.utc)
     payload = {
         "sub": user.uuid,
+        "iss": TOKEN_ISSUER,
+        "aud": ACCESS_AUDIENCE,
+        "purpose": "access",
         "username": user.username,
         "role": user.user_type,
         "iat": int(now.timestamp()),
@@ -48,6 +56,9 @@ def create_delivery_token(user_uuid, asset_uuid, order_uuid, download_url, expir
     payload = {
         "jti": f"delivery::{uuid.uuid4()}",
         "sub": user_uuid,
+        "iss": TOKEN_ISSUER,
+        "aud": DELIVERY_AUDIENCE,
+        "purpose": "delivery",
         "asset_uuid": asset_uuid,
         "order_uuid": order_uuid,
         "download_url": download_url,
@@ -62,8 +73,12 @@ def verify_access_token(token):
         token,
         _get_public_key(),
         algorithms=["EdDSA"],
-        options={"require": ["sub", "exp", "iat"]},
+        audience=ACCESS_AUDIENCE,
+        issuer=TOKEN_ISSUER,
+        options={"require": ["sub", "exp", "iat", "iss", "aud", "purpose"]},
     )
+    if payload.get("purpose") != "access":
+        raise AuthError("Invalid access token purpose")
     user_uuid = payload.get("sub")
     user = User.query.filter_by(uuid=user_uuid).first()
     if not user or str(user.is_active).lower() in {"false", "0", "inactive"}:
@@ -75,12 +90,17 @@ def verify_delivery_token(token):
     if not token:
         raise AuthError("Asset delivery token required")
     try:
-        return jwt.decode(
+        payload = jwt.decode(
             token,
             _get_public_key(),
             algorithms=["EdDSA"],
-            options={"require": ["jti", "sub", "asset_uuid", "order_uuid", "download_url", "exp", "iat"]},
+            audience=DELIVERY_AUDIENCE,
+            issuer=TOKEN_ISSUER,
+            options={"require": ["jti", "sub", "asset_uuid", "order_uuid", "download_url", "exp", "iat", "iss", "aud", "purpose"]},
         )
+        if payload.get("purpose") != "delivery":
+            raise AuthError("Invalid delivery token purpose")
+        return payload
     except jwt.PyJWTError as exc:
         raise AuthError("Invalid or expired asset delivery token") from exc
 

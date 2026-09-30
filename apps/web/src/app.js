@@ -3,6 +3,7 @@ import { createApi, isSellerOrAdmin } from "./services/api.js";
 import { readSession, writeSession } from "./services/storage.js";
 import { authorizeAndLogDownload, uploadProductAsset, uploadProductPreview } from "./services/assetTransfers.js";
 import * as view from "./views/marketplace.js";
+import { escapeHtml } from "./views/helpers.js";
 
 export function createApp() {
   const root = document.getElementById("app");
@@ -61,7 +62,7 @@ export function createApp() {
   async function render() {
     const current = route();
     if (current.name === ROUTES.auth) {
-      root.innerHTML = view.auth({ mode: new URLSearchParams(window.location.search).get("mode") || "login" });
+      root.innerHTML = view.auth({ mode: new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login" });
       return;
     }
     if (current.name === ROUTES.home || current.name === ROUTES.catalog) {
@@ -124,7 +125,7 @@ export function createApp() {
         root.innerHTML = view.home({ session: state.session, products: state.products });
       }
     } catch (error) {
-      root.innerHTML = `<main class="page"><div class="not-found"><h1>Could not load this workspace.</h1><p>${error.message}</p><a class="button button-primary" href="${ROUTES.home}" data-link>Go home</a></div></main>`;
+      root.innerHTML = `<main class="page"><div class="not-found"><h1>Could not load this workspace.</h1><p>${escapeHtml(error.message)}</p><a class="button button-primary" href="${ROUTES.home}" data-link>Go home</a></div></main>`;
     }
   }
 
