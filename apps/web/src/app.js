@@ -10,8 +10,9 @@ export function createApp() {
   const state = {
     session: readSession(),
     products: [],
-    query: "",
-    category: "all",
+    productsLoaded: false,
+    query: new URLSearchParams(window.location.search).get("q") || "",
+    category: new URLSearchParams(window.location.search).get("category") || "all",
     checkout: null,
   };
   const api = createApi({
@@ -41,10 +42,22 @@ export function createApp() {
   }
 
   function navigate(path, replace = false) {
+    if (path.split("?")[0] === ROUTES.catalog) {
+      const params = new URL(path, window.location.origin).searchParams;
+      state.query = params.get("q") || "";
+      state.category = params.get("category") || "all";
+    }
     if (replace) window.history.replaceState({}, "", path);
     else window.history.pushState({}, "", path);
     render();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+  }
+
+  function catalogUrl() {
+    const params = new URLSearchParams();
+    if (state.query) params.set("q", state.query);
+    if (state.category !== "all") params.set("category", state.category);
+    return `${ROUTES.catalog}${params.size ? `?${params}` : ""}`;
   }
 
   function route() {
@@ -56,21 +69,41 @@ export function createApp() {
   }
 
   async function loadProducts() {
+    if (state.productsLoaded) return;
     state.products = await api.request(API_PATHS.products);
+    state.productsLoaded = true;
   }
 
   async function render() {
     const current = route();
+    const titles = {
+      [ROUTES.home]: "DigiSutra — Digital goods for brighter days",
+      [ROUTES.catalog]: "Discover products — DigiSutra",
+      [ROUTES.auth]: "Sign in — DigiSutra",
+      [ROUTES.library]: "My library — DigiSutra",
+      [ROUTES.seller]: "Seller overview — DigiSutra",
+      [ROUTES.sellerProducts]: "Seller products — DigiSutra",
+      [ROUTES.sellerProductNew]: "Create product — DigiSutra",
+      [ROUTES.sellerPayouts]: "Payouts — DigiSutra",
+      [ROUTES.becomeSeller]: "Become a seller — DigiSutra",
+      [ROUTES.adminSellerApplications]: "Seller applications — DigiSutra",
+      [ROUTES.settings]: "Account settings — DigiSutra",
+      detail: "Product details — DigiSutra",
+      checkout: "Checkout — DigiSutra",
+    };
+    document.title = titles[current.name] || "DigiSutra";
     if (current.name === ROUTES.auth) {
       root.innerHTML = view.auth({ mode: new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login" });
       return;
     }
     if (current.name === ROUTES.home || current.name === ROUTES.catalog) {
       try {
+        if (!state.productsLoaded) root.innerHTML = current.name === ROUTES.home
+          ? view.home({ session: state.session, products: [], loading: true })
+          : view.catalogLoading({ session: state.session });
         await loadProducts();
       } catch (error) {
-        root.innerHTML = view.catalog({ session: state.session, products: [], availableProducts: state.products, query: state.query, category: state.category });
-        toast(error.message);
+        root.innerHTML = view.catalog({ session: state.session, products: [], availableProducts: state.products, query: state.query, category: state.category, error: error.message });
         return;
       }
       const products = state.products.filter((p) => (
@@ -294,7 +327,25 @@ export function createApp() {
     if (category) {
       state.query = "";
       state.category = category.dataset.category;
-      navigate(ROUTES.catalog);
+      navigate(catalogUrl());
+      return;
+    }
+    if (event.target.closest("[data-clear-search]")) {
+      state.query = "";
+      window.history.replaceState({}, "", catalogUrl());
+      await render();
+      root.querySelector("[data-catalog-form] input[name=q]")?.focus();
+      return;
+    }
+    if (event.target.closest("[data-reset-catalog]")) {
+      state.query = "";
+      state.category = "all";
+      navigate(ROUTES.catalog, true);
+      return;
+    }
+    if (event.target.closest("[data-retry-products]")) {
+      state.productsLoaded = false;
+      await render();
       return;
     }
     const tab = event.target.closest("[data-auth-mode]");
@@ -359,7 +410,7 @@ export function createApp() {
       event.preventDefault();
       state.query = String(new FormData(event.target).get("q") || "").trim();
       state.category = "all";
-      navigate(ROUTES.catalog);
+      navigate(catalogUrl());
       return;
     }
     if (event.target.matches("[data-auth-form]")) {
@@ -371,7 +422,7 @@ export function createApp() {
       const data = new FormData(event.target);
       state.query = String(data.get("q") || "").trim();
       state.category = String(data.get("category") || "all");
-      await render();
+      navigate(catalogUrl(), true);
     }
   });
 
@@ -391,6 +442,7 @@ export function createApp() {
       const product = await api.request(API_PATHS.products, { method: "POST", body: JSON.stringify(data) });
       await uploadProductAsset({ api, productUuid: product.uuid, file });
       await uploadProductPreview({ api, productUuid: product.uuid, file: previewImage });
+      state.productsLoaded = false;
       toast(previewImage?.name ? "Product file and preview verified" : "Product created and file verified");
       navigate(ROUTES.sellerProducts, true);
     } catch (error) {
@@ -417,7 +469,12 @@ export function createApp() {
     await submitSellerApplication(event.target, event.submitter?.dataset.sellerApplicationAction === "submit");
   });
 
-  window.addEventListener("popstate", render);
+  window.addEventListener("popstate", () => {
+    const params = new URLSearchParams(window.location.search);
+    state.query = params.get("q") || "";
+    state.category = params.get("category") || "all";
+    render();
+  });
   return { init: render };
 }
 

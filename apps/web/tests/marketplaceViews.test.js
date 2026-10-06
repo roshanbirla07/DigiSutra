@@ -5,6 +5,7 @@ import {
   adminSellerApplications,
   auth,
   catalog,
+  catalogLoading,
   checkout,
   detail,
   home,
@@ -36,6 +37,8 @@ test("customer pages render their primary interaction hooks", () => {
   const homepage = home({ session: customer, products: [product] });
   assert.match(homepage, /Find your next <em>useful thing/);
   assert.match(homepage, /data-home-search/);
+  assert.match(homepage, /class="mobile-nav"/);
+  assert.doesNotMatch(homepage, />Categories<\/a>/);
   assert.match(homepage, /data-category="Templates"/);
   const catalogue = catalog({ session: customer, products: [product] });
   assert.match(catalogue, /data-catalog-form/);
@@ -53,6 +56,18 @@ test("catalogue retains all category choices while showing filtered products", (
   assert.match(html, /<option value="Guides"/);
   assert.match(html, /<option value="Templates" selected>/);
   assert.doesNotMatch(html, /Writing guide/);
+});
+
+test("catalogue provides clear, reset, retry and stable loading states", () => {
+  const filtered = catalog({ session: customer, products: [], query: "unknown", category: "Templates" });
+  assert.match(filtered, /data-clear-search aria-label="Clear search"/);
+  assert.match(filtered, /data-reset-catalog/);
+  assert.match(filtered, /No matches yet/);
+  const failed = catalog({ session: customer, products: [], error: "upstream failed" });
+  assert.match(failed, /data-retry-products/);
+  assert.doesNotMatch(failed, /upstream failed/);
+  assert.match(catalogLoading({ session: customer }), /aria-busy="true"/);
+  assert.match(home({ session: customer, products: [], loading: true }), /Loading featured products/);
 });
 
 test("library only enables verified paid downloads", () => {
@@ -74,7 +89,7 @@ test("library only enables verified paid downloads", () => {
 test("seller workspace pages preserve operational forms and navigation", () => {
   const summary = { currency: "INR", gross_sales_amount: "1000", net_seller_amount: "900", available_for_payout: "500", pending_payout: "100", products_count: 1, payout_ready: true, payouts: [] };
 
-  assert.match(seller({ session: creator, summary, products: [product] }), /workspace-sidebar/);
+  assert.match(seller({ session: creator, summary, products: [product] }), /class="active" aria-current="page" href="\/seller"/);
   assert.match(sellerProducts({ session: creator, products: [product] }), /Product Strategy Toolkit/);
   assert.match(sellerProductNew({ session: creator }), /data-product-form/);
   assert.match(sellerProductNew({ session: creator }), /name="asset_file"/);
