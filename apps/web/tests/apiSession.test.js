@@ -37,3 +37,15 @@ test("403 preserves session while 401 invalidates it", async () => {
     });
   }
 });
+
+test("blocked session writes use a coherent in-memory token", async () => {
+  const { writeSession, readSession } = await import("../src/services/storage.js");
+  const previous = globalThis.localStorage;
+  globalThis.localStorage = { getItem: () => null, setItem() { throw new Error("Quota exceeded"); }, removeItem() { throw new Error("Blocked"); } };
+  try {
+    writeSession({ token: "memory-token" });
+    assert.equal(readSession().token, "memory-token");
+    writeSession(null);
+    assert.equal(readSession(), null);
+  } finally { globalThis.localStorage = previous; writeSession(null); }
+});

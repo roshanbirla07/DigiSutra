@@ -1,9 +1,27 @@
+import { runtimeConfig } from "../config/runtime.js";
 import { API_PATHS } from "../constants/app.js";
 
 export async function sha256Hex(file, cryptoImpl = globalThis.crypto) {
   if (!cryptoImpl?.subtle) return null;
   const digest = await cryptoImpl.subtle.digest("SHA-256", await file.arrayBuffer());
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export function validatePreview(file) {
+  if (!file?.name) return;
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Preview image must be JPEG, PNG, or WebP.");
+  if (!file.size || file.size > 5 * 1024 * 1024) throw new Error("Preview image must be smaller than 5 MB.");
+}
+
+async function uploadFile(fetchImpl, signed, options) {
+  const controller = new AbortController();
+  const timeoutMs = Number(signed.expires_in) * 1000 || runtimeConfig.requestTimeoutMs;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try { return await fetchImpl(signed.upload_url, { ...options, signal: controller.signal }); }
+  catch (error) {
+    if (error.name === "AbortError") throw new Error("Upload timed out. Your draft is saved; retry the upload.");
+    throw error;
+  } finally { clearTimeout(timeout); }
 }
 
 export async function uploadProductAsset({ api, productUuid, file, fetchImpl = globalThis.fetch }) {
@@ -20,7 +38,7 @@ export async function uploadProductAsset({ api, productUuid, file, fetchImpl = g
   const signed = target.presigned_upload;
   if (!signed?.upload_url) throw new Error("The upload target did not include a signed URL.");
 
-  const uploaded = await fetchImpl(signed.upload_url, {
+  const uploaded = await uploadFile(fetchImpl, signed, {
     method: signed.method || "PUT",
     headers: signed.headers || { "Content-Type": file.type || "application/octet-stream" },
     body: file,
@@ -36,12 +54,7 @@ export async function uploadProductAsset({ api, productUuid, file, fetchImpl = g
 
 export async function uploadProductPreview({ api, productUuid, file, fetchImpl = globalThis.fetch }) {
   if (!file?.name || typeof file.arrayBuffer !== "function") return null;
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-    throw new Error("Preview image must be JPEG, PNG, or WebP.");
-  }
-  if (!file.size || file.size > 5 * 1024 * 1024) {
-    throw new Error("Preview image must be smaller than 5 MB.");
-  }
+  validatePreview(file);
   const target = await api.request(API_PATHS.productPreviewUploadTarget(productUuid), {
     method: "POST",
     body: JSON.stringify({
@@ -52,7 +65,7 @@ export async function uploadProductPreview({ api, productUuid, file, fetchImpl =
   });
   const signed = target.presigned_upload;
   if (!signed?.upload_url) throw new Error("The preview upload target did not include a signed URL.");
-  const uploaded = await fetchImpl(signed.upload_url, {
+  const uploaded = await uploadFile(fetchImpl, signed, {
     method: signed.method || "PUT",
     headers: signed.headers || { "Content-Type": file.type },
     body: file,

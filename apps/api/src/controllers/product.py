@@ -190,3 +190,16 @@ class ProductPreviewUploadComplete(View):
             status=200,
             mimetype="application/json",
         )
+
+
+class ProductPublish(View):
+    methods = ["POST"]
+
+    @require_auth(roles=["seller", "admin"], methods=["POST"])
+    def dispatch_request(self, product_uuid, *args, **kwargs):
+        try:
+            product = ProductSerializer().publish(product_uuid)
+            return Response(response=json.dumps(serialize_product(product)), status=200, mimetype="application/json")
+        except Exception as exc:
+            logging.error("event=product_publish_failed error_type=%s", type(exc).__name__)
+            return Response(response=json.dumps({"error": str(exc)}), status=400, mimetype="application/json")

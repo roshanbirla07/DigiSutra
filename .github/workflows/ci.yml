@@ -37,5 +37,7 @@ jobs:
       - run: PYTHONPATH=apps/api/src gunicorn --check-config runserver:app
       - run: python -m unittest discover -s apps/api/tests -p 'test_*.py'
       - run: alembic upgrade head
+      - run: npm ci --prefix apps/web
       - run: node --test apps/web/tests/*.test.js
       - run: node --check apps/web/src/app.js
+      - run: python -m unittest discover -s apps/web/tests -p '*_test.py'

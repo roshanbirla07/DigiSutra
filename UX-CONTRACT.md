@@ -14,7 +14,7 @@ Customers discover and purchase digital goods and access paid files in their lib
 | Select | native `<select>` | Browser-owned popup is acceptable for category and business type | keyboard browser pass |
 | Scrollbar | `apps/web/calm-toolkit.css` | Global visible thin scrollbar, high-contrast system colors | CSS audit |
 | Toast | `apps/web/src/app.js` `toast` | One polite live region in `index.html`; inline errors remain at the correction point | browser pass |
-| Forms | `marketplace.js` labels, `app.js` submit handlers | Server remains authoritative; errors stay inline; no value loss on failure | existing frontend tests |
+| Forms | `services/ui.js` validation/error/operation primitives and `marketplace.js` labels | App-owned constraint feedback; first-invalid focus, associated errors, duplicate guards and retained values | existing frontend tests |
 
 ## Flow ledger
 
@@ -30,6 +30,12 @@ Customers discover and purchase digital goods and access paid files in their lib
 
 `DESIGN.md` mirrors runtime tokens in `apps/web/calm-toolkit.css`. The public grid becomes two columns on phones and one on very narrow phones. The seller sidebar becomes a scrollable navigation row without clipping forms. Product images and loading placeholders reserve aspect ratio. Keyboard focus and reduced motion apply across all routes. Native controls retain their platform popup behavior.
 
-## Migration status
+## Workflow hardening
 
-The shared shell and discovery flow use the contract above. Existing admin-review browser prompts and several legacy form submission behaviors predate it and require a separate workflow PR because they alter verification and payment-adjacent state. Do not claim those flows are migrated based on the visual shell alone.
+- `services/ui.js` owns app-modal confirmation/review, operation guards and field validation. Native `<dialog>` owns modal focus containment and background isolation. Cancel/Escape never initiates a mutation; Escape is blocked while confirmation is being committed. API errors retain the note and dialog.
+- `src/app.js` owns route generations. Only the active generation may replace the page after async work. Protected navigation stores a validated same-origin return destination through authentication. Unknown and forbidden routes keep navigation visible.
+- Product creation stores a private inactive draft, uploads/verifies files, then calls the server-owned publish transition. Existing drafts resume by UUID from Products. See `FRONTEND_REFERENCE.md` and API `ProductSerializer.publish` for authority.
+- Seller lifecycle controls follow `SellerApplicationSerializer` editable/withdrawable/review transitions. Approval requires signing in again to refresh the cached session role; no client role promotion is invented.
+- Payout readiness and paid aggregates come from the payout-summary API. The browser does not sum the displayed paid total.
+- Safe unsaved input is guarded for internal navigation and indexed back/forward transitions; page unload uses the browser lifecycle mechanism. Form data and selected files are not persisted in browser storage.
+- `tests/workflows.test.js` exercises DOM interactions and orchestration, with native-dialog methods shimmed. It does not prove real focus trapping, responsive layout, visual contrast or provider integration. `docs/ui-audit-fixes.md` records remaining verification and deferred capabilities.
