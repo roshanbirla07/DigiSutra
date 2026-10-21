@@ -309,5 +309,16 @@ class PayoutSerializerTests(unittest.TestCase):
             self.assertEqual(summary["counts"]["paid_payouts"], 1)
 
 
+class PayoutSummaryAmountTests(unittest.TestCase):
+    def test_paid_amount_is_server_derived_using_decimal(self):
+        from types import SimpleNamespace
+        payouts = [SimpleNamespace(status="paid", amount="0.10"), SimpleNamespace(status="paid", amount="0.20"), SimpleNamespace(status="pending", amount="10.00")]
+        with patch("serializers.payoutSerializers.SellerBalance") as balances, patch("serializers.payoutSerializers.SellerProfile") as profiles, patch.object(PayoutSerializer, "list_payouts", return_value=payouts), patch.object(PayoutSerializer, "serialize_payout", return_value={}):
+            balances.query.filter_by.return_value.first.return_value = None
+            profiles.query.filter_by.return_value.first.return_value = None
+            summary = PayoutSerializer().seller_summary(7)
+            self.assertEqual(summary["paid_payout_amount"], "0.30")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -392,3 +392,26 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px
   .skeleton-cover, .skeleton-line { animation: none; }
   .product-card:hover, .product-card-media .product-cover-image { transform: none; }
 }
+
+/* Shared workflow primitives; runtime tokens mirror DESIGN.md. */
+:root { --radius-control: 10px; --danger: #a33129; }
+.button { border-radius: var(--radius-control); }
+[hidden] { display: none !important; /* Keep hidden clear controls out of flex layouts. */ }
+[aria-busy="true"] { cursor: progress; }
+.button:disabled { cursor: not-allowed; }
+.review-dialog { width: min(680px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; color: var(--ink); background: var(--surface); }
+.review-dialog::backdrop { background: rgb(21 57 45 / 45%); }
+.review-dialog form { display: grid; gap: 16px; }
+.review-dialog h2, .review-dialog p { margin: 0; }
+.review-dialog .form-actions { position: sticky; bottom: -24px; margin: 0 -24px -24px; padding: 20px 24px; background: var(--surface); border-top: 1px solid var(--line); }
+.application-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0; }
+.application-details dt { color: var(--ink-soft); text-transform: capitalize; }
+.application-details dd { margin: 3px 0 0; overflow-wrap: anywhere; }
+.download-actions { display: grid; gap: 8px; }
+.route-state { min-height: 240px; }
+@media (max-width: 620px) { .application-details { grid-template-columns: 1fr; } }
+
+.resize-none { resize: none; }
+
+html { scrollbar-gutter: stable; }
+body:has(dialog[open]) { overflow: hidden; }

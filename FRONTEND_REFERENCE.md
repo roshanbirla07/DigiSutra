@@ -38,3 +38,9 @@ Use this file before making any frontend change. If a future frontend task confl
 - Admin moderation rules
 - API error handling rules
 - Form validation rules
+
+## Draft upload and publishing
+
+The web product workflow creates a private inactive product (`is_public=false`, `is_active=false`) before uploading. Failed uploads retain that product UUID for retry and are accessible from the owned-product list. The authenticated `POST /v1/products/<uuid>/publish/` endpoint revalidates ownership, seller readiness and a verified paid asset before making the product active/public. Existing product creation callers retain their established behavior; the new endpoint does not trust browser completion flags. No schema migration is required.
+
+Admin seller decisions use the existing manually reviewed lifecycle. The UI loads the authorized full application before confirmation; it does not add external identity or bank verification. Payment eligibility, payment confirmation and download rights remain backend-owned.

@@ -63,11 +63,11 @@ Separate surfaces with line `#dce7dc`; use subtle elevation for overlays and a s
 
 ## Shapes
 
-Cards use a 16px radius, controls around 10px, and the overlapping folio artwork has sharper 8px corners. Focus has a visible gold ring. Icons with operational meaning retain text labels.
+Cards use a 16px radius, controls at 10px (`--radius-control`), and the overlapping folio artwork has sharper 8px corners. Focus has a visible gold ring. Icons with operational meaning retain text labels.
 
 ## Components
 
-- Shared button classes define primary, secondary, ghost and danger; actions have hover, focus, active and disabled states. Primary actions use solid green.
+- Shared button classes define primary, secondary, ghost and danger; actions have hover, focus, active and disabled states. Primary actions use solid green. `--radius-control` owns button corners; `--danger` owns destructive/error color.
 - The shared header owns desktop and mobile navigation. Current routes expose `aria-current`; the seller sidebar uses the same state cue.
 - Product cards show the verified listing preview when available, otherwise an editorial cover. A preview is public; paid files stay protected by backend authorization.
 - Search keeps committed query/category in the URL, offers Clear search, and can reset to all products. Loading reserves card geometry; empty, no-results and request errors offer relevant next actions.

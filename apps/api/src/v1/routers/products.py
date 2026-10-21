@@ -1,5 +1,6 @@
 from controllers.product import (
     OwnedProductCollection,
+    ProductPublish,
     ProductCollection,
     ProductDetail,
     ProductPreviewUploadComplete,
@@ -17,6 +18,12 @@ class ProductRoutes(object):
             view_func=OwnedProductCollection.as_view("owned_products_collection"),
             methods=["GET"],
             endpoint="should_be_v1_only_owned_products_collection",
+        )
+        v1.add_url_rule(
+            "products/<string:product_uuid>/publish/",
+            view_func=ProductPublish.as_view("product_publish"),
+            methods=["POST"],
+            endpoint="should_be_v1_only_product_publish",
         )
         v1.add_url_rule(
             "products/",

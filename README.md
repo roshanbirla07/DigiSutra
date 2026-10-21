@@ -313,10 +313,12 @@ Run backend tests:
 python -m unittest discover -s apps/api/tests -p 'test_*.py'
 ```
 
-Run frontend tests:
+Install the development-only DOM test dependency and run frontend tests:
 
 ```bash
+npm ci --prefix apps/web
 node --test apps/web/tests/*.test.js
+python -m unittest discover -s apps/web/tests -p '*_test.py'
 ```
 
 For schema or database-related changes, also verify that migrations work against a clean PostgreSQL database.

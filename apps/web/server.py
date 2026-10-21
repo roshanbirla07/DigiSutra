@@ -14,6 +14,10 @@ class SpaHandler(SimpleHTTPRequestHandler):
         if Path(target).is_file():
             return super().do_GET()
 
+        if Path(self.path.split("?", 1)[0]).suffix:
+            self.send_error(404, "Static asset not found")
+            return
+
         # Serve the SPA shell for real frontend routes.
         self.path = "/index.html"
         return super().do_GET()

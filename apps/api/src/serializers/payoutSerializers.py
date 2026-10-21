@@ -278,6 +278,7 @@ class PayoutSerializer(object):
         profile = SellerProfile.query.filter_by(user_id=seller_id).first()
         payouts = self.list_payouts(seller_id=seller_id)
         return {
+            "paid_payout_amount": str(sum((Decimal(str(p.amount)) for p in payouts if p.status == "paid"), Decimal("0"))),
             "available_for_payout": str(balance.available_for_payout if balance else 0),
             "pending_payout": str(balance.pending_payout if balance else 0),
             "currency": balance.currency if balance else "INR",
@@ -294,6 +295,7 @@ class PayoutSerializer(object):
             func.coalesce(func.sum(SellerBalance.pending_payout), 0)
         ).scalar() or 0
         return {
+            "paid_payout_amount": str(SellerPayout.query.filter_by(status="paid").with_entities(func.coalesce(func.sum(SellerPayout.amount), 0)).scalar() or 0),
             "available_for_payout": str(available),
             "pending_payout": str(pending),
             "currency": "INR",

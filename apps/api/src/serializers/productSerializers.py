@@ -6,7 +6,7 @@ from sqlalchemy import func
 from werkzeug.exceptions import HTTPException
 
 from configuration.db_routing import db, session_rollback
-from models.product import Product
+from models.product import Product, ProductAsset
 from models.seller import SellerProfile
 from models.user import User
 from services.s3_asset_gateway import S3AssetGateway, S3AssetGatewayError
@@ -215,6 +215,18 @@ class ProductSerializer(object):
             except S3AssetGatewayError:
                 return product.image_uri
         return product.image_uri
+
+    @session_rollback(db)
+    def publish(self, product_uuid):
+        product = self._get_owned_product(product_uuid)
+        self.validate_owner({"owner_uuid": product.owner.uuid})
+        verified = ProductAsset.query.filter_by(product_id=product.id, asset_status="verified").first()
+        if not verified:
+            raise ProductInputError("Upload and verify a paid product file before publishing")
+        product.is_active = True
+        product.is_public = True
+        db.session.commit()
+        return product
 
     @session_rollback(db)
     def delete(self, product_uuid):
