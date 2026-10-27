@@ -19,7 +19,7 @@ export function createApi({ onUnauthorized } = {}) {
       let data = {};
       try { data = raw ? JSON.parse(raw) : {}; } catch { data = { raw }; }
       if (!response.ok) {
-        if (response.status === 401 && path !== API_PATHS.login) {
+        if (response.status === 401 && path !== API_PATHS.login && path !== API_PATHS.googleLogin) {
           if (readSession()?.token === session?.token) { writeSession(null); onUnauthorized?.(); }
         }
         throw new ApiError(data?.error || response.statusText || "Request failed", response.status, data);

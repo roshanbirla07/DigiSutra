@@ -50,6 +50,14 @@ test("customer pages render their primary interaction hooks", () => {
   assert.match(checkout({ session: customer, product, checkout: { order: { uuid: "order::1" } } }), /data-open-razorpay/);
 });
 
+test("Google sign-in appears only when configured and account linking stays in settings", () => {
+  assert.doesNotMatch(auth({ mode: "login" }), /data-google-button/);
+  assert.match(auth({ mode: "login", googleEnabled: true }), /data-google-button/);
+  assert.match(settings({ session: customer, googleEnabled: true }), /Link Google/);
+  assert.match(settings({ session: customer, googleEnabled: true }), /data-google-button/);
+  assert.doesNotMatch(settings({ session: { ...customer, google_linked: true }, googleEnabled: true }), /data-google-button/);
+});
+
 test("catalogue retains all category choices while showing filtered products", () => {
   const other = { ...product, uuid: "product::2", title: "Writing guide", category: "Guides" };
   const html = catalog({ session: customer, products: [product], availableProducts: [product, other], category: "Templates" });

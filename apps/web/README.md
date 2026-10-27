@@ -49,9 +49,20 @@ a deployment, provide configuration before `src/app.js`:
 
 ```html
 <script>
-  window.DIGISUTRA_CONFIG = { apiBaseUrl: "https://api.example.com" };
+  window.DIGISUTRA_CONFIG = {
+    apiBaseUrl: "https://api.example.com",
+    googleClientId: "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com"
+  };
 </script>
 ```
+
+Create a Google OAuth **Web application** client in Google Cloud Console and
+add the exact frontend HTTPS origin under Authorized JavaScript origins. Set
+the same client ID as `GOOGLE_CLIENT_ID` in the API's `instance_config.py`.
+Google Identity Services requires a domain and HTTPS for deployed sites;
+`localhost` is supported for local development. Apply `alembic upgrade head`
+before deploying the API. Existing accounts can link Google from Settings
+after signing in with their password.
 
 Rules:
 

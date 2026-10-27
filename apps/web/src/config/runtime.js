@@ -11,4 +11,5 @@ export const runtimeConfig = Object.freeze({
     || readPreference(APP.storageKeys.apiBaseUrl)
     || browserDefaultApiUrl(),
   requestTimeoutMs: Number(globalThis.window?.DIGISUTRA_CONFIG?.requestTimeoutMs || 12000),
+  googleClientId: globalThis.window?.DIGISUTRA_CONFIG?.googleClientId || "",
 });

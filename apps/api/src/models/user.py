@@ -12,6 +12,7 @@ class User(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(50))
+    google_sub = db.Column(db.String(255), unique=True, nullable=True)
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50))
     phone_number = db.Column(db.String(13))
