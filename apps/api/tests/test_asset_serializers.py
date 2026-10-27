@@ -280,5 +280,28 @@ class AssetAuthorizationTests(unittest.TestCase):
                 AssetSerializer()._consume_delivery_token(claims, user, asset, order)
 
 
+    def test_delivery_token_accepts_encoded_object_key_only(self):
+        asset = MagicMock(uuid="asset::1", object_key="products/product::1/asset.pdf")
+        order = MagicMock(uuid="order::1")
+        user = MagicMock(uuid="user::buyer")
+        claims = {
+            "jti": "delivery::1",
+            "sub": user.uuid,
+            "asset_uuid": asset.uuid,
+            "order_uuid": order.uuid,
+            "download_url": "https://bucket.s3.amazonaws.com/products/product%3A%3A1/asset.pdf?X-Amz-Signature=example",
+        }
+
+        with patch("serializers.assetSerializers.DeliveryTokenUse") as token_use_model, \
+                patch("serializers.assetSerializers.db") as db_mock:
+            token_use_model.query.filter_by.return_value.first.return_value = None
+            AssetSerializer()._consume_delivery_token(claims, user, asset, order)
+            db_mock.session.add.assert_called_once()
+
+            claims["download_url"] = "https://bucket.s3.amazonaws.com/products/product%3A%3A1/asset.pdf/other"
+            with self.assertRaises(DeliveryTokenError):
+                AssetSerializer()._consume_delivery_token(claims, user, asset, order)
+
+
 if __name__ == "__main__":
     unittest.main()

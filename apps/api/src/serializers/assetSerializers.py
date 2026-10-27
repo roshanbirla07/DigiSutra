@@ -1,6 +1,7 @@
 import datetime
 import logging
 import uuid
+from urllib.parse import unquote, urlsplit
 
 from flask import g
 from flask import abort
@@ -285,7 +286,8 @@ class AssetSerializer(object):
             raise DeliveryTokenError("Delivery token asset mismatch")
         if delivery_claims.get("order_uuid") != order.uuid:
             raise DeliveryTokenError("Delivery token order mismatch")
-        if not delivery_claims.get("download_url") or (asset.object_key and asset.object_key not in delivery_claims["download_url"]):
+        download_url = delivery_claims.get("download_url")
+        if not download_url or unquote(urlsplit(download_url).path).lstrip("/") != asset.object_key:
             raise DeliveryTokenError("Delivery token URL mismatch")
         if DeliveryTokenUse.query.filter_by(token_jti=delivery_claims["jti"]).first():
             raise DeliveryTokenError("Delivery token has already been used")
