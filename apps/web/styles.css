@@ -230,6 +230,12 @@ input:disabled, textarea:disabled, select:disabled { color: #667085; background:
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
 .form-error { min-height: 17px; margin: 0; color: var(--danger); font-size: 11px; }
 .form-note { margin: 0; color: var(--ink-faint); font-size: 11px; line-height: 1.55; }
+.google-provider { margin: 22px 0 18px; display: grid; justify-items: center; gap: 12px; }
+.google-provider > span { width: 100%; display: flex; align-items: center; gap: 12px; color: var(--ink-faint); font-size: 12px; }
+.google-provider > span::before, .google-provider > span::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.google-provider [data-google-button], .google-link-card [data-google-button] { min-height: 42px; width: 100%; display: flex; justify-content: center; }
+.google-link-card { display: grid; gap: 12px; }
+.google-link-card h3, .google-link-card p { margin: 0; }
 .check-row { display: flex; align-items: center; gap: 9px; }
 .check-row input { width: 17px; height: 17px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }

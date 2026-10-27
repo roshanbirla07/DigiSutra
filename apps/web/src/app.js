@@ -5,6 +5,7 @@ import { authorizeAndLogDownload, uploadProductAsset, uploadProductPreview, vali
 import * as view from "./views/marketplace.js";
 import { askDialog, runOnce, validateForm, formError, safeReturnPath } from "./services/ui.js";
 import { runtimeConfig } from "./config/runtime.js";
+import { loadGoogleSignIn } from "./services/googleSignIn.js";
 
 export function createApp() {
   let renderGeneration = 0;
@@ -13,6 +14,7 @@ export function createApp() {
   let previewGeneration = 0;
   let razorpayScript = null;
   let paymentInstance = null;
+  let googleBusy = false;
   let historyIndex = window.history.state?.uiIndex || 0;
   let restoredHistory = null;
   window.history.replaceState({ ...window.history.state, uiIndex: historyIndex }, "");
@@ -54,6 +56,41 @@ export function createApp() {
 
   function authUrl() {
     return `${ROUTES.auth}?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+  }
+
+  async function mountGoogleButton(generation, linking = false) {
+    const target = root.querySelector("[data-google-button]");
+    if (!target || !runtimeConfig.googleClientId) return;
+    const errorNode = root.querySelector("[data-google-error]");
+    try {
+      const sdk = await loadGoogleSignIn();
+      if (generation !== renderGeneration || !target.isConnected) return;
+      sdk.initialize({ client_id: runtimeConfig.googleClientId, callback: async ({ credential }) => {
+        if (generation !== renderGeneration || googleBusy || !credential) return;
+        googleBusy = true;
+        errorNode.textContent = "";
+        try {
+          const result = await api.request(linking ? API_PATHS.googleLink : API_PATHS.googleLogin, {
+            method: "POST", body: JSON.stringify({ credential }),
+          });
+          if (generation !== renderGeneration) return;
+          if (linking) {
+            setSession({ ...state.session, google_linked: result.google_linked });
+            void render();
+            toast("Google sign-in linked to your account.");
+          } else {
+            setSession(result);
+            const returnTo = safeReturnPath(new URLSearchParams(window.location.search).get("returnTo"), window.location.origin);
+            navigate(returnTo || (result.user_type === APP.roles.customer ? ROUTES.settings : ROUTES.seller), true, true);
+          }
+        } catch (error) {
+          if (errorNode.isConnected) errorNode.textContent = error.message;
+        } finally { googleBusy = false; }
+      } });
+      sdk.renderButton(target, { theme: "outline", size: "large", width: Math.min(target.clientWidth, 360), text: linking ? "continue_with" : "signin_with" });
+    } catch (error) {
+      if (errorNode.isConnected) errorNode.textContent = error.message;
+    }
   }
 
   async function navigate(path, replace = false, force = false) {
@@ -131,7 +168,8 @@ export function createApp() {
       return;
     }
     if (current.name === ROUTES.auth) {
-      display(view.auth({ mode: new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login" }));
+      display(view.auth({ mode: new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login", googleEnabled: Boolean(runtimeConfig.googleClientId) }));
+      void mountGoogleButton(generation);
       return;
     }
     if (current.name === ROUTES.home || current.name === ROUTES.catalog) {
@@ -180,7 +218,8 @@ export function createApp() {
         const checkout = state.checkout?.productUuid === current.uuid ? state.checkout : null;
         display(view.checkout({ session: state.session, product, checkout }));
       } else if (current.name === ROUTES.settings) {
-        display(view.settings({ session: state.session }));
+        display(view.settings({ session: state.session, googleEnabled: Boolean(runtimeConfig.googleClientId) }));
+        if (!state.session.google_linked) void mountGoogleButton(generation, true);
       } else if (current.name === ROUTES.library) {
         display(view.library({ session: state.session, purchases: await api.request(API_PATHS.purchases) }));
       } else if (current.name === ROUTES.becomeSeller && state.session.user_type === APP.roles.customer) {

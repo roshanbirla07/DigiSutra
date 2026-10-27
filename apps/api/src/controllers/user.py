@@ -6,6 +6,8 @@ from serializers.userSerializers import UserSerializer
 from utils.auth import require_auth
 from utils.constants import USER_TYPE
 from utils.user import schema_validation
+from utils.auth import create_access_token
+from services.google_identity import GoogleIdentityError, verify_google_credential, sign_in_with_google, link_google
 
 class SignUp(View):
     methods = ['POST']
@@ -52,7 +54,11 @@ class Login(View):
                 mimetype="application/json"
             )
 
-        return Response(
+        return login_response(user, token)
+
+
+def login_response(user, token):
+    return Response(
             response=json.dumps({
                 'uuid': user.uuid,
                 'username': user.username,
@@ -65,10 +71,36 @@ class Login(View):
                 'token': token,
                 'created_on': user.created_on.isoformat() if user.created_on else None,
                 'modified_on': user.modified_on.isoformat() if user.modified_on else None,
+                'google_linked': bool(user.google_sub),
             }),
             status=200,
             mimetype='application/json'
         )
+
+
+class GoogleLogin(View):
+    methods = ['POST']
+
+    def dispatch_request(self):
+        try:
+            identity = verify_google_credential((request.get_json(silent=True) or {}).get('credential'))
+            user = sign_in_with_google(identity)
+            return login_response(user, create_access_token(user))
+        except GoogleIdentityError as exc:
+            return {'error': str(exc)}, 400
+
+
+class GoogleLink(View):
+    methods = ['POST']
+
+    @require_auth(methods=['POST'])
+    def dispatch_request(self):
+        try:
+            identity = verify_google_credential((request.get_json(silent=True) or {}).get('credential'))
+            link_google(g.user, identity)
+            return {'google_linked': True}, 200
+        except GoogleIdentityError as exc:
+            return {'error': str(exc)}, 400
 
 
 def serialize_user(user):

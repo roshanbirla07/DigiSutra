@@ -33,6 +33,8 @@ export const API_PATHS = Object.freeze({
   ownedProducts: "/v1/products/mine/",
   signup: "/v1/users/",
   login: "/v1/users/login/",
+  googleLogin: "/v1/users/google/login/",
+  googleLink: "/v1/users/google/link/",
   purchases: "/v1/ledger/purchases/",
   ledgerOrders: "/v1/ledger/orders/",
   paymentOrders: "/v1/payments/orders/",
