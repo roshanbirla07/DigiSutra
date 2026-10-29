@@ -68,6 +68,7 @@ Cards use a 16px radius, controls at 10px (`--radius-control`), and the overlapp
 ## Components
 
 - Shared button classes define primary, secondary, ghost and danger; actions have hover, focus, active and disabled states. Primary actions use solid green. `--radius-control` owns button corners; `--danger` owns destructive/error color.
+- Default account and creator avatars use original locally rendered vector portraits from `apps/web/src/views/avatar.js`. A deterministic username seed gives random-looking variety while keeping the same user consistent across header, account settings, product cards and product detail. Artwork colors are independent of brand tokens; there are no stock profile photos or external avatar requests. Existing accounts need no migration. The current API has no profile-photo upload field; this change does not add an upload flow.
 - The shared header owns desktop and mobile navigation. Current routes expose `aria-current`; the seller sidebar uses the same state cue.
 - Product cards show the verified listing preview when available, otherwise an editorial cover. A preview is public; paid files stay protected by backend authorization.
 - Search keeps committed query/category in the URL, offers Clear search, and can reset to all products. Loading reserves card geometry; empty, no-results and request errors offer relevant next actions.
