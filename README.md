@@ -247,6 +247,8 @@ Razorpay is currently the payment provider, but DigiSutra maintains its own ledg
 
 This keeps marketplace state auditable and prevents the frontend or payment provider from becoming the source of truth.
 
+Before accepting live payments, complete the [payment and seller payout go-live gate](docs/payment_go_live_gate.md). Seller balances and manual payout statuses are internal accounting records, not proof of settlement or bank transfer.
+
 ---
 
 ## 📦 Digital asset delivery

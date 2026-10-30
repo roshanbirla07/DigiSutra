@@ -13,6 +13,7 @@ from models.ledger import InvoiceRecord, MarketplaceOrder, ProductAccess, Refund
 from models.product import Product
 from models.user import User
 from services.razorpay_gateway import RazorpayGateway, RazorpayGatewayError
+from services.refund_balance import seller_refund_debit
 from utils.constants import USER_TYPE
 from configuration.variables import PLATFORM_FEE_PERCENT
 
@@ -84,15 +85,8 @@ class LedgerSerializer(object):
 
     def _sync_seller_balance_on_refund(self, order, refund_amount):
         seller_balance = self.get_or_create_seller_balance(order.seller)
-        current_pending = Decimal(str(seller_balance.pending_payout or 0))
         current_available = Decimal(str(seller_balance.available_for_payout or 0))
-
-        if refund_amount <= current_pending:
-            seller_balance.pending_payout = current_pending - refund_amount
-        else:
-            seller_balance.pending_payout = Decimal("0")
-            remaining_refund = refund_amount - current_pending
-            seller_balance.available_for_payout = max(current_available - remaining_refund, Decimal("0"))
+        seller_balance.available_for_payout = current_available - seller_refund_debit(order, refund_amount)
 
         seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
         return seller_balance
@@ -161,7 +155,7 @@ class LedgerSerializer(object):
             raise LedgerInputError("Refund already exists for this order")
 
         try:
-            refund_amount = Decimal(str(validated_data.get("amount") or order.net_seller_amount))
+            refund_amount = Decimal(str(validated_data.get("amount") or order.gross_amount))
         except (InvalidOperation, TypeError, ValueError):
             raise LedgerInputError("amount must be numeric")
 

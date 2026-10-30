@@ -92,6 +92,20 @@ class AuthorizationIntegrationTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_buyer_cannot_process_own_refund(self):
+        buyer = SimpleNamespace(id=7, user_type="customer")
+        order = SimpleNamespace(buyer_id=7, seller_id=8)
+        with patch("utils.auth.verify_access_token", return_value=(buyer, {})), \
+                patch("controllers.ledger.LedgerSerializer") as serializer:
+            serializer.return_value.get_by_uuid.return_value = order
+            response = self.client.post(
+                "/v1/ledger/orders/order::1/",
+                json={"status": "processed", "amount": "100.00"},
+                headers={"Authorization": "Bearer buyer-token"},
+            )
+            self.assertEqual(response.status_code, 403)
+            serializer.return_value.create_refund.assert_not_called()
+
     def test_admin_application_collection_uses_summary_and_no_store(self):
         admin = SimpleNamespace(user_type="admin")
         with patch("utils.auth.verify_access_token", return_value=(admin, {})), \
