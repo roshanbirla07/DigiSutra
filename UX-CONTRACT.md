@@ -13,7 +13,7 @@ Customers discover and purchase digital goods and access paid files in their lib
 | Product cover | `apps/web/src/views/helpers.js` `productCover` | Verified preview if present, editorial fallback otherwise | view tests |
 | Catalog search | `apps/web/src/app.js` and `marketplace.js` `catalog` | Local filter of fetched products; committed query/category in URL; clear/reset and retry actions | view tests and browser pass |
 | Select | native `<select>` | Browser-owned popup is acceptable for category and business type | keyboard browser pass |
-| Scrollbar | `apps/web/calm-toolkit.css` | Global visible thin scrollbar, high-contrast system colors | CSS audit |
+| Scrollbar | `apps/web/indigo-cloud.css` | Global visible thin scrollbar, high-contrast system colors | CSS audit |
 | Toast | `apps/web/src/app.js` `toast` | One polite live region in `index.html`; inline errors remain at the correction point | browser pass |
 | Forms | `services/ui.js` validation/error/operation primitives and `marketplace.js` labels | App-owned constraint feedback; first-invalid focus, associated errors, duplicate guards and retained values | existing frontend tests |
 
@@ -29,7 +29,7 @@ Customers discover and purchase digital goods and access paid files in their lib
 
 ## Responsive and visual contract
 
-`DESIGN.md` mirrors runtime tokens in `apps/web/calm-toolkit.css`. The public grid becomes two columns on phones and one on very narrow phones. The seller sidebar becomes a scrollable navigation row without clipping forms. Product images and loading placeholders reserve aspect ratio. Keyboard focus and reduced motion apply across all routes. Native controls retain their platform popup behavior.
+`DESIGN.md` mirrors runtime tokens in `apps/web/indigo-cloud.css`. The public grid becomes two columns on phones and one on very narrow phones. The seller sidebar becomes a scrollable navigation row without clipping forms. Product images and loading placeholders reserve aspect ratio. Keyboard focus and reduced motion apply across all routes. Native controls retain their platform popup behavior.
 
 ## Workflow hardening
 
@@ -40,3 +40,9 @@ Customers discover and purchase digital goods and access paid files in their lib
 - Payout readiness and paid aggregates come from the payout-summary API. The browser does not sum the displayed paid total.
 - Safe unsaved input is guarded for internal navigation and indexed back/forward transitions; page unload uses the browser lifecycle mechanism. Form data and selected files are not persisted in browser storage.
 - `tests/workflows.test.js` exercises DOM interactions and orchestration, with native-dialog methods shimmed. It does not prove real focus trapping, responsive layout, visual contrast or provider integration. `docs/ui-audit-fixes.md` records remaining verification and deferred capabilities.
+
+## Indigo + Cloud layout
+
+- Home discovery uses the first returned public product as a spotlight, without claiming editorial curation, ratings or popularity. The link has the same destination as its product card. Categories continue using the existing URL-backed catalog action.
+- Product detail uses one creator identity and title above the preview, the full description below it, and a separate purchase summary. The shared `data-buy-product` action remains owned by `app.js`; the server still controls order and delivery rights.
+- At 900px and below the purchase panel returns to document flow. It never covers the preview, keyboard focus, or page content. Seller/admin routes keep their existing workspace navigation and workflow primitives.

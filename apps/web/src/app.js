@@ -109,7 +109,7 @@ export function createApp() {
     let current;
     try { current = route(); } catch { current = { name: "invalid" }; }
     const titles = {
-      [ROUTES.home]: "DigiSutra — Digital goods for brighter days",
+      [ROUTES.home]: "DigiSutra — Resources for your next idea",
       [ROUTES.catalog]: "Discover products — DigiSutra",
       [ROUTES.auth]: "Sign in — DigiSutra",
       [ROUTES.library]: "My library — DigiSutra",

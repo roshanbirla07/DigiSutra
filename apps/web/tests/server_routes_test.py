@@ -23,7 +23,7 @@ class DeepLinkTests(unittest.TestCase):
                 with urlopen(origin + path) as response:
                     html = response.read().decode()
                     self.assertIn('src="/src/app.js"', html)
-                    self.assertIn('href="/calm-toolkit.css"', html)
+                    self.assertIn('href="/indigo-cloud.css"', html)
             with urlopen(origin + "/src/app.js") as response:
                 self.assertIn("javascript", response.headers["Content-Type"])
             with self.assertRaises(HTTPError) as error:
