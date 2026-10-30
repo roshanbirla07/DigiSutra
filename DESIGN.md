@@ -1,16 +1,16 @@
 ---
 version: alpha
-name: DigiSutra Calm Toolkit
-description: A considered marketplace for useful digital work, with tactile folio covers and a quiet creator workspace.
+name: DigiSutra Indigo + Cloud
+description: A resource-first marketplace with indigo actions, cloud surfaces and a focused creator workspace.
 colors:
-  ink: "#203e34"
-  inkStrong: "#15392d"
-  inkSoft: "#536c60"
-  paper: "#f8faf6"
+  ink: "#25243b"
+  inkStrong: "#19182b"
+  inkSoft: "#646278"
+  paper: "#f7f8fc"
   surface: "#ffffff"
-  line: "#dce7dc"
-  primary: "#185e43"
-  accent: "#dba842"
+  line: "#e2e3ee"
+  primary: "#5842e8"
+  accent: "#5842e8"
   danger: "#a33129"
 typography:
   display:
@@ -20,7 +20,6 @@ typography:
 rounded:
   DEFAULT: "16px"
   control: "10px"
-  folio: "8px"
 spacing:
   contentMax: "1280px"
   section: "48px"
@@ -31,23 +30,23 @@ components:
   navigation: {}
 ---
 
-# DigiSutra Calm Toolkit
+# DigiSutra Indigo + Cloud
 
 ## Overview
 
 ### Creative North Star
 
-A maker's folio: the product cover feels like a useful little publication you can pick up, while purchasing and account work stay calm and predictable. The stacked folios in the home hero carry the expressive moment. They are original CSS artwork, never a substitute for a seller's actual preview image.
+A head start for a creator's next project: the home page puts search beside a real listing, then leads into categories and product cards. The signature is a resource spotlight that uses the creator’s public preview or the shared illustrated cover. An empty/loading spotlight uses clearly illustrative typography without inventing a listing. Product detail separates the preview and description from a quiet purchase panel.
 
 DigiSutra serves customers browsing and buying digital guides, templates and prompts, and creators publishing and tracking them. The public home page may be more expressive; catalog, checkout, library, seller and admin screens emphasize task clarity. The current interface is in English, with INR values and `en-IN` dates. No dark theme or localization provider is maintained yet.
 
-**Anti-references:** generic Bootstrap cards, glass panels, neon dashboards and decorative analytics. The previous `Design.md` prescribed neutral blue and shadcn/Tailwind, but the shipped app uses a green CSS system and native JavaScript; this document reconciles that drift with the accepted Calm Toolkit UI.
+**Anti-references:** generic Bootstrap cards, glass panels, neon dashboards and decorative analytics. The approved Indigo + Cloud direction replaces Calm Toolkit green across the existing native JavaScript app; it does not introduce a second UI framework.
 
-**Token ownership:** `apps/web/calm-toolkit.css` is the runtime owner for the values above and overrides the legacy base in `apps/web/styles.css`. This document mirrors those tokens. When changing a token, edit the CSS variable and this document in the same PR. Components use CSS variables for shared colors, type and radii. Legacy `styles.css` should not gain new design decisions.
+**Token ownership:** `apps/web/indigo-cloud.css` is the runtime owner for the values above and overrides the legacy base in `apps/web/styles.css`. This document mirrors those tokens. When changing a token, edit the CSS variable and this document in the same PR. Components use CSS variables for shared colors, type and radii. Legacy `styles.css` should not gain new design decisions.
 
 ## Colors
 
-Paper `#f8faf6` and white surfaces create calm separation; ink `#203e34` and strong ink `#15392d` carry content. Primary green `#185e43` belongs to interactive commitments and selected navigation. Gold `#dba842` is a small folio/focus accent, not a second primary button color. The darker danger color is reserved for destructive actions. Product covers can use editorial colors distinct from the UI chrome.
+Cloud `#f7f8fc` and white surfaces create separation; ink `#25243b` and strong ink `#19182b` carry content. Indigo `#5842e8` belongs to commitments, links, selected navigation and focus. The accent token aliases this same indigo, keeping one action color. Soft violet surfaces support hierarchy without competing with product previews. The darker danger color is reserved for destructive actions. Product covers can use editorial colors distinct from the UI chrome.
 
 ## Typography
 
@@ -55,19 +54,30 @@ DM Sans is the display face for short headings and the wordmark; Inter is the re
 
 ## Layout
 
-The content width is 1280px. The catalog grid responds from four columns to two, then one on narrow phones. Seller navigation becomes a horizontal scrollable strip at tablet width; the site header uses a native disclosure menu. Avoid viewport-bound heights on forms. Image and loading placeholders reserve the same proportions as product covers.
+The content width is 1280px. The desktop home hero pairs search with a real product spotlight. The product page uses a main content column and a 370px purchase panel, sticky on desktop and in natural flow below the preview on mobile. The catalog grid responds from four columns to two, then one on narrow phones. Seller navigation becomes a horizontal scrollable strip at tablet width; the site header uses a native disclosure menu. Avoid viewport-bound heights on forms. Image and loading placeholders reserve the same proportions as product covers.
 
 ## Elevation & Depth
 
-Separate surfaces with line `#dce7dc`; use subtle elevation for overlays and a soft hover lift on product covers. The hero's stacked folios are the only deliberately layered composition. No frosted glass panels across routine application pages.
+Separate surfaces with line `#e2e3ee`; use subtle elevation for overlays and a soft hover lift on product covers. Reserve soft elevation for the spotlight, purchase panel and overlays. No frosted glass panels across routine application pages.
 
 ## Shapes
 
-Cards use a 16px radius, controls at 10px (`--radius-control`), and the overlapping folio artwork has sharper 8px corners. Focus has a visible gold ring. Icons with operational meaning retain text labels.
+Cards use a 16px radius, controls at 10px (`--radius-control`), and preview frames use 10px inner corners. Focus has a visible indigo ring. Icons with operational meaning retain text labels.
 
 ## Components
 
-- Shared button classes define primary, secondary, ghost and danger; actions have hover, focus, active and disabled states. Primary actions use solid green. `--radius-control` owns button corners; `--danger` owns destructive/error color.
+| Document token | Runtime owner in `indigo-cloud.css` | Consumers |
+|---|---|---|
+| `colors.primary`, `colors.accent` | `--primary`, `--accent` | buttons, links, selection, focus |
+| `colors.paper`, `colors.surface`, `colors.line` | `--paper`, `--surface`, `--line` | page, shared cards, panels, fields |
+| `colors.ink`, `colors.inkStrong`, `colors.inkSoft` | `--ink`, `--ink-strong`, `--ink-soft` | content, headings, secondary text |
+| `colors.danger` | `--danger` | destructive buttons and errors |
+| `typography.display` | `--font-display` | headings and wordmark |
+| `typography.body` | base `:root` in `styles.css` | body and controls |
+| `rounded.DEFAULT`, `rounded.control` | `--radius`, `--radius-control` | panels, controls |
+
+
+- Shared button classes define primary, secondary, ghost and danger; actions have hover, focus, active and disabled states. Primary actions use solid indigo. `--radius-control` owns button corners; `--danger` owns destructive/error color.
 - Default account and creator avatars use original locally rendered vector portraits from `apps/web/src/views/avatar.js`. A deterministic username seed gives random-looking variety while keeping the same user consistent across header, account settings, product cards and product detail. Artwork colors are independent of brand tokens; there are no stock profile photos or external avatar requests. Existing accounts need no migration. The current API has no profile-photo upload field; this change does not add an upload flow.
 - The shared header owns desktop and mobile navigation. Current routes expose `aria-current`; the seller sidebar uses the same state cue.
 - Product cards show the verified listing preview when available, otherwise an editorial cover. A preview is public; paid files stay protected by backend authorization.
@@ -77,7 +87,7 @@ Cards use a 16px radius, controls at 10px (`--radius-control`), and the overlapp
 
 ## Do's and Don'ts
 
-- Do retain the real creator's preview and the marketplace's calm green identity.
+- Do retain the real creator's preview and the marketplace's Indigo + Cloud identity.
 - Do use the shared header, card, button, field and status patterns across customer and seller views.
 - Don't introduce a second accent palette or a decorative chart to fill space.
 - Don't put a payment, refund, role or access decision in the browser; `FRONTEND_REFERENCE.md` is the business trust boundary.

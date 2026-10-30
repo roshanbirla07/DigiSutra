@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { JSDOM } from "jsdom";
 
 import {
   adminSellerApplications,
@@ -35,7 +36,7 @@ const product = {
 
 test("customer pages render their primary interaction hooks", () => {
   const homepage = home({ session: customer, products: [product] });
-  assert.match(homepage, /Find your next <em>useful thing/);
+  assert.ok(homepage.includes("Good resources.<br /><em>Great head starts"));
   assert.match(homepage, /data-home-search/);
   assert.match(homepage, /class="mobile-nav"/);
   assert.doesNotMatch(homepage, />Categories<\/a>/);
@@ -121,4 +122,36 @@ test("authentication mode cannot inject markup", () => {
   assert.match(html, /data-auth-form data-mode="login"/);
   assert.doesNotMatch(html, /<img/);
   assert.doesNotMatch(html, /onerror/);
+});
+
+
+test("home spotlight links to a real product and escapes listing content", () => {
+  const item = { ...product, title: '<img src=x onerror="bad()">', uuid: "product/one", image_uri: "https://example.com/preview.png" };
+  const document = new JSDOM(home({ session: null, products: [item] })).window.document;
+  const spotlight = document.querySelector(".hero-spotlight");
+  assert.equal(spotlight.getAttribute("href"), "/products/product%2Fone");
+  assert.equal(spotlight.querySelector("img").getAttribute("src"), item.image_uri);
+  assert.equal(spotlight.querySelector(".spotlight-caption > span").textContent, item.title);
+  assert.equal(document.querySelectorAll("[onerror]").length, 0);
+});
+
+test("empty and loading home spotlights do not invent purchasable listings", () => {
+  for (const loading of [false, true]) {
+    const document = new JSDOM(home({ session: null, products: [], loading })).window.document;
+    assert.equal(document.querySelector("a.hero-spotlight"), null);
+    assert.ok(document.querySelector(".spotlight-placeholder"));
+    assert.equal(document.querySelectorAll("[data-buy-product]").length, 0);
+    assert.equal(document.querySelectorAll(".product-card").length, 0);
+  }
+});
+
+test("product details keep the full description and one purchase action", () => {
+  const item = { ...product, description: "First line\nSecond line <script>bad()</script>" };
+  const document = new JSDOM(detail({ session: customer, product: item })).window.document;
+  assert.equal(document.querySelector(".product-description p").textContent, item.description);
+  assert.equal(document.querySelectorAll("[data-buy-product]").length, 1);
+  assert.equal(document.querySelector(".purchase-panel [data-buy-product]").getAttribute("data-buy-product"), item.uuid);
+  assert.equal(document.querySelector(".product-breadcrumb [aria-current='page']").textContent, item.title);
+  assert.match(document.querySelector(".preview-caption").textContent, /no creator preview/);
+  assert.equal(document.querySelector("script"), null);
 });
