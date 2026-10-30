@@ -1,3 +1,4 @@
+import { renderAvatar } from "./avatar.js";
 import { APP } from "../constants/app.js";
 
 export const escapeHtml = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -17,7 +18,7 @@ export function renderProductCard(product) {
   return `<article class="product-card">
     <a class="product-card-link" href="/products/${encodeURIComponent(product.uuid)}" data-link>
       <div class="product-card-media">${productCover(product)}<span class="preview-tag">See product ↗</span></div>
-      <div class="product-card-body"><span class="eyebrow">${escapeHtml(product.category || "Digital product")}</span><h3>${escapeHtml(product.title)}</h3><p>${escapeHtml(product.description || "A useful digital resource from an independent creator.")}</p><div class="product-card-footer"><span>By ${escapeHtml(product.owner_username || "Independent creator")}</span><strong>${escapeHtml(money(product.currency, product.price))}</strong></div></div>
+      <div class="product-card-body"><span class="eyebrow">${escapeHtml(product.category || "Digital product")}</span><h3>${escapeHtml(product.title)}</h3><p>${escapeHtml(product.description || "A useful digital resource from an independent creator.")}</p><div class="product-card-footer"><span class="creator-byline">${renderAvatar({ username: product.owner_username }, "creator-avatar")}<span>By ${escapeHtml(product.owner_username || "Independent creator")}</span></span><strong>${escapeHtml(money(product.currency, product.price))}</strong></div></div>
     </a>
   </article>`;
 }

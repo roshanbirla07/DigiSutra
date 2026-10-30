@@ -9,6 +9,7 @@ Customers discover and purchase digital goods and access paid files in their lib
 | Capability | Owner | Decision | Verification |
 |---|---|---|---|
 | Navigation | `apps/web/src/views/marketplace.js` `header` and `workspaceSidebar` | Links keep native semantics; current route uses `aria-current`; phone header has disclosure menu | view tests and responsive browser pass |
+| Profile avatar | `apps/web/src/views/avatar.js` `renderAvatar` | Username-seeded local portrait; no name/email/role inference and no external requests. Decorative beside an existing text identity; account navigation keeps its accessible name. | deterministic/escaping/view tests and browser pass |
 | Product cover | `apps/web/src/views/helpers.js` `productCover` | Verified preview if present, editorial fallback otherwise | view tests |
 | Catalog search | `apps/web/src/app.js` and `marketplace.js` `catalog` | Local filter of fetched products; committed query/category in URL; clear/reset and retry actions | view tests and browser pass |
 | Select | native `<select>` | Browser-owned popup is acceptable for category and business type | keyboard browser pass |
