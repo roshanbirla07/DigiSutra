@@ -79,6 +79,29 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
         self.assertIn("X-Razorpay-Signature", str(error.exception))
         verify_signature.assert_not_called()
 
+    def test_captured_webhook_rejects_wrong_amount_before_credit(self):
+        order = MagicMock(provider_order_id="order_razorpay_123", gross_amount="100.00")
+        order.product.currency = "INR"
+        payload = {
+            "event": "payment.captured",
+            "x_razorpay_signature": "signed",
+            "payload": {"payment": {"entity": {
+                "order_id": "order_razorpay_123", "id": "pay_razorpay_123",
+                "status": "captured", "amount": 1, "currency": "INR",
+            }}},
+        }
+        with patch("serializers.paymentSerializers.MarketplaceOrder") as model, \
+                patch("serializers.paymentSerializers.PaymentWebhookEvent") as events, \
+                patch("serializers.paymentSerializers.db") as db_mock, \
+                patch.object(RazorpayGateway, "verify_webhook_signature", return_value=True), \
+                patch.object(PaymentSerializer, "_move_funds_to_available") as credit:
+            model.query.filter_by.return_value.with_for_update.return_value.first.return_value = order
+            events.query.filter_by.return_value.first.return_value = None
+            with self.assertRaises(PaymentInputError):
+                PaymentSerializer().process_webhook_event(payload, b"{}")
+            credit.assert_not_called()
+            db_mock.session.commit.assert_not_called()
+
     def test_process_webhook_event_rejects_replayed_paid_order_event(self):
         order = MagicMock()
         order.id = 1
@@ -88,6 +111,7 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
         order.payment_status = "paid"
         order.delivery_status = "ready"
         order.provider = "razorpay"
+        order.gross_amount = "100.00"
         order.seller_id = 10
         order.seller.uuid = "user::seller"
         order.buyer.uuid = "user::buyer"
@@ -100,7 +124,7 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
                 patch("serializers.paymentSerializers.db") as db_mock, \
                 patch.object(PaymentSerializer, "_grant_access_if_needed") as grant_access, \
                 patch.object(RazorpayGateway, "verify_webhook_signature") as verify_signature:
-            marketplace_order.query.filter_by.return_value.first.return_value = order
+            marketplace_order.query.filter_by.return_value.with_for_update.return_value.first.return_value = order
             webhook_event.query.filter_by.return_value.first.side_effect = [None, MagicMock()]
             verify_signature.return_value = True
             db_mock.session.commit = MagicMock()
@@ -113,6 +137,9 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
                         "entity": {
                             "order_id": "order_razorpay_123",
                             "id": "pay_razorpay_123",
+                            "status": "captured",
+                            "amount": 10000,
+                            "currency": "INR",
                         }
                     }
                 },
@@ -149,7 +176,7 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
                     patch("services.razorpay_gateway.RAZORPAY_TEST_KEY_SECRET", "secret_key"), \
                     patch.object(PaymentSerializer, "_grant_access_if_needed") as grant_access, \
                     patch.object(PaymentSerializer, "_move_funds_to_available") as credit:
-                model.query.filter_by.return_value.first.return_value = order
+                model.query.filter_by.return_value.with_for_update.return_value.first.return_value = order
                 with self.assertRaises(PaymentInputError):
                     PaymentSerializer().confirm_checkout_payment({
                         "razorpay_order_id": order.provider_order_id,
@@ -162,6 +189,48 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
         self.assertEqual(order.payment_status, "refunded")
         self.assertEqual(order.delivery_status, "revoked")
 
+    def test_checkout_confirmation_requires_captured_matching_payment(self):
+        from types import SimpleNamespace
+        order = MagicMock(
+            buyer_id=7,
+            provider_order_id="order_test_123",
+            payment_status="pending",
+            refund_status="none",
+            gross_amount="100.00",
+        )
+        order.product.currency = "INR"
+        payload = {
+            "razorpay_order_id": "order_test_123",
+            "razorpay_payment_id": "pay_test_456",
+            "razorpay_signature": "signed",
+        }
+        captured = {"status": "captured", "order_id": "order_test_123", "amount": 10000, "currency": "INR"}
+        with self.app.test_request_context("/"):
+            from flask import g
+            g.user = SimpleNamespace(id=7)
+            with patch("serializers.paymentSerializers.MarketplaceOrder") as model, \
+                    patch("serializers.paymentSerializers.db") as db_mock, \
+                    patch.object(RazorpayGateway, "verify_checkout_signature", return_value=True), \
+                    patch.object(RazorpayGateway, "get_payment") as get_payment, \
+                    patch.object(PaymentSerializer, "_grant_access_if_needed"), \
+                    patch.object(PaymentSerializer, "_move_funds_to_available") as credit:
+                model.query.filter_by.return_value.with_for_update.return_value.first.return_value = order
+                for payment in (
+                    {**captured, "status": "authorized"},
+                    {**captured, "amount": 1},
+                    {**captured, "order_id": "another_order"},
+                    {**captured, "currency": "USD"},
+                ):
+                    get_payment.return_value = payment
+                    with self.assertRaises(PaymentInputError):
+                        PaymentSerializer().confirm_checkout_payment(payload)
+                credit.assert_not_called()
+                db_mock.session.commit.assert_not_called()
+                get_payment.return_value = captured
+                self.assertIs(PaymentSerializer().confirm_checkout_payment(payload), order)
+                credit.assert_called_once()
+                db_mock.session.commit.assert_called_once()
+
     def test_refund_processed_webhook_finalizes_order_access_and_balance(self):
         order = MagicMock()
         order.id = 1
@@ -171,6 +240,8 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
         order.delivery_status = "ready"
         order.refund_status = "approved"
         order.seller_id = 10
+        order.gross_amount = "100.00"
+        order.net_seller_amount = "85.00"
         order.product.currency = "INR"
         access_record = MagicMock()
         order.product_access_records.all.return_value = [access_record]
@@ -190,7 +261,7 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
                 patch("serializers.paymentSerializers.SellerBalance") as seller_balance_model, \
                 patch("serializers.paymentSerializers.db") as db_mock, \
                 patch.object(RazorpayGateway, "verify_webhook_signature", return_value=True):
-            marketplace_order.query.filter_by.return_value.first.return_value = order
+            marketplace_order.query.filter_by.return_value.with_for_update.return_value.first.return_value = order
             refund_record.query.filter_by.return_value.first.return_value = refund
             webhook_event.query.filter_by.return_value.first.return_value = None
             seller_balance_model.query.filter_by.return_value.first.return_value = seller_balance
@@ -219,8 +290,8 @@ class PaymentWebhookIdempotencyTests(unittest.TestCase):
             self.assertEqual(order.delivery_status, "revoked")
             self.assertEqual(order.refund_status, "processed")
             self.assertEqual(access_record.access_status, "revoked")
-            self.assertEqual(seller_balance.pending_payout, 0)
-            self.assertEqual(seller_balance.available_for_payout, 85)
+            self.assertEqual(seller_balance.pending_payout, 10)
+            self.assertEqual(seller_balance.available_for_payout, 78.75)
             self.assertTrue(db_mock.session.commit.called)
 
 
@@ -266,8 +337,8 @@ class LedgerRefundTransitionTests(unittest.TestCase):
             self.assertEqual(order.delivery_status, "revoked")
             self.assertEqual(order.refund_status, "processed")
             self.assertEqual(access_record.access_status, "revoked")
-            self.assertEqual(seller_balance.pending_payout, 60)
-            self.assertEqual(seller_balance.available_for_payout, 10)
+            self.assertEqual(seller_balance.pending_payout, 85)
+            self.assertEqual(seller_balance.available_for_payout, -11.25)
             self.assertTrue(db_mock.session.commit.called)
 
     def test_create_razorpay_refund_waits_for_provider_processed_status(self):
@@ -321,6 +392,16 @@ class LedgerRefundTransitionTests(unittest.TestCase):
         ledger = LedgerSerializer()
         with self.assertRaises(LedgerInputError):
             ledger._validate_order_state("pending", "pending", "bogus")
+
+    def test_default_refund_returns_customer_gross_and_reverses_seller_net(self):
+        from types import SimpleNamespace
+        from serializers.ledgerSerializers import LedgerSerializer
+
+        order = SimpleNamespace(gross_amount="100.00", net_seller_amount="85.00", refund_status="none")
+        refund_amount = LedgerSerializer().validate_refund_request(order, {})
+        self.assertEqual(refund_amount, 100)
+        from services.refund_balance import seller_refund_debit
+        self.assertEqual(seller_refund_debit(order, refund_amount), 85)
 
 
 if __name__ == "__main__":

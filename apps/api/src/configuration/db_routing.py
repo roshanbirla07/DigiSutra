@@ -1,5 +1,4 @@
 from sqlalchemy import create_engine
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import scoped_session, sessionmaker
 from flask_sqlalchemy import SQLAlchemy
 from configuration.variables import POSTGRES_DB_URI
@@ -26,8 +25,6 @@ def session_rollback(db_instance):
         def wrapped(*args, **kwargs):
             try:
                 return f(*args, **kwargs)
-            except IntegrityError:
-                raise
             except Exception:
                 db_instance.session.rollback()
                 raise

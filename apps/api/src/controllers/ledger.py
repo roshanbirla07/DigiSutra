@@ -92,9 +92,9 @@ class LedgerDetail(View):
             )
 
         if request.method == "POST":
-            if not is_admin and user.id != order.buyer_id:
+            if not is_admin:
                 return Response(
-                    response=json.dumps({"error": "Only the buyer or an admin can request a refund"}),
+                    response=json.dumps({"error": "Refunds require administrator review; contact support"}),
                     status=403,
                     mimetype="application/json",
                 )

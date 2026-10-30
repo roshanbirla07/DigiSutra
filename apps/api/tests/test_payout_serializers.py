@@ -174,7 +174,7 @@ class PayoutSerializerTests(unittest.TestCase):
         payout_two.failure_reason = None
         payout_two.processed_at = None
 
-        balance = MagicMock(pending_payout=25)
+        balance = MagicMock(pending_payout=25, available_for_payout=0)
         with patch.object(PayoutSerializer, "get_payout_by_uuid_for_update") as get_payout, \
                 patch("serializers.payoutSerializers.SellerBalance") as balance_model, \
                 patch("serializers.payoutSerializers.db") as db_mock:
@@ -199,6 +199,18 @@ class PayoutSerializerTests(unittest.TestCase):
             self.assertEqual(payout_two.failure_reason, "bank rejected")
             self.assertEqual(balance.pending_payout, 0)
             db_mock.session.commit.assert_called()
+
+    def test_refund_debt_blocks_manual_payout_completion(self):
+        payout = MagicMock(status="pending", batch_id=None, seller_id=7)
+        balance = MagicMock(available_for_payout="-10.00", pending_payout="100.00")
+        with patch.object(PayoutSerializer, "get_payout_by_uuid_for_update", return_value=payout), \
+                patch("serializers.payoutSerializers.SellerBalance") as balance_model, \
+                patch("serializers.payoutSerializers.db") as db_mock:
+            balance_model.query.filter_by.return_value.with_for_update.return_value.first.return_value = balance
+            with self.assertRaisesRegex(PayoutInputError, "outstanding refund balance"):
+                PayoutSerializer().process_batch("batch::1", [{"payout_uuid": "payout::1", "status": "paid"}])
+            self.assertEqual(balance.pending_payout, "100.00")
+            db_mock.session.commit.assert_not_called()
 
     def test_process_batch_rejects_invalid_final_status(self):
         payout = MagicMock()

@@ -9,6 +9,7 @@ from flask import g
 from configuration.db_routing import db, session_rollback
 from models.ledger import MarketplaceOrder, PaymentWebhookEvent, ProductAccess, RefundRecord, SellerBalance
 from services.razorpay_gateway import RazorpayGateway
+from services.refund_balance import seller_refund_debit
 
 
 class PaymentInputError(HTTPException):
@@ -103,18 +104,9 @@ class PaymentSerializer(object):
         if not seller_balance:
             return None
 
-        refund_amount = Decimal(str(refund_amount))
-        current_pending = Decimal(str(seller_balance.pending_payout or 0))
+        seller_debit = seller_refund_debit(order, refund_amount)
         current_available = Decimal(str(seller_balance.available_for_payout or 0))
-
-        if refund_amount <= current_pending:
-            seller_balance.pending_payout = current_pending - refund_amount
-        else:
-            seller_balance.pending_payout = Decimal("0")
-            seller_balance.available_for_payout = max(
-                current_available - (refund_amount - current_pending),
-                Decimal("0"),
-            )
+        seller_balance.available_for_payout = current_available - seller_debit
         seller_balance.currency = seller_balance.currency or order.product.currency or "INR"
         return seller_balance
 
@@ -138,6 +130,16 @@ class PaymentSerializer(object):
         self._grant_access_if_needed(order)
         self._move_funds_to_available(order)
         return order, True
+
+    def _require_captured_payment(self, order, payment):
+        if (
+            not isinstance(payment, dict)
+            or payment.get("status") != "captured"
+            or payment.get("order_id") != order.provider_order_id
+            or payment.get("amount") != int(Decimal(str(order.gross_amount)) * 100)
+            or payment.get("currency") != (order.product.currency or "INR")
+        ):
+            raise PaymentInputError("Payment has not been captured for this order")
 
     def _mark_order_refunded(self, order, refund):
         if order.payment_status == "refunded" and order.refund_status == "processed":
@@ -183,12 +185,16 @@ class PaymentSerializer(object):
         if not provider_order_id or not payment_id or not signature:
             raise PaymentInputError("razorpay_order_id, razorpay_payment_id and razorpay_signature are required")
 
-        order = MarketplaceOrder.query.filter_by(provider_order_id=provider_order_id).first()
+        order = MarketplaceOrder.query.filter_by(provider_order_id=provider_order_id).with_for_update().first()
         if not order:
             raise PaymentInputError("Marketplace order not found for provider order id")
         self._require_buyer(order)
         if not self.gateway.verify_checkout_signature(order.provider_order_id, payment_id, signature):
             raise PaymentInputError("Signature mismatch")
+        if order.payment_status in {"refunded", "cancelled"} or order.refund_status == "processed":
+            raise PaymentInputError("A terminal order cannot be marked paid")
+        if order.payment_status != "paid":
+            self._require_captured_payment(order, self.gateway.get_payment(payment_id))
         order, changed = self._mark_order_paid(order, payment_id)
         if changed:
             db.session.commit()
@@ -210,7 +216,7 @@ class PaymentSerializer(object):
             if not payment_id or not refund_id:
                 raise PaymentInputError("Refund webhook missing provider identifiers")
             self._record_webhook_event(payload, raw_body, refund_id)
-            order = MarketplaceOrder.query.filter_by(provider_payment_id=payment_id).first()
+            order = MarketplaceOrder.query.filter_by(provider_payment_id=payment_id).with_for_update().first()
             if not order:
                 raise PaymentInputError("Marketplace order not found for refund webhook")
             refund = RefundRecord.query.filter_by(provider_refund_id=refund_id).first()
@@ -236,9 +242,12 @@ class PaymentSerializer(object):
             raise PaymentInputError("Webhook payload missing payment identifiers")
         self._record_webhook_event(payload, raw_body, payment_id)
 
-        order = MarketplaceOrder.query.filter_by(provider_order_id=provider_order_id).first()
+        order = MarketplaceOrder.query.filter_by(provider_order_id=provider_order_id).with_for_update().first()
         if not order:
             raise PaymentInputError("Marketplace order not found for webhook payment")
+        self._require_captured_payment(
+            order, entity if event == "payment.captured" else self.gateway.get_payment(payment_id)
+        )
         order, changed = self._mark_order_paid(order, payment_id)
         db.session.commit()
         return order

@@ -228,10 +228,12 @@ class PayoutSerializer(object):
             if next_status == "failed":
                 self.transition_payout(payout, "failed", failure_reason=update.get("failure_reason"))
             elif next_status == "paid":
-                self.transition_payout(payout, "paid")
                 balance = SellerBalance.query.filter_by(seller_id=payout.seller_id).with_for_update().first()
                 if not balance:
                     raise PayoutInputError("Seller balance not found")
+                if Decimal(str(balance.available_for_payout or 0)) < 0:
+                    raise PayoutInputError("Seller has an outstanding refund balance; reconcile before payout")
+                self.transition_payout(payout, "paid")
                 balance.pending_payout = max(
                     Decimal("0"),
                     Decimal(str(balance.pending_payout or 0)) - Decimal(str(payout.amount)),

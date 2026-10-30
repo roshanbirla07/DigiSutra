@@ -4,6 +4,7 @@ import hmac
 import json
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 
 from configuration.variables import (
     PAYMENT_MODE,
@@ -67,6 +68,11 @@ class RazorpayGateway(object):
         if notes:
             payload["notes"] = notes
         return self._request("POST", "/orders", payload)
+
+    def get_payment(self, payment_id):
+        if not payment_id:
+            raise RazorpayGatewayError("Razorpay payment id is required")
+        return self._request("GET", f"/payments/{quote(payment_id, safe='')}")
 
     def create_refund(self, payment_id, amount, currency="INR", notes=None):
         if not payment_id:
