@@ -64,6 +64,8 @@ Use DM Sans for headings and the wordmark, and Inter for copy and controls. Hero
 
 Discover, Blog, Features, Pricing and About share a black navbar. The active public destination uses a white pill. On smaller screens, the native disclosure reveals the links and keeps the sign-in/account and seller action accessible. Product search sits with discovery controls. The catalog retains its URL-backed filters.
 
+Pricing, Features and About use full-width color sections with copy capped at 1120px, 56px page titles and 34px section titles. Features uses one illustrated seller workflow and rearranges it into two columns on narrow screens. The Blog index pairs a featured guide with a text sidebar. The fee amount shown on Pricing is an illustrative example.
+
 The storefront is at most 1536px wide. The grid reflows for phones and uses real listing previews when available. Product detail keeps the preview and description separate from the purchase panel. On smaller screens the panel follows the content in document order. Seller navigation becomes a horizontal scrollable row at tablet width.
 
 ## Elevation & Depth
@@ -86,4 +88,4 @@ Use square product cards and outlined page sections. Reserve full pills for the 
 
 - Use the real catalog and preserve actual creator previews. Use original decorative art only for page and article illustrations.
 - Keep public page content usable without authentication. Seller actions lead to the existing application or workspace.
-- Keep unannounced fee rates out of public copy. The browser presents pricing and payout information supplied by the server.
+- Label fee examples as illustrative. The browser presents live seller earnings and payouts as supplied by the server.

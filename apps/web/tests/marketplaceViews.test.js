@@ -148,19 +148,27 @@ test("empty, loading, and failed home pages do not invent listings", () => {
 
 test("public pages provide real destinations, filtered articles and a pricing FAQ", () => {
   const blog = new JSDOM(publicPage({ session: null, path: "/blog", filter: "selling" })).window.document;
-  assert.equal(blog.querySelectorAll(".editorial-card").length, 2);
+  assert.equal(blog.querySelectorAll(".blog-featured a, .blog-more li a").length, 2);
   assert.equal(blog.querySelector(".site-nav [href='/features']").textContent, "Features");
   assert.equal(blog.querySelector(".header-sell").getAttribute("href"), "/become-seller");
 
-  const slug = blog.querySelector(".editorial-card a").getAttribute("href").split("/").pop();
+  const slug = blog.querySelector(".blog-featured a").getAttribute("href").split("/").pop();
   const article = new JSDOM(publicPage({ session: null, path: "article", slug })).window.document;
   assert.equal(article.querySelector("h1").textContent, "Create your first digital product");
   assert.equal(article.querySelectorAll(".blog-article section").length, 3);
   assert.match(publicPage({ session: null, path: "article", slug: "missing" }), /Article not found/);
 
   const pricing = new JSDOM(publicPage({ session: null, path: "/pricing" })).window.document;
-  assert.equal(pricing.querySelectorAll(".pricing-faq details").length, 2);
-  assert.match(pricing.querySelector(".pricing-panels").textContent, /Rates to be announced/);
+  assert.equal(pricing.querySelectorAll(".pricing-faq details").length, 3);
+  assert.match(pricing.querySelector(".pricing-panels").textContent, /10%[\s\S]*Illustrative rate[\s\S]*₹90/);
+  assert.match(pricing.querySelector(".pricing-faq").textContent, /final fee rate is yet to be announced/);
+
+  const features = new JSDOM(publicPage({ session: creator, path: "/features" })).window.document;
+  assert.equal(features.querySelectorAll(".workflow-loop li").length, 4);
+  assert.equal(features.querySelector("main a.button").getAttribute("href"), "/seller");
+
+  const about = new JSDOM(publicPage({ session: null, path: "/about" })).window.document;
+  assert.equal(about.querySelector(".marketing-text-link").getAttribute("href"), "/features");
 });
 
 test("product details keep the full description and one purchase action", () => {

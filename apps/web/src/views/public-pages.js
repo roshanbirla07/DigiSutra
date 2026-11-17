@@ -43,64 +43,103 @@ export function publicHero({ title, summary, tone, illustration }) {
   </section>`;
 }
 
-function editorialCard({ title, summary, art: illustration, tone, action = "" }) {
-  return `<article class="editorial-card">
-    <div class="editorial-art tone-${tone}">${art(illustration)}</div>
-    <div class="editorial-copy"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(summary)}</p>${action}</div>
-  </article>`;
+function marketingHero({ label, title, summary, tone = "", illustrations = [], actions = "" }) {
+  return `<section class="marketing-hero ${tone}">
+    ${illustrations.map(art).join("")}
+    <div class="marketing-inner">
+      ${label ? `<p class="marketing-label">${escapeHtml(label)}</p>` : ""}
+      <h1>${escapeHtml(title)}</h1>
+      <p>${escapeHtml(summary)}</p>
+      ${actions}
+    </div>
+  </section>`;
+}
+
+function sellAction(url) {
+  return `<a class="button button-primary" href="${url}" data-link>Start selling</a>`;
 }
 
 function blog(filter) {
-  const filters = [["all", "All posts"], ["selling", "Selling"], ["product-guides", "Product guides"]];
-  const active = filters.some(([key]) => key === filter) ? filter : "all";
-  return `${publicHero({ title: "The DigiSutra blog", summary: "Practical guides for buying and selling digital products.", tone: "yellow", illustration: "blog" })}
-    <nav class="filter-chips editorial-filters" aria-label="Filter articles">
-      ${filters.map(([key, label]) => `<a href="${ROUTES.blog}${key === "all" ? "" : `?topic=${key}`}" data-link ${active === key ? 'aria-current="true"' : ""}>${label}</a>`).join("")}
-    </nav>
-    <div class="editorial-grid">
-      ${posts.filter((post) => active === "all" || post.category === active).map((post) => editorialCard({
-        ...post,
-        action: `<a class="button button-primary" href="${ROUTES.blogArticle(post.slug)}" data-link aria-label="Read ${escapeHtml(post.title)}">Read article</a>`,
-      })).join("")}
-    </div>`;
+  const showAll = !posts.some((post) => post.category === filter);
+  const [featured, ...more] = showAll ? posts : posts.filter((post) => post.category === filter);
+  return `<div class="marketing-inner blog-index">
+    <header class="blog-heading"><h1>The DigiSutra blog</h1><p>Practical guides for independent creators.</p></header>
+    ${showAll ? "" : `<a class="back-link" href="${ROUTES.blog}" data-link>← All guides</a>`}
+    <div class="blog-index-layout">
+      <article class="blog-featured">
+        <div class="blog-featured-art tone-${featured.tone}">${art(featured === posts[0] ? "blog-featured" : featured.art)}</div>
+        ${showAll ? `<p class="marketing-label">Featured guide</p>` : ""}
+        <h2>${escapeHtml(featured.title)}</h2>
+        <p>${escapeHtml(featured.summary)}</p>
+        <a class="button marketing-dark-button" href="${ROUTES.blogArticle(featured.slug)}" data-link aria-label="Read ${escapeHtml(featured.title)}">Read the guide</a>
+      </article>
+      ${more.length ? `<aside class="blog-more" aria-labelledby="moreGuides">
+        <h2 id="moreGuides">More guides</h2>
+        <ul>${more.map((post) => `<li><a href="${ROUTES.blogArticle(post.slug)}" data-link>${escapeHtml(post.title)} <span aria-hidden="true">→</span></a></li>`).join("")}</ul>
+      </aside>` : ""}
+    </div>
+  </div>`;
 }
 
 function features(sellUrl) {
-  const cards = [
-    { title: "List your products", summary: "Upload files, add a preview, and set a price.", art: "upload", tone: "lavender" },
-    { title: "Deliver files after payment", summary: "Buyers can download purchases from their library after payment is confirmed.", art: "download", tone: "yellow" },
-    { title: "Track sales and payouts", summary: "See orders, seller earnings, and payout status in your seller workspace.", art: "payout", tone: "pink" },
+  const steps = [
+    ["Create a listing", "workflow-list"],
+    ["Upload files", "workflow-upload"],
+    ["Publish", "workflow-publish"],
+    ["Track earnings", "workflow-earn"],
   ];
-  return `${publicHero({ title: "From upload to download", summary: "List digital products, accept payments, and deliver files in one place.", tone: "mint", illustration: "features" })}
-    <div class="editorial-grid">${cards.map(editorialCard).join("")}</div>
-    <a class="button button-primary" href="${sellUrl}" data-link>Start selling</a>`;
+  return `${marketingHero({ label: "Features", title: "Sell what you make.", summary: "List digital products, accept payments, and deliver files in one place." })}
+    <section class="workflow-band" aria-label="How selling works">
+      <ol class="marketing-inner workflow-loop">
+        ${steps.map(([label, image]) => `<li>${art(image)}<span>${label}</span></li>`).join("")}
+      </ol>
+    </section>
+    <section class="marketing-band tone-mint"><div class="marketing-inner"><h2>From checkout to download</h2><p>Buyers pay through Razorpay and find confirmed purchases in their library.</p></div></section>
+    <section class="marketing-band tone-lavender"><div class="marketing-inner"><h2>See how your products sell</h2><p>Track orders, earnings, and payouts in Seller Studio.</p></div></section>
+    <div class="marketing-band marketing-centered">${sellAction(sellUrl)}</div>`;
 }
 
-function pricing() {
-  return `${publicHero({ title: "Seller pricing", summary: "See how fees and payouts apply to a digital product sale.", tone: "pink", illustration: "pricing" })}
-    <div class="editorial-split pricing-panels">
-      <section class="editorial-panel"><h2>What affects your payout</h2>
-        <dl class="payout-factors">
-          <div><dt>Product price</dt><dd>The price set on your listing.</dd></div>
-          <div><dt>Platform fee</dt><dd>The fee DigiSutra deducts from the sale.</dd></div>
-          <div><dt>Payout availability</dt><dd>The amount currently available to withdraw in your seller workspace.</dd></div>
-        </dl>
-      </section>
-      <section class="editorial-panel tone-yellow"><h2>Seller fees</h2><p>Rates to be announced.</p>${art("seller-fees")}</section>
+function pricing(sellUrl) {
+  return `${marketingHero({
+    label: "Pricing",
+    title: "Seller pricing, made clear.",
+    summary: "See how each sale turns into seller earnings.",
+    tone: "marketing-yellow",
+    illustrations: ["pricing-coin", "pricing-coin"],
+  })}
+    <div class="marketing-split pricing-panels">
+      <section class="marketing-band marketing-periwinkle"><h2>10%</h2><p>Platform fee per sale</p><small>Illustrative rate</small></section>
+      <section class="marketing-band marketing-teal"><h2>₹90</h2><p>Seller earnings on a ₹100 sale</p><small>Before any applicable taxes.</small></section>
     </div>
-    <section class="pricing-faq" aria-label="Pricing questions">
-      <details><summary>How are seller payouts calculated?</summary><p>Seller earnings reflect the sale price after the platform fee and any applicable taxes. Your Payouts page shows what is available, pending, or paid.</p></details>
-      <details><summary>When will pricing be available?</summary><p>Seller fee rates are yet to be announced.</p></details>
-    </section>`;
+    <section class="marketing-band pricing-faq"><div class="marketing-inner">
+      <h2>Frequently asked questions</h2>
+      <details><summary>How is my payout calculated?</summary><p>Your seller earnings are the sale price minus the platform fee and any applicable taxes.</p></details>
+      <details><summary>Where can I see my earnings?</summary><p>Open Seller Studio and select Payouts to see what’s available for payout, pending, or already paid.</p></details>
+      <details><summary>How does the platform fee work?</summary><p>DigiSutra deducts a percentage from each sale. The 10% above is an example of how earnings are calculated. The final fee rate is yet to be announced.</p></details>
+    </div></section>
+    <section class="marketing-band marketing-centered tone-pink"><h2>Ready to sell?</h2><div class="marketing-actions"><a class="button button-secondary" href="${sellUrl}" data-link>Start selling</a></div></section>`;
 }
 
-function about() {
-  return `${publicHero({ title: "Meet DigiSutra", summary: "A marketplace for digital products made by independent creators.", tone: "lavender", illustration: "about" })}
-    <div class="editorial-split">
-      <section class="editorial-panel editorial-panel-illustrated tone-yellow"><div><h2>For creators</h2><p>Sell the templates, guides, and tools you make.</p></div>${art("creators")}</section>
-      <section class="editorial-panel editorial-panel-illustrated tone-mint"><div><h2>For buyers</h2><p>Find practical digital products for work, learning, and creative projects.</p></div>${art("buyers")}</section>
+function about(sellUrl) {
+  const actions = `<div class="marketing-actions">${sellAction(sellUrl)}
+    <a class="button button-secondary" href="${ROUTES.catalog}" data-link>Explore marketplace</a>
+  </div>`;
+  return `${marketingHero({
+    title: "Give your work a place to sell.",
+    summary: "DigiSutra is a marketplace for digital products made by independent creators.",
+    tone: "marketing-soft-pink",
+    illustrations: ["about-file", "about-coin"],
+    actions,
+  })}
+    <div class="marketing-split about-audiences">
+      <section class="marketing-band tone-yellow"><h2>For creators</h2><p>Sell the templates, guides, and tools you make.</p>${art("about-creator")}</section>
+      <section class="marketing-band tone-mint"><h2>For buyers</h2><p>Find practical downloads for work, learning, and creative projects.</p>${art("about-buyer")}</section>
     </div>
-    <div class="section-heading editorial-cta"><h2>Built for digital downloads</h2><a class="button button-secondary" href="${ROUTES.catalog}" data-link>Explore the marketplace</a></div>`;
+    <section class="marketing-band marketing-centered"><div class="marketing-inner">
+      <h2>Start with something useful.</h2>
+      <p>A template you use every week could become your first listing.</p>
+      <a class="marketing-text-link" href="${ROUTES.features}" data-link>See how selling works</a>
+    </div></section>`;
 }
 
 export function getBlogPost(slug) {
@@ -110,8 +149,8 @@ export function getBlogPost(slug) {
 export function publicPageContent({ path, filter, post, sellUrl }) {
   if (path === ROUTES.blog) return blog(filter);
   if (path === ROUTES.features) return features(sellUrl);
-  if (path === ROUTES.pricing) return pricing();
-  if (path === ROUTES.about) return about();
+  if (path === ROUTES.pricing) return pricing(sellUrl);
+  if (path === ROUTES.about) return about(sellUrl);
   return `<a class="back-link" href="${ROUTES.blog}" data-link>← Back to the blog</a>
     ${publicHero({ ...post, illustration: post.art })}
     <article class="blog-article">
