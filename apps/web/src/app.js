@@ -82,6 +82,8 @@ export function createApp() {
   }
 
   function route() {
+    const articleMatch = window.location.pathname.match(/^\/blog\/([^/]+)\/?$/);
+    if (articleMatch) return { name: "article", slug: decodeURIComponent(articleMatch[1]) };
     const productMatch = window.location.pathname.match(/^\/products\/([^/]+)$/);
     if (productMatch) return { name: "detail", uuid: decodeURIComponent(productMatch[1]) };
     const checkoutMatch = window.location.pathname.match(/^\/checkout\/([^/]+)$/);
@@ -109,8 +111,13 @@ export function createApp() {
     let current;
     try { current = route(); } catch { current = { name: "invalid" }; }
     const titles = {
-      [ROUTES.home]: "DigiSutra — Resources for your next idea",
+      [ROUTES.home]: "Discover digital products — DigiSutra",
       [ROUTES.catalog]: "Discover products — DigiSutra",
+      [ROUTES.blog]: "Blog — DigiSutra",
+      [ROUTES.pricing]: "Seller pricing — DigiSutra",
+      [ROUTES.features]: "Features — DigiSutra",
+      [ROUTES.about]: "About — DigiSutra",
+      article: "Blog — DigiSutra",
       [ROUTES.auth]: "Sign in — DigiSutra",
       [ROUTES.library]: "My library — DigiSutra",
       [ROUTES.seller]: "Seller overview — DigiSutra",
@@ -130,6 +137,11 @@ export function createApp() {
       display(view.pageState({ session: state.session, title: "Page not found", message: "Check the address or return to the marketplace." }));
       return;
     }
+    if ([ROUTES.blog, ROUTES.pricing, ROUTES.features, ROUTES.about, "article"].includes(current.name)) {
+      const filter = new URLSearchParams(window.location.search).get("topic");
+      display(view.publicPage({ session: state.session, path: current.name, filter, slug: current.slug }));
+      return;
+    }
     if (current.name === ROUTES.auth) {
       display(view.auth({ mode: new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login" }));
       return;
@@ -141,7 +153,9 @@ export function createApp() {
           : view.catalogLoading({ session: state.session }));
         await loadProducts();
       } catch (error) {
-        display(view.catalog({ session: state.session, products: [], availableProducts: state.products, query: state.query, category: state.category, error: error.message }));
+        display(current.name === ROUTES.home
+          ? view.home({ session: state.session, products: [], error: error.message })
+          : view.catalog({ session: state.session, products: [], availableProducts: state.products, query: state.query, category: state.category, error: error.message }));
         return;
       }
       const products = state.products.filter((p) => (

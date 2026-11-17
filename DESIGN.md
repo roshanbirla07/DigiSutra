@@ -1,16 +1,20 @@
 ---
 version: alpha
-name: DigiSutra Indigo + Cloud
-description: A resource-first marketplace with indigo actions, cloud surfaces and a focused creator workspace.
+name: DigiSutra Marketplace
+description: A cream marketplace with black navigation, pink actions, and illustrated page heroes.
 colors:
-  ink: "#25243b"
-  inkStrong: "#19182b"
-  inkSoft: "#646278"
-  paper: "#f7f8fc"
+  ink: "#151412"
+  inkStrong: "#111110"
+  inkSoft: "#514b46"
+  paper: "#faf6ef"
   surface: "#ffffff"
-  line: "#e2e3ee"
-  primary: "#5842e8"
-  accent: "#5842e8"
+  line: "#d6cbc2"
+  primary: "#7a175d"
+  accent: "#ff90e8"
+  action: "#ff63dd"
+  mint: "#c6f8d1"
+  yellow: "#fff098"
+  lavender: "#dfbef8"
   danger: "#a33129"
 typography:
   display:
@@ -18,11 +22,10 @@ typography:
   body:
     fontFamily: "Inter, system-ui, sans-serif"
 rounded:
-  DEFAULT: "16px"
-  control: "10px"
+  DEFAULT: "4px"
+  control: "2px"
 spacing:
-  contentMax: "1280px"
-  section: "48px"
+  contentMax: "1536px"
 components:
   button: {}
   productCard: {}
@@ -30,64 +33,57 @@ components:
   navigation: {}
 ---
 
-# DigiSutra Indigo + Cloud
+# DigiSutra Marketplace
 
 ## Overview
 
-### Creative North Star
+DigiSutra helps buyers find practical digital products and gives independent creators a place to list and sell them. Large, illustrated page headings and heavy outlines define the public pages. The product grid shows the real listing art and the most useful information for comparing products. Keep titles, prices, and creator names visible without hovering.
 
-A head start for a creator's next project: the home page puts search beside a real listing, then leads into categories and product cards. The signature is a resource spotlight that uses the creator’s public preview or the shared illustrated cover. An empty/loading spotlight uses clearly illustrative typography without inventing a listing. Product detail separates the preview and description from a quiet purchase panel.
-
-DigiSutra serves customers browsing and buying digital guides, templates and prompts, and creators publishing and tracking them. The public home page may be more expressive; catalog, checkout, library, seller and admin screens emphasize task clarity. The current interface is in English, with INR values and `en-IN` dates. No dark theme or localization provider is maintained yet.
-
-**Anti-references:** generic Bootstrap cards, glass panels, neon dashboards and decorative analytics. The approved Indigo + Cloud direction replaces Calm Toolkit green across the existing native JavaScript app; it does not introduce a second UI framework.
-
-**Token ownership:** `apps/web/indigo-cloud.css` is the runtime owner for the values above and overrides the legacy base in `apps/web/styles.css`. This document mirrors those tokens. When changing a token, edit the CSS variable and this document in the same PR. Components use CSS variables for shared colors, type and radii. Legacy `styles.css` should not gain new design decisions.
+The interface uses English and INR, with `en-IN` dates and WCAG 2.2 AA as its accessibility target. `FRONTEND_REFERENCE.md` describes the business trust boundary. Server responses own prices, orders, access, permissions, and seller payout calculations.
 
 ## Colors
 
-Cloud `#f7f8fc` and white surfaces create separation; ink `#25243b` and strong ink `#19182b` carry content. Indigo `#5842e8` belongs to commitments, links, selected navigation and focus. The accent token aliases this same indigo, keeping one action color. Soft violet surfaces support hierarchy without competing with product previews. The darker danger color is reserved for destructive actions. Product covers can use editorial colors distinct from the UI chrome.
+Warm cream is the default canvas. Black lines and white panels separate headings, cards, and controls. Use pink for primary actions and price chips, and dark plum for links and focus on light surfaces. Yellow, mint, and lavender distinguish public page headers and decorative illustrations. Status and error colors retain their own meanings in the workspace.
+
+`apps/web/theme.css` owns runtime design tokens. `apps/web/styles.css` holds the legacy structural base. Keep the token table and runtime values in sync.
+
+| Design role | Runtime token | Consumers |
+|---|---|---|
+| Ink, paper, surface, neutral lines | `--ink`, `--ink-strong`, `--ink-soft`, `--paper`, `--surface`, `--line` | Page, cards, panels, fields |
+| Links and focus | `--primary` | Text links and controls on light backgrounds |
+| Pink accent and action | `--pink`, `--hot-pink` | Price tags, Discover hero, primary buttons |
+| Illustration tones | `--yellow`, `--mint`, `--lavender` | Public hero and cover art |
+| Errors | `--danger` | Destructive actions and validation |
+| Corners | `--radius`, `--radius-control` | Shared panels and controls |
 
 ## Typography
 
-DM Sans is the display face for short headings and the wordmark; Inter is the reading and control face. Keep hierarchy through size and line height, with restrained bold weights. Financial figures use tabular numerals. Product titles and creator names remain visible without hover.
+Use DM Sans for headings and the wordmark, and Inter for copy and controls. Hero headings are bold and compact. Use tabular numerals for prices and financial figures.
 
 ## Layout
 
-The content width is 1280px. The desktop home hero pairs search with a real product spotlight. The product page uses a main content column and a 370px purchase panel, sticky on desktop and in natural flow below the preview on mobile. The catalog grid responds from four columns to two, then one on narrow phones. Seller navigation becomes a horizontal scrollable strip at tablet width; the site header uses a native disclosure menu. Avoid viewport-bound heights on forms. Image and loading placeholders reserve the same proportions as product covers.
+Discover, Blog, Features, Pricing and About share a black navbar. The active public destination uses a white pill. On smaller screens, the native disclosure reveals the links and keeps the sign-in/account and seller action accessible. Product search sits with discovery controls. The catalog retains its URL-backed filters.
+
+The storefront is at most 1536px wide. The grid reflows for phones and uses real listing previews when available. Product detail keeps the preview and description separate from the purchase panel. On smaller screens the panel follows the content in document order. Seller navigation becomes a horizontal scrollable row at tablet width.
 
 ## Elevation & Depth
 
-Separate surfaces with line `#e2e3ee`; use subtle elevation for overlays and a soft hover lift on product covers. Reserve soft elevation for the spotlight, purchase panel and overlays. No frosted glass panels across routine application pages.
+The public hero uses a hard offset shadow. Lightweight workspace panels, menus, and dialogs use neutral outlines with limited elevation. Motion respects reduced-motion preferences.
 
 ## Shapes
 
-Cards use a 16px radius, controls at 10px (`--radius-control`), and preview frames use 10px inner corners. Focus has a visible indigo ring. Icons with operational meaning retain text labels.
+Use square product cards and outlined page sections. Reserve full pills for the active navbar destination. Keep visible keyboard focus and labelled native controls.
 
 ## Components
 
-| Document token | Runtime owner in `indigo-cloud.css` | Consumers |
-|---|---|---|
-| `colors.primary`, `colors.accent` | `--primary`, `--accent` | buttons, links, selection, focus |
-| `colors.paper`, `colors.surface`, `colors.line` | `--paper`, `--surface`, `--line` | page, shared cards, panels, fields |
-| `colors.ink`, `colors.inkStrong`, `colors.inkSoft` | `--ink`, `--ink-strong`, `--ink-soft` | content, headings, secondary text |
-| `colors.danger` | `--danger` | destructive buttons and errors |
-| `typography.display` | `--font-display` | headings and wordmark |
-| `typography.body` | base `:root` in `styles.css` | body and controls |
-| `rounded.DEFAULT`, `rounded.control` | `--radius`, `--radius-control` | panels, controls |
-
-
-- Shared button classes define primary, secondary, ghost and danger; actions have hover, focus, active and disabled states. Primary actions use solid indigo. `--radius-control` owns button corners; `--danger` owns destructive/error color.
-- Default account and creator avatars use original locally rendered vector portraits from `apps/web/src/views/avatar.js`. A deterministic username seed gives random-looking variety while keeping the same user consistent across header, account settings, product cards and product detail. Artwork colors are independent of brand tokens; there are no stock profile photos or external avatar requests. Existing accounts need no migration. The current API has no profile-photo upload field; this change does not add an upload flow.
-- The shared header owns desktop and mobile navigation. Current routes expose `aria-current`; the seller sidebar uses the same state cue.
-- Product cards show the verified listing preview when available, otherwise an editorial cover. A preview is public; paid files stay protected by backend authorization.
-- Search keeps committed query/category in the URL, offers Clear search, and can reset to all products. Loading reserves card geometry; empty, no-results and request errors offer relevant next actions.
-- Forms keep labels and inline errors. The browser owns native select popup geometry. Marketplace type and spacing adapt at small widths without hiding descriptions.
-- Animation is limited to 180–220ms feedback and cover hover. Reduced-motion preference removes motion and smooth scrolling.
+- The shared header marks the active route with `aria-current` and retains wording and destinations for signed-in routes.
+- Product cards reserve cover proportions. They use the creator's verified public preview when it exists and an editorial fallback otherwise. Paid files remain protected.
+- Blog cards have complete article destinations. Topic filters are URL-backed. The Pricing FAQ uses native disclosures.
+- Forms preserve inline errors and validation. The browser owns native selects and dialog focus.
+- Default avatars are local illustrations seeded by username. No external avatar requests are needed.
 
 ## Do's and Don'ts
 
-- Do retain the real creator's preview and the marketplace's Indigo + Cloud identity.
-- Do use the shared header, card, button, field and status patterns across customer and seller views.
-- Don't introduce a second accent palette or a decorative chart to fill space.
-- Don't put a payment, refund, role or access decision in the browser; `FRONTEND_REFERENCE.md` is the business trust boundary.
+- Use the real catalog and preserve actual creator previews. Use original decorative art only for page and article illustrations.
+- Keep public page content usable without authentication. Seller actions lead to the existing application or workspace.
+- Keep unannounced fee rates out of public copy. The browser presents pricing and payout information supplied by the server.

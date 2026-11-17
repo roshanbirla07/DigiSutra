@@ -9,6 +9,11 @@ export const APP = Object.freeze({
 export const ROUTES = Object.freeze({
   home: "/",
   catalog: "/catalog",
+  blog: "/blog",
+  blogArticle: (slug) => `/blog/${encodeURIComponent(slug)}`,
+  pricing: "/pricing",
+  features: "/features",
+  about: "/about",
   auth: "/auth",
   library: "/library",
   seller: "/seller",

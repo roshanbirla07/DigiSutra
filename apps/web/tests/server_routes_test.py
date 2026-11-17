@@ -19,11 +19,12 @@ class DeepLinkTests(unittest.TestCase):
         thread.start()
         origin = f"http://127.0.0.1:{server.server_port}"
         try:
-            for path in ["/products/product::1", "/seller/products/new", "/admin/seller-applications"]:
+            for path in ["/products/product::1", "/seller/products/new", "/admin/seller-applications",
+                         "/blog", "/blog/create-your-first-digital-product", "/features", "/pricing", "/about"]:
                 with urlopen(origin + path) as response:
                     html = response.read().decode()
                     self.assertIn('src="/src/app.js"', html)
-                    self.assertIn('href="/indigo-cloud.css"', html)
+                    self.assertIn('href="/theme.css"', html)
             with urlopen(origin + "/src/app.js") as response:
                 self.assertIn("javascript", response.headers["Content-Type"])
             with self.assertRaises(HTTPError) as error:

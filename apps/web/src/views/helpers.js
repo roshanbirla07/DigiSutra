@@ -15,10 +15,12 @@ export function productCover(product, compact = false) {
 }
 
 export function renderProductCard(product) {
+  const price = (product.currency || APP.defaultCurrency) === "INR"
+    ? `₹${product.price ?? "0.00"}` : money(product.currency, product.price);
   return `<article class="product-card">
     <a class="product-card-link" href="/products/${encodeURIComponent(product.uuid)}" data-link>
       <div class="product-card-media">${productCover(product)}</div>
-      <div class="product-card-body"><span class="eyebrow">${escapeHtml(product.category || "Digital product")}</span><h3>${escapeHtml(product.title)}</h3><p>${escapeHtml(product.description || "A useful digital resource from an independent creator.")}</p><div class="product-card-footer"><span class="creator-byline">${renderAvatar({ username: product.owner_username }, "creator-avatar")}<span>By ${escapeHtml(product.owner_username || "Independent creator")}</span></span><strong>${escapeHtml(money(product.currency, product.price))}</strong></div></div>
+      <div class="product-card-body"><span class="eyebrow">${escapeHtml(product.category || "Digital product")}</span><h3>${escapeHtml(product.title)}</h3><p>${escapeHtml(product.description || "A useful digital resource from an independent creator.")}</p><div class="product-card-footer"><span class="creator-byline">${renderAvatar({ username: product.owner_username }, "creator-avatar")}<span>By ${escapeHtml(product.owner_username || "Independent creator")}</span></span><strong>${escapeHtml(price)}</strong></div></div>
     </a>
   </article>`;
 }
