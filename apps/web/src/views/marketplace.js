@@ -35,7 +35,8 @@ export function publicPage({ session, path, filter, slug }) {
   if (path === "article" && !post) {
     return pageState({ session, title: "Article not found", message: "Check the address or use the Blog link to choose another article." });
   }
-  return `${header(session)}<main class="page editorial-page">${publicPageContent({ path, filter, post, sellUrl: sellerDestination(session) })}</main>${footer()}`;
+  const layout = post ? "page editorial-page" : "marketing-page";
+  return `${header(session)}<main class="${layout}">${publicPageContent({ path, filter, post, sellUrl: sellerDestination(session) })}</main>${footer(!post)}`;
 }
 
 function statefulSeller(session) { return [APP.roles.seller, APP.roles.admin].includes(session?.user_type); }
@@ -161,7 +162,10 @@ export function checkout({ session, product, checkout }) {
   return `${header(session)}<main class="page checkout-page"><a class="back-link" href="/products/${encodeURIComponent(product.uuid)}" data-link>← Back to product</a><section class="checkout-grid"><div class="panel-card"><span class="eyebrow">Checkout</span><h1>${escapeHtml(product.title)}</h1><p>${escapeHtml(product.description || "Digital access after payment confirmation.")}</p><div class="checkout-total"><span>Total</span><strong>${escapeHtml(money(product.currency, product.price))}</strong></div></div><div class="panel-card payment-panel"><span class="eyebrow">Payment</span>${order ? `<h2>Payment order ready</h2><p>Order ${escapeHtml(order.provider_order_id || order.uuid)} is ready for Razorpay checkout.</p><button class="button button-primary button-wide" data-open-razorpay>Pay with Razorpay <span>→</span></button><p class="form-note">Complete payment in the secure Razorpay popup. Access is added to your library after confirmation.</p>` : `<h2>Review and continue</h2><p>We will create your order and send you to Razorpay checkout.</p><button class="button button-primary button-wide" data-start-checkout="${escapeHtml(product.uuid)}">Continue to payment <span>→</span></button>`}<p class="form-error" data-checkout-error role="alert"></p><p data-payment-status role="status"></p>${order ? `<button class="button button-secondary" type="button" data-check-payment>Check payment status</button>` : ""}</div></section></main>${footer()}`;
 }
 
-function footer() { return `<footer class="site-footer"><span>© ${new Date().getFullYear()} ${APP.name}</span><span>Thoughtful digital work, kept simple.</span></footer>`; }
+function footer(marketing = false) {
+  if (marketing) return `<footer class="site-footer marketing-footer"><a href="${ROUTES.home}" data-link>${APP.name}<span aria-hidden="true">✱</span></a></footer>`;
+  return `<footer class="site-footer"><span>© ${new Date().getFullYear()} ${APP.name}</span><span>Thoughtful digital work, kept simple.</span></footer>`;
+}
 function notFound(title, body) { return `<div class="not-found"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p><a class="button button-primary" href="${ROUTES.catalog}" data-link>Return to marketplace</a></div>`; }
 
 export function pageState({ session, title, message, loading = false, retry = false }) {
