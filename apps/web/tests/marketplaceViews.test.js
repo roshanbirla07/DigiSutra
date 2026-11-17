@@ -118,6 +118,30 @@ test("seller draft bypasses submit-only required field validation", () => {
   assert.match(html, /type="submit" data-seller-application-action="submit"/);
 });
 
+test("seller onboarding asks for supporting details only on follow-up or saved applications", () => {
+  const initial = new JSDOM(sellerApplication({ session: customer })).window.document;
+  const form = initial.querySelector("[data-seller-application-form]");
+  assert.deepEqual([...form.querySelectorAll("[required]")].map((field) => field.name), [
+    "store_name", "category", "legal_name", "business_type", "pan_number",
+    "bank_account_holder_name", "bank_account_last4", "bank_ifsc", "terms_accepted",
+  ]);
+  assert.equal(form.elements.store_description.required, false);
+  assert.equal(form.elements.business_address, undefined);
+  assert.equal(form.elements.kyc_document_reference, undefined);
+
+  const followUp = new JSDOM(sellerApplication({
+    session: customer, application: { status: "needs_information", review_note: "Please add the verification reference." },
+  })).window.document;
+  assert.ok(followUp.querySelector(".seller-supporting-details").open);
+  assert.equal(followUp.querySelector("[name=kyc_document_reference]").required, false);
+  assert.match(followUp.querySelector(".info-note").textContent, /Please add the verification reference/);
+
+  const saved = new JSDOM(sellerApplication({
+    session: customer, application: { status: "draft", business_address: "Saved address" },
+  })).window.document;
+  assert.equal(saved.querySelector("[name=business_address]").value, "Saved address");
+});
+
 test("authentication mode cannot inject markup", () => {
   const html = auth({ mode: 'login"><img src=x onerror=alert(1)>' });
   assert.match(html, /data-auth-form data-mode="login"/);

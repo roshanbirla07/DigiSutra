@@ -210,12 +210,12 @@ input:disabled, textarea:disabled, select:disabled { color: #667085; background:
 .payout-banner p { margin: 3px 0 0; color: #067647; font-size: 10px; }
 
 .form-steps { margin: 0 0 15px; padding: 17px; display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; list-style: none; border: 1px solid var(--line); border-radius: 13px; background: #fff; }
-.form-steps li, .onboarding-steps li { display: flex; align-items: center; gap: 10px; color: var(--ink-soft); }
-.form-steps li > span, .onboarding-steps li > span { width: 27px; height: 27px; display: grid; place-items: center; flex: 0 0 27px; border: 1px solid var(--line-strong); border-radius: 50%; font-size: 9px; font-weight: 700; }
-.form-steps li.active > span, .onboarding-steps li.active > span { color: #fff; border-color: var(--primary); background: var(--primary); }
-.form-steps li div, .onboarding-steps li div { display: grid; gap: 2px; }
-.form-steps strong, .onboarding-steps strong { color: #344054; font-size: 10px; }
-.form-steps small, .onboarding-steps small { color: var(--ink-faint); font-size: 8px; }
+.form-steps li { display: flex; align-items: center; gap: 10px; color: var(--ink-soft); }
+.form-steps li > span { width: 27px; height: 27px; display: grid; place-items: center; flex: 0 0 27px; border: 1px solid var(--line-strong); border-radius: 50%; font-size: 9px; font-weight: 700; }
+.form-steps li.active > span { color: #fff; border-color: var(--primary); background: var(--primary); }
+.form-steps li div { display: grid; gap: 2px; }
+.form-steps strong { color: #344054; font-size: 10px; }
+.form-steps small { color: var(--ink-faint); font-size: 8px; }
 .form-panel { max-width: 900px; margin: auto; padding: 28px; }
 .form-panel-heading { padding-bottom: 21px; margin-bottom: 5px; border-bottom: 1px solid var(--line); }
 .form-panel-heading h2 { margin: 8px 0 4px; }
@@ -254,18 +254,6 @@ input:disabled, textarea:disabled, select:disabled { color: #667085; background:
 .account-cards { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
 .card-icon { width: 37px; height: 37px; margin-bottom: 22px; display: grid; place-items: center; border-radius: 10px; color: var(--primary); background: var(--primary-soft); }
 
-.onboarding-layout { display: grid; grid-template-columns: 240px 1fr; gap: 16px; align-items: start; }
-.onboarding-steps { position: sticky; top: 100px; padding: 24px 18px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
-.onboarding-steps ol { margin: 18px 0 0; padding: 0; display: grid; gap: 22px; list-style: none; }
-.privacy-note { margin-top: 28px; padding: 15px; border-radius: 10px; background: #f2f7ff; }
-.privacy-note strong { color: var(--blue); font-size: 11px; }
-.privacy-note p { margin-bottom: 0; font-size: 9px; }
-.form-section-title { margin: 13px 0 2px; padding: 17px 0 8px; display: flex; gap: 11px; align-items: center; border-top: 1px solid var(--line); }
-.form-section-title > span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: var(--primary); background: var(--primary-soft); font-size: 9px; font-weight: 700; }
-.form-section-title div { display: grid; gap: 2px; }
-.form-section-title strong { font-size: 12px; }
-.form-section-title small { color: var(--ink-faint); font-size: 9px; }
-
 .admin-request-list { display: grid; gap: 10px; }
 .admin-request-row { padding: 17px; display: grid; grid-template-columns: 1fr auto minmax(260px,auto); gap: 18px; align-items: center; border: 1px solid var(--line); border-radius: 13px; background: #fff; box-shadow: var(--shadow-sm); }
 .admin-request-row h3 { margin: 5px 0; font-size: 18px; }
@@ -301,7 +289,7 @@ input:disabled, textarea:disabled, select:disabled { color: #667085; background:
 
 @media (max-width: 900px) {
   .page { padding: 38px 20px 65px; }
-  .detail-grid, .principles, .detail-lower, .auth-layout, .workspace-grid, .checkout-grid, .onboarding-layout, .account-grid { grid-template-columns: 1fr; }
+  .detail-grid, .principles, .detail-lower, .auth-layout, .workspace-grid, .checkout-grid, .account-grid { grid-template-columns: 1fr; }
   .trust-strip { grid-template-columns: repeat(2,1fr); }
   .principle-list { grid-template-columns: 1fr; }
   .auth-page { padding: 0; }
@@ -315,8 +303,6 @@ input:disabled, textarea:disabled, select:disabled { color: #667085; background:
   .workspace-sidebar nav { margin: 0; display: flex; }
   .workspace-sidebar nav a { white-space: nowrap; }
   .workspace-main { padding: 32px 20px 60px; }
-  .onboarding-steps { position: static; }
-  .onboarding-steps ol { grid-template-columns: repeat(5,minmax(130px,1fr)); overflow-x: auto; }
   .account-nav { display: flex; overflow-x: auto; }
 }
 

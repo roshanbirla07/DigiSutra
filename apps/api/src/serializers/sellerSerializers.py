@@ -173,20 +173,13 @@ class SellerApplicationSerializer(object):
         if require_submit:
             required = {
                 "store_name": "Store name is required",
-                "store_description": "Store description is required",
                 "category": "Category is required",
-                "product_types": "Product types are required",
                 "legal_name": "Legal name is required",
                 "business_type": "Business type is required",
-                "business_address": "Business address is required",
                 "pan_number": "PAN is required",
-                "country": "Country is required",
-                "phone_number": "Phone number is required",
                 "bank_account_holder_name": "Bank account holder name is required",
                 "bank_account_last4": "Bank account last 4 digits are required",
                 "bank_ifsc": "Bank IFSC is required",
-                "kyc_document_type": "KYC document type is required",
-                "kyc_document_reference": "KYC document reference is required",
             }
             for field, message in required.items():
                 if not str(values.get(field) or "").strip():

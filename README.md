@@ -411,6 +411,8 @@ kyc_in_review
 
 The workflow is provider-neutral so an external KYC or fund-account provider can be integrated later without coupling seller state directly to one gateway.
 
+A seller can submit a store name and category, legal name and business type, PAN, the bank account holder name, the last four account digits, IFSC, and acceptance of the seller terms. The description is optional. Save other details for reviewer follow-up. Admins record KYC and bank validation after completing those checks outside the app.
+
 ---
 
 ## 📌 Engineering principles
