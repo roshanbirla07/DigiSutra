@@ -141,7 +141,91 @@ export function settings({ session }) {
 export function sellerApplication({ session, application }) {
   const app = application || {};
   const locked = Boolean(app.status) && !["draft", "needs_information", "kyc_failed", "rejected"].includes(app.status);
-  return `${header(session)}<main class="page workspace-page onboarding-page"><div class="workspace-heading compact"><div><span class="eyebrow">Seller onboarding</span><h1>Become a seller</h1><p>Tell us about your business and complete verification.</p></div><div class="status-stack"><span class="status status-${escapeHtml(app.status || "draft")}">${escapeHtml(statusLabel(app.status || "draft"))}</span><span class="status status-${escapeHtml(app.kyc_status || "not_started")}">KYC ${escapeHtml(statusLabel(app.kyc_status || "not started"))}</span></div></div><div class="onboarding-layout"><aside class="onboarding-steps"><span class="sidebar-label">Application sections</span><ol><li><span>1</span><div><strong>Store details</strong><small>Your creator identity</small></div></li><li><span>2</span><div><strong>Business identity</strong><small>Legal information</small></div></li><li><span>3</span><div><strong>Bank details</strong><small>Payout destination</small></div></li><li><span>4</span><div><strong>KYC documents</strong><small>Verification reference</small></div></li><li><span>5</span><div><strong>Review & submit</strong><small>Final confirmation</small></div></li></ol><div class="privacy-note"><strong>Your data is safe</strong><p>Seller details are used only for verification and payouts.</p></div></aside><div class="panel-card form-panel"><div class="form-panel-heading"><span class="eyebrow">Application details</span><h2>Build your seller profile</h2><p>Complete every required field before submitting for review.</p></div><form novalidate data-seller-application-form><div class="form-section-title"><span>01</span><div><strong>Store details</strong><small>How customers will recognize you</small></div></div><div class="form-row"><label>Store name<input name="store_name" value="${escapeHtml(app.store_name || "")}" required ${locked ? "disabled" : ""} /></label><label>Category<input name="category" value="${escapeHtml(app.category || "")}" required ${locked ? "disabled" : ""} /></label></div><label>Store description<textarea name="store_description" rows="4" required ${locked ? "disabled" : ""}>${escapeHtml(app.store_description || "")}</textarea></label><label>Product types<input name="product_types" value="${escapeHtml(app.product_types || "")}" placeholder="Templates, guides, prompts" required ${locked ? "disabled" : ""} /></label><div class="form-section-title"><span>02</span><div><strong>Business identity</strong><small>Legal and contact information</small></div></div><div class="form-row"><label>Legal name<input name="legal_name" value="${escapeHtml(app.legal_name || "")}" required ${locked ? "disabled" : ""} /></label><label>Business type<select name="business_type" required ${locked ? "disabled" : ""}>${["", "individual", "proprietorship", "partnership", "llp", "private_limited", "public_limited", "trust", "ngo", "society"].map((item) => `<option value="${item}" ${item === (app.business_type || "") ? "selected" : ""}>${escapeHtml(item ? statusLabel(item) : "Select business type")}</option>`).join("")}</select></label></div><label>Business address<textarea name="business_address" rows="3" required ${locked ? "disabled" : ""}>${escapeHtml(app.business_address || "")}</textarea></label><div class="form-row"><label>PAN<input name="pan_number" value="${escapeHtml(app.pan_number || "")}" maxlength="10" required ${locked ? "disabled" : ""} /></label><label>GSTIN<input name="gstin" value="${escapeHtml(app.gstin || "")}" maxlength="15" ${locked ? "disabled" : ""} /></label></div><div class="form-row"><label>Country<input name="country" value="${escapeHtml(app.country || "")}" required ${locked ? "disabled" : ""} /></label><label>Phone number<input name="phone_number" value="${escapeHtml(app.phone_number || "")}" required ${locked ? "disabled" : ""} /></label></div><div class="form-section-title"><span>03</span><div><strong>Payout and verification</strong><small>Bank and KYC information</small></div></div><div class="form-row"><label>Bank account holder<input name="bank_account_holder_name" value="${escapeHtml(app.bank_account_holder_name || "")}" required ${locked ? "disabled" : ""} /></label><label>Bank account last 4<input name="bank_account_last4" value="${escapeHtml(app.bank_account_last4 || "")}" maxlength="4" inputmode="numeric" required ${locked ? "disabled" : ""} /></label></div><label>Bank IFSC<input name="bank_ifsc" value="${escapeHtml(app.bank_ifsc || "")}" maxlength="11" required ${locked ? "disabled" : ""} /></label><div class="form-row"><label>KYC document type<input name="kyc_document_type" value="${escapeHtml(app.kyc_document_type || "")}" placeholder="PAN, GST, bank proof" required ${locked ? "disabled" : ""} /></label><label>KYC document reference<input name="kyc_document_reference" value="${escapeHtml(app.kyc_document_reference || "")}" placeholder="Private reference" required ${locked ? "disabled" : ""} /></label></div><div class="form-row"><label>Website<input name="website_url" value="${escapeHtml(app.website_url || "")}" ${locked ? "disabled" : ""} /></label><label>Portfolio URL<input name="portfolio_url" value="${escapeHtml(app.portfolio_url || "")}" ${locked ? "disabled" : ""} /></label></div><label class="check-row"><input type="checkbox" name="terms_accepted" ${app.terms_accepted ? "checked" : ""} ${locked ? "disabled" : ""} /> I accept the seller terms</label><p class="form-error" data-form-error>${escapeHtml(app.review_note || app.kyc_review_note || "")}</p>${locked ? `<div class="locked-note">${app.status === "withdrawn" ? "This application was withdrawn. Contact the marketplace operator for next steps." : app.status === "approved" ? "Your application is approved. Sign out and sign in again to refresh seller access." : "This application is under review. Refresh to check its status."}</div>` : `<div class="form-actions"><button class="button button-secondary" type="submit" formnovalidate data-seller-application-action="draft">Save draft</button><button class="button button-primary" type="submit" data-seller-application-action="submit">Submit for review <span>→</span></button></div>`}</form><div class="form-actions"><button class="button button-secondary" type="button" data-refresh-page>Refresh status</button>${["submitted", "under_review", "kyc_pending", "kyc_in_review", "needs_information"].includes(app.status) ? `<button class="button button-danger" type="button" data-withdraw-application="${escapeHtml(app.uuid)}">Withdraw application</button>` : ""}</div></div></div></main>${footer()}`;
+  const supportingFields = ["product_types", "business_address", "country", "phone_number", "gstin", "kyc_document_type", "kyc_document_reference", "website_url", "portfolio_url"];
+  const followUp = ["needs_information", "kyc_failed"].includes(app.status);
+  const reviewNote = app.review_note || app.kyc_review_note;
+  const statusMessage = app.status === "withdrawn" ? "This application was withdrawn. Contact the marketplace operator for next steps."
+    : app.status === "approved" ? "Your application is approved. Sign out and sign in again to refresh seller access."
+      : "This application is under review. Refresh to check its status.";
+  const input = (name, attributes = "") => `<input name="${name}" value="${escapeHtml(app[name] || "")}" ${attributes} />`;
+
+  return `${header(session)}
+    <main class="page workspace-page onboarding-page">
+      <div class="workspace-heading compact">
+        <div><h1>Become a seller</h1><p>Set up your store and submit your identity and payout details for review.</p></div>
+        ${app.status ? `<div class="status-stack"><span class="status status-${escapeHtml(app.status)}">${escapeHtml(statusLabel(app.status))}</span><span class="status status-${escapeHtml(app.kyc_status || "not_started")}">KYC ${escapeHtml(statusLabel(app.kyc_status || "not_started"))}</span></div>` : ""}
+      </div>
+      <div class="panel-card form-panel">
+        ${reviewNote ? `<p class="info-note"><strong>Reviewer note</strong><br />${escapeHtml(reviewNote)}</p>` : ""}
+        ${locked ? `<p class="locked-note">${statusMessage}</p>` : ""}
+        <form novalidate data-seller-application-form>
+          <fieldset class="seller-application-section" ${locked ? "disabled" : ""}>
+            <legend>Store details</legend>
+            <div class="form-row">
+              <label>Store name${input("store_name", 'maxlength="120" required')}</label>
+              <label>Category${input("category", 'placeholder="e.g. Templates" required')}</label>
+            </div>
+            <label>Store description (optional)<textarea class="resize-none" name="store_description" rows="2" maxlength="5000">${escapeHtml(app.store_description || "")}</textarea></label>
+          </fieldset>
+
+          <fieldset class="seller-application-section" ${locked ? "disabled" : ""}>
+            <legend>Legal identity</legend>
+            <div class="form-row">
+              <label>Legal name${input("legal_name", "required")}</label>
+              <label>Business type<select name="business_type" required>
+                ${["", "individual", "proprietorship", "partnership", "llp", "private_limited", "public_limited", "trust", "ngo", "society"].map((item) => `<option value="${item}" ${item === (app.business_type || "") ? "selected" : ""}>${escapeHtml(item ? statusLabel(item) : "Select business type")}</option>`).join("")}
+              </select></label>
+            </div>
+            <label>PAN${input("pan_number", 'maxlength="10" autocapitalize="characters" spellcheck="false" required')}</label>
+          </fieldset>
+
+          <fieldset class="seller-application-section" ${locked ? "disabled" : ""}>
+            <legend>Payout account</legend>
+            <label>Bank account holder name${input("bank_account_holder_name", "required")}</label>
+            <div class="form-row">
+              <label>Last 4 digits of account number${input("bank_account_last4", 'maxlength="4" inputmode="numeric" pattern="[0-9]{4}" required')}</label>
+              <label>IFSC code${input("bank_ifsc", 'maxlength="11" autocapitalize="characters" spellcheck="false" required')}</label>
+            </div>
+          </fieldset>
+
+          ${followUp || supportingFields.some((field) => app[field]) ? `<details class="seller-supporting-details" ${followUp ? "open" : ""}>
+            <summary>Supporting details</summary>
+            <fieldset class="seller-application-section" ${locked ? "disabled" : ""}>
+              <legend class="visually-hidden">Supporting details</legend>
+              <p class="form-note">Provide these details if requested by your reviewer. Use the document reference from your verification process.</p>
+              <label>Business address<textarea class="resize-none" name="business_address" rows="2" maxlength="500">${escapeHtml(app.business_address || "")}</textarea></label>
+              <div class="form-row">
+                <label>Country${input("country")}</label>
+                <label>Phone number${input("phone_number", 'type="tel"')}</label>
+              </div>
+              <div class="form-row">
+                <label>GSTIN${input("gstin", 'maxlength="15"')}</label>
+                <label>Product types${input("product_types", 'maxlength="1000"')}</label>
+              </div>
+              <div class="form-row">
+                <label>Document type${input("kyc_document_type")}</label>
+                <label>Document reference${input("kyc_document_reference", 'maxlength="500"')}</label>
+              </div>
+              <div class="form-row">
+                <label>Website${input("website_url", 'maxlength="2048"')}</label>
+                <label>Portfolio URL${input("portfolio_url", 'maxlength="2048"')}</label>
+              </div>
+            </fieldset>
+          </details>` : ""}
+
+          <label class="check-row"><input type="checkbox" name="terms_accepted" required ${app.terms_accepted ? "checked" : ""} ${locked ? "disabled" : ""} /> I accept the seller terms</label>
+          <p class="form-error" data-form-error></p>
+          ${locked ? "" : `<div class="form-actions">
+            <button class="button button-secondary" type="submit" formnovalidate data-seller-application-action="draft">Save draft</button>
+            <button class="button button-primary" type="submit" data-seller-application-action="submit">Submit for review</button>
+          </div>`}
+        </form>
+        ${app.uuid && (locked || followUp) ? `<div class="form-actions seller-status-actions">
+          <button class="button button-secondary" type="button" data-refresh-page>Refresh status</button>
+          ${["submitted", "under_review", "kyc_pending", "kyc_in_review", "needs_information"].includes(app.status) ? `<button class="button button-danger" type="button" data-withdraw-application="${escapeHtml(app.uuid)}">Withdraw application</button>` : ""}
+        </div>` : ""}
+      </div>
+    </main>${footer()}`;
 }
 
 export function adminSellerApplications({ session, applications }) {
@@ -173,6 +257,6 @@ export function pageState({ session, title, message, loading = false, retry = fa
 }
 
 export function applicationDetails(application) {
-  const fields = ["store_name", "legal_name", "business_type", "business_address", "country", "phone_number", "pan_number", "gstin", "bank_account_holder_name", "bank_account_last4", "bank_ifsc", "kyc_document_type", "kyc_document_reference", "provider_account_status", "fund_account_status", "kyc_status", "status"];
+  const fields = ["store_name", "category", "product_types", "website_url", "portfolio_url", "legal_name", "business_type", "business_address", "country", "phone_number", "pan_number", "gstin", "bank_account_holder_name", "bank_account_last4", "bank_ifsc", "kyc_document_type", "kyc_document_reference", "provider_account_status", "fund_account_status", "kyc_status", "status"];
   return `<dl class="application-details">${fields.map((key) => `<div><dt>${escapeHtml(statusLabel(key))}</dt><dd>${escapeHtml(application[key] || "Not provided")}</dd></div>`).join("")}</dl>`;
 }

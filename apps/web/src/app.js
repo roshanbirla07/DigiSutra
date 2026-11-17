@@ -285,7 +285,9 @@ export function createApp() {
     const labels = { view: "Close review", approve: "Approve seller", "verify-kyc": "Verify KYC", "fail-kyc": "Fail KYC", reject: "Reject application", "request-information": "Request information", "start-kyc-review": "Start KYC review" };
     const decision = await askDialog({
       title: application.store_name || "Seller application",
-      description: action === "view" ? "Review the submitted application details." : `${labels[action]}. Review the submitted details before recording this decision. Manual review does not perform external identity or bank verification.`,
+      description: action === "verify-kyc"
+        ? "Confirm you verified the seller’s identity and payout account outside DigiSutra before recording this decision."
+        : action === "view" ? "Review the submitted application details." : `${labels[action]}. Review the submitted details before recording this decision. Manual review does not perform external identity or bank verification.`,
       details: view.applicationDetails(application), action: labels[action], note: action !== "view",
       required: ["reject", "request-information", "fail-kyc"].includes(action),
       danger: ["reject", "fail-kyc"].includes(action),

@@ -144,8 +144,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--primary); box-sh
 .table-toolbar { background: var(--paper); }
 .file-drop { border-color: #a34b83; background: var(--paper); }
 .preview-upload { background: var(--paper); }
-.upload-icon, .card-icon, .form-section-title > span { color: var(--primary); background: var(--primary-soft); }
-.info-note, .locked-note, .privacy-note { background: var(--surface-soft); }
+.upload-icon, .card-icon { color: var(--primary); background: var(--primary-soft); }
+.info-note, .locked-note { background: var(--surface-soft); }
 .library-row { border-color: var(--line); border-radius: 17px; box-shadow: none; }
 .library-cover, .empty-mark { background: var(--primary-soft); color: var(--primary); }
 .account-nav a.active { background: var(--primary-soft); }
@@ -493,6 +493,32 @@ body:has(dialog[open]) { overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 .empty-products, .skeleton-cover { border-radius: 0; }
+
+.onboarding-page { max-width: 820px; }
+.seller-application-section {
+  display: grid;
+  min-inline-size: 0;
+  gap: 14px;
+  margin: 0;
+  padding: 0 0 18px;
+  border: 0;
+}
+.seller-application-section + .seller-application-section {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.seller-application-section legend {
+  padding: 0 8px 0 0;
+  color: var(--ink-strong);
+  font-size: 16px;
+  font-weight: 700;
+}
+.seller-supporting-details { padding: 12px 0; border-block: 1px solid var(--line); }
+.seller-supporting-details summary { width: fit-content; padding: 6px 0; font-weight: 700; }
+.seller-supporting-details fieldset { padding: 12px 0 0; }
+.seller-supporting-details p { margin: 0; }
+.seller-application-section :is(input, select, textarea) { scroll-margin-top: 110px; }
+.seller-status-actions { margin-top: 16px; }
 
 /* Public marketing and editorial pages */
 .marketing-page {

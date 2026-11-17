@@ -65,6 +65,18 @@ class SellerOnboardingValidationTests(unittest.TestCase):
         self.assertEqual(values["pan_number"], "ABCDE1234F")
         self.assertEqual(values["bank_ifsc"], "HDFC0123456")
 
+    def test_submit_accepts_core_fields_without_supporting_details(self):
+        payload = self.valid_payload()
+        for field in (
+            "store_description", "product_types", "business_address", "country",
+            "phone_number", "gstin", "kyc_document_type", "kyc_document_reference",
+        ):
+            payload.pop(field)
+
+        values = SellerApplicationSerializer._validate_fields(payload, require_submit=True)
+
+        self.assertEqual(values, payload)
+
     def test_submit_rejects_invalid_pan(self):
         payload = self.valid_payload()
         payload["pan_number"] = "bad-pan"
