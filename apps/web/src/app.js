@@ -283,19 +283,25 @@ export function createApp() {
     const application = await api.request(API_PATHS.adminSellerApplication(uuid));
     if (active !== renderGeneration) return;
     const labels = { view: "Close review", approve: "Approve seller", "verify-kyc": "Verify KYC", "fail-kyc": "Fail KYC", reject: "Reject application", "request-information": "Request information", "start-kyc-review": "Start KYC review" };
+    const verifyUpi = action === "verify-kyc" && application.payout_destination === "upi";
+    const descriptions = {
+      view: "Review the submitted application details.",
+      "verify-kyc": verifyUpi
+        ? "Verify the UPI ID through the payout provider, match the returned holder name to the verified seller, then record the check in the review note."
+        : "Confirm you verified the seller’s identity and payout account outside DigiSutra before recording this decision.",
+    };
     const decision = await askDialog({
       title: application.store_name || "Seller application",
-      description: action === "verify-kyc"
-        ? "Confirm you verified the seller’s identity and payout account outside DigiSutra before recording this decision."
-        : action === "view" ? "Review the submitted application details." : `${labels[action]}. Review the submitted details before recording this decision. Manual review does not perform external identity or bank verification.`,
+      description: descriptions[action] || `${labels[action]}. Review the submitted details before recording this decision.`,
       details: view.applicationDetails(application), action: labels[action], note: action !== "view",
-      required: ["reject", "request-information", "fail-kyc"].includes(action),
+      required: verifyUpi || ["reject", "request-information", "fail-kyc"].includes(action),
       danger: ["reject", "fail-kyc"].includes(action),
       onConfirm: async ({ note }) => {
         if (action === "view") return;
         if (active !== renderGeneration) throw new Error("The active page changed. Close this review and reopen the application.");
         const body = { note };
         if (action === "verify-kyc") Object.assign(body, { provider: "manual", provider_account_status: "activated", fund_account_status: "validated" });
+        if (verifyUpi) body.verified_upi_id = application.upi_id;
         if (action === "fail-kyc") Object.assign(body, { provider_account_status: "needs_clarification", fund_account_status: "failed" });
         await api.request(API_PATHS.adminSellerApplicationAction(uuid, action), { method: "POST", body: JSON.stringify(body) });
       },
@@ -608,6 +614,14 @@ export function createApp() {
   });
 
   root.addEventListener("change", (event) => {
+    if (event.target.matches("[data-payout-destination]")) {
+      dirty = true;
+      for (const fields of event.target.form.querySelectorAll("[data-payout-fields]")) {
+        const active = fields.dataset.payoutFields === event.target.value;
+        fields.hidden = !active;
+        for (const input of fields.querySelectorAll("input")) input.disabled = !active;
+      }
+    }
     if (event.target.closest("[data-product-form]")) dirty = true;
     if (!event.target.matches("[data-preview-input]")) return;
     const output = event.target.closest("[data-preview-section]")?.querySelector("[data-preview-output]");

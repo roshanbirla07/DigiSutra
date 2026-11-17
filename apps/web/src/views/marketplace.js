@@ -144,6 +144,8 @@ export function sellerApplication({ session, application }) {
   const supportingFields = ["product_types", "business_address", "country", "phone_number", "gstin", "kyc_document_type", "kyc_document_reference", "website_url", "portfolio_url"];
   const followUp = ["needs_information", "kyc_failed"].includes(app.status);
   const reviewNote = app.review_note || app.kyc_review_note;
+  const upiEnabled = app.upi_onboarding_enabled === true;
+  const upiSelected = app.payout_destination === "upi" && (upiEnabled || locked);
   const statusMessage = app.status === "withdrawn" ? "This application was withdrawn. Contact the marketplace operator for next steps."
     : app.status === "approved" ? "Your application is approved. Sign out and sign in again to refresh seller access."
       : "This application is under review. Refresh to check its status.";
@@ -180,12 +182,23 @@ export function sellerApplication({ session, application }) {
           </fieldset>
 
           <fieldset class="seller-application-section" ${locked ? "disabled" : ""}>
-            <legend>Payout account</legend>
-            <label>Bank account holder name${input("bank_account_holder_name", "required")}</label>
-            <div class="form-row">
-              <label>Last 4 digits of account number${input("bank_account_last4", 'maxlength="4" inputmode="numeric" pattern="[0-9]{4}" required')}</label>
-              <label>IFSC code${input("bank_ifsc", 'maxlength="11" autocapitalize="characters" spellcheck="false" required')}</label>
-            </div>
+            <legend>Payout destination</legend>
+            ${upiEnabled ? `<div class="payout-options" role="group" aria-label="Payout method">
+              <label class="check-row"><input type="radio" name="payout_destination" value="bank_account" data-payout-destination ${upiSelected ? "" : "checked"} /> Bank account</label>
+              <label class="check-row"><input type="radio" name="payout_destination" value="upi" data-payout-destination ${upiSelected ? "checked" : ""} /> UPI ID</label>
+            </div>` : `<input type="hidden" name="payout_destination" value="${upiSelected ? "upi" : "bank_account"}" />`}
+            ${!upiEnabled && app.payout_destination === "upi" && !locked ? `<p class="form-note">UPI payouts are currently unavailable. Enter a bank account to continue.</p>` : ""}
+            ${!upiSelected || upiEnabled ? `<div class="payout-fields" data-payout-fields="bank_account" ${upiSelected ? "hidden" : ""}>
+              <label>Bank account holder name${input("bank_account_holder_name", `required ${upiSelected ? "disabled" : ""}`)}</label>
+              <div class="form-row">
+                <label>Last 4 digits of account number${input("bank_account_last4", `maxlength="4" inputmode="numeric" pattern="[0-9]{4}" required ${upiSelected ? "disabled" : ""}`)}</label>
+                <label>IFSC code${input("bank_ifsc", `maxlength="11" autocapitalize="characters" spellcheck="false" required ${upiSelected ? "disabled" : ""}`)}</label>
+              </div>
+            </div>` : ""}
+            ${upiEnabled || upiSelected ? `<div class="payout-fields" data-payout-fields="upi" ${upiSelected ? "" : "hidden"}>
+              <label>UPI ID${input("upi_id", `maxlength="255" placeholder="name@bank" autocapitalize="none" spellcheck="false" required ${upiSelected ? "" : "disabled"}`)}</label>
+              <p class="form-note">Use a UPI ID registered to the person or business listed above. A reviewer checks the account holder before approval.</p>
+            </div>` : ""}
           </fieldset>
 
           ${followUp || supportingFields.some((field) => app[field]) ? `<details class="seller-supporting-details" ${followUp ? "open" : ""}>
@@ -257,6 +270,9 @@ export function pageState({ session, title, message, loading = false, retry = fa
 }
 
 export function applicationDetails(application) {
-  const fields = ["store_name", "category", "product_types", "website_url", "portfolio_url", "legal_name", "business_type", "business_address", "country", "phone_number", "pan_number", "gstin", "bank_account_holder_name", "bank_account_last4", "bank_ifsc", "kyc_document_type", "kyc_document_reference", "provider_account_status", "fund_account_status", "kyc_status", "status"];
-  return `<dl class="application-details">${fields.map((key) => `<div><dt>${escapeHtml(statusLabel(key))}</dt><dd>${escapeHtml(application[key] || "Not provided")}</dd></div>`).join("")}</dl>`;
+  const upi = application.payout_destination === "upi";
+  const fields = ["store_name", "category", "product_types", "website_url", "portfolio_url", "legal_name", "business_type", "business_address", "country", "phone_number", "pan_number", "gstin",
+    ...(upi ? ["upi_id"] : ["bank_account_holder_name", "bank_account_last4", "bank_ifsc"]),
+    "kyc_document_type", "kyc_document_reference", "provider_account_status", "fund_account_status", "kyc_status", "status"];
+  return `<dl class="application-details"><div><dt>Payout destination</dt><dd>${upi ? "UPI ID" : "Bank account"}</dd></div>${fields.map((key) => `<div><dt>${key === "upi_id" ? "UPI ID" : escapeHtml(statusLabel(key))}</dt><dd>${escapeHtml(application[key] || "Not provided")}</dd></div>`).join("")}</dl>`;
 }

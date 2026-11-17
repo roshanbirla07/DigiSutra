@@ -519,6 +519,9 @@ body:has(dialog[open]) { overflow: hidden; }
 .seller-supporting-details p { margin: 0; }
 .seller-application-section :is(input, select, textarea) { scroll-margin-top: 110px; }
 .seller-status-actions { margin-top: 16px; }
+.payout-options { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.payout-fields:not([hidden]) { display: grid; gap: 14px; }
+.payout-fields p { margin: 0; }
 
 /* Public marketing and editorial pages */
 .marketing-page {

@@ -23,6 +23,8 @@ class SellerApplication(db.Model):
     gstin = db.Column(db.String(15), nullable=True)
     country = db.Column(db.String(100), nullable=True)
     phone_number = db.Column(db.String(30), nullable=True)
+    payout_destination = db.Column(db.String(12), nullable=False, default="bank_account", server_default="bank_account")
+    upi_id = db.Column(db.String(255), nullable=True)
     bank_account_holder_name = db.Column(db.String(120), nullable=True)
     bank_account_last4 = db.Column(db.String(4), nullable=True)
     bank_ifsc = db.Column(db.String(11), nullable=True)
