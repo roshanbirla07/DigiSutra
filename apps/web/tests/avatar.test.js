@@ -34,5 +34,5 @@ test("missing identities render a stable default and anonymous navigation stays 
   assert.notEqual(renderAvatar({ uuid: "user::1" }), renderAvatar({ uuid: "user::2" }));
   const document = new JSDOM(home({ session: null, products: [] })).window.document;
   assert.equal(document.querySelector(".avatar-link"), null);
-  assert.ok([...document.querySelectorAll("a")].some((link) => link.textContent === "Sign in"));
+  assert.ok([...document.querySelectorAll("a")].some((link) => link.textContent === "Log in"));
 });

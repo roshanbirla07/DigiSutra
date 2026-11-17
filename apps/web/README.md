@@ -24,6 +24,10 @@ Current frontend routes:
 
 - `/`
 - `/catalog`
+- `/blog` and `/blog/:slug`
+- `/pricing`
+- `/features`
+- `/about`
 - `/products/:productUuid`
 - `/auth`
 - `/library`

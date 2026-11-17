@@ -1,13 +1,41 @@
 import { renderAvatar } from "./avatar.js";
 import { APP, COPY, ROUTES } from "../constants/app.js";
 import { escapeHtml, money, date, productCover, renderProductCard, statusLabel } from "./helpers.js";
+import { getBlogPost, publicHero, publicPageContent } from "./public-pages.js";
+
+function sellerDestination(session) {
+  return statefulSeller(session) ? ROUTES.seller : ROUTES.becomeSeller;
+}
 
 function header(session) {
-  const account = session ? `<a class="avatar-link" href="${ROUTES.settings}" data-link aria-label="Account settings for ${escapeHtml(session.first_name || session.username)}">${renderAvatar(session)}<span>${escapeHtml(session.first_name || session.username)}</span></a>` : `<a class="button button-secondary" href="${ROUTES.auth}" data-link>Sign in</a>`;
-  const path = typeof window === "undefined" ? "" : window.location.pathname;
-  const links = [[ROUTES.catalog, "Discover"], ...(session ? [[ROUTES.library, "My library"]] : []), ...(session && statefulSeller(session) ? [[ROUTES.seller, "Seller studio"]] : [[ROUTES.becomeSeller, "For creators"]])];
-  const navLinks = links.map(([href, label]) => `<a href="${href}" data-link ${path === href ? 'aria-current="page"' : ""}>${label}</a>`).join("");
-  return `<header class="site-header"><a class="wordmark" href="${ROUTES.home}" data-link><span class="seal" aria-hidden="true">✳</span><span><strong>${APP.name}</strong><small>Resources for your next idea</small></span></a><nav class="site-nav" aria-label="Main navigation">${navLinks}</nav><div class="header-actions"><a class="header-search" href="${ROUTES.catalog}" data-link aria-label="Search products">⌕ <span>Search</span></a>${account}<details class="mobile-nav"><summary aria-label="Open navigation"><span aria-hidden="true">☰</span><span class="visually-hidden">Menu</span></summary><nav aria-label="Mobile navigation">${navLinks}</nav></details></div></header>`;
+  const identity = session?.first_name || session?.username || "Account";
+  const account = session
+    ? `<a class="avatar-link" href="${ROUTES.settings}" data-link aria-label="Account settings for ${escapeHtml(identity)}">${renderAvatar(session)}<span>${escapeHtml(identity)}</span></a>`
+    : `<a class="header-login" href="${ROUTES.auth}" data-link>Log in</a>`;
+  const path = typeof window === "undefined" ? "" : window.location.pathname.replace(/\/$/, "");
+  const links = [[ROUTES.catalog, "Discover"], [ROUTES.blog, "Blog"], [ROUTES.pricing, "Pricing"], [ROUTES.features, "Features"], [ROUTES.about, "About"]];
+  const navLinks = links.map(([href, label]) => {
+    const current = path === href || (href === ROUTES.catalog && !path) || (href === ROUTES.blog && path.startsWith(ROUTES.blog + "/"));
+    return `<a href="${href}" data-link ${current ? 'aria-current="page"' : ""}>${label}</a>`;
+  }).join("");
+  const libraryLink = session ? `<a class="header-library" href="${ROUTES.library}" data-link ${path === ROUTES.library ? 'aria-current="page"' : ""}>My library</a>` : "";
+  return `<header class="site-header">
+    <a class="wordmark" href="${ROUTES.home}" data-link><strong>${APP.name}<span aria-hidden="true">✱</span></strong></a>
+    <nav class="site-nav" aria-label="Main navigation">${navLinks}</nav>
+    <div class="header-actions">
+      ${libraryLink}${account}
+      <details class="mobile-nav"><summary aria-label="Navigation menu"><span aria-hidden="true">☰</span></summary><nav aria-label="Mobile navigation">${navLinks}${libraryLink}</nav></details>
+      <a class="header-sell" href="${sellerDestination(session)}" data-link>${statefulSeller(session) ? "Seller studio" : "Start selling"}</a>
+    </div>
+  </header>`;
+}
+
+export function publicPage({ session, path, filter, slug }) {
+  const post = slug && getBlogPost(slug);
+  if (path === "article" && !post) {
+    return pageState({ session, title: "Article not found", message: "Check the address or use the Blog link to choose another article." });
+  }
+  return `${header(session)}<main class="page editorial-page">${publicPageContent({ path, filter, post, sellUrl: sellerDestination(session) })}</main>${footer()}`;
 }
 
 function statefulSeller(session) { return [APP.roles.seller, APP.roles.admin].includes(session?.user_type); }
@@ -23,31 +51,54 @@ function workspaceShell({ session, active, content, admin = false }) {
   return `${header(session)}<div class="workspace-shell">${workspaceSidebar(active, admin)}<main class="workspace-main">${content}</main></div>`;
 }
 
-export function home({ session, products, loading = false }) {
+function marketplaceHero() {
+  return publicHero({ title: "Discover digital products from independent creators.", tone: "pink", illustration: "market" });
+}
+
+function productSkeletons() {
+  return Array.from({ length: 4 }, () => `<div class="product-skeleton" aria-hidden="true"><div class="skeleton-cover"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>`).join("");
+}
+
+function productsUnavailable() {
+  return `<div class="full-width empty-products" role="alert"><h3>Products are unavailable right now.</h3><p>Check your connection and try again.</p><button class="button button-secondary" type="button" data-retry-products>Try again</button></div>`;
+}
+
+export function home({ session, products, loading = false, error = "" }) {
   const categories = [...new Set(products.map((product) => product.category).filter(Boolean))].slice(0, 6);
-  const spotlight = products[0];
-  const spotlightMarkup = spotlight
-    ? `<a class="hero-spotlight" href="/products/${encodeURIComponent(spotlight.uuid)}" data-link><span class="eyebrow">Inside the marketplace</span>${productCover(spotlight)}<div class="spotlight-caption"><span>${escapeHtml(spotlight.title)}</span><strong>View product ↗</strong></div></a>`
-    : `<div class="hero-spotlight spotlight-placeholder"><span class="eyebrow">Made for your next idea</span><div class="resource-sheet" aria-hidden="true"><span>THE CREATOR’S TOOLKIT</span><strong>Less setup.<br />More creating.</strong><i>GUIDES / TEMPLATES / PROMPTS</i></div><p>${loading ? "Loading the marketplace…" : "Explore digital resources from independent creators."}</p></div>`;
+  const cards = loading ? productSkeletons()
+    : error ? productsUnavailable()
+      : products.slice(0, 4).map(renderProductCard).join("") || `<div class="full-width empty-products"><h3>No products yet</h3><p>${COPY.emptyProducts}</p></div>`;
   return `${header(session)}<main class="page home-page">
-    <section class="hero"><div class="hero-copy"><span class="eyebrow">Independent creators. Practical resources.</span><h1>Good resources.<br /><em>Great head starts.</em></h1><p>Guides, templates and prompts to move your next project forward. Explore the preview, meet the maker, and find your fit.</p>
-      <form class="hero-search" data-home-search role="search"><label for="homeSearch" class="visually-hidden">Search digital products</label><span aria-hidden="true">⌕</span><input id="homeSearch" name="q" type="search" placeholder="Try a planner, guide or template…" /><button class="search-clear" type="button" data-clear-input aria-label="Clear search" hidden>×</button><button class="button button-primary" type="submit">Search <span aria-hidden="true">→</span></button></form>
-      <div class="hero-actions"><span>Looking for something specific?</span><a href="${ROUTES.catalog}" data-link>Browse everything <span aria-hidden="true">↗</span></a></div>
-    </div><div class="hero-showcase">${spotlightMarkup}</div></section>
-    <div class="category-ribbon"><span class="category-lead">Browse by category</span><a href="${ROUTES.catalog}" data-link>All products <span aria-hidden="true">↗</span></a>${categories.map((category) => `<button type="button" data-category="${escapeHtml(category)}">${escapeHtml(category)} <span aria-hidden="true">↗</span></button>`).join("")}</div>
-    <section class="section-block home-featured"><div class="section-heading"><div><span class="eyebrow">Explore the marketplace</span><h2>Find your next head start.</h2><p>Digital resources, with the details you need to choose.</p></div><a class="text-link" href="${ROUTES.catalog}" data-link>Explore all <span aria-hidden="true">↗</span></a></div><div class="product-grid" ${loading ? 'aria-busy="true" aria-label="Loading featured products"' : ""}>${loading ? Array.from({ length: 4 }, () => `<div class="product-skeleton" aria-hidden="true"><div class="skeleton-cover"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>`).join("") : products.slice(0, 4).map(renderProductCard).join("") || `<div class="full-width empty-products"><h3>Good things are on their way.</h3><p>${COPY.emptyProducts}</p></div>`}</div></section>
-    <section class="home-note" id="how-it-works"><div><span class="eyebrow">From discovery to your library</span><h2>Find it. Make it<br />part of your work.</h2></div><div class="home-note-steps"><p><strong>01 / Find your fit</strong><span>See the preview and details before you decide.</span></p><p><strong>02 / Pay securely</strong><span>Complete your purchase with Razorpay.</span></p><p><strong>03 / Make it yours</strong><span>Access your purchased file in your library, subject to its access limits.</span></p></div></section>
+    ${marketplaceHero()}
+    <div class="marketplace-toolbar">
+      <nav class="filter-chips" aria-label="Product categories">
+        <a href="${ROUTES.catalog}" data-link aria-current="true">All</a>
+        ${categories.map((category) => `<button type="button" data-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`).join("")}
+      </nav>
+      <form class="catalog-search" data-home-search role="search">
+        <label for="homeSearch" class="visually-hidden">Search digital products</label>
+        <input id="homeSearch" name="q" type="search" placeholder="Search digital products" />
+        <button class="search-clear" type="button" data-clear-input aria-label="Clear search" hidden>×</button>
+        <button class="button button-primary" type="submit">Search</button>
+      </form>
+    </div>
+    <section class="home-featured">
+      <div class="section-heading"><h2>Explore products</h2><a class="button button-secondary" href="${ROUTES.catalog}" data-link>See all products</a></div>
+      <div class="product-grid" ${loading ? 'aria-busy="true" aria-label="Loading products"' : ""}>${cards}</div>
+    </section>
   </main>${footer()}`;
 }
 
 export function catalog({ session, products, availableProducts = products, query = "", category = "all", error = "" }) {
   const categories = ["all", ...new Set(availableProducts.map((p) => p.category).filter(Boolean))];
-  const empty = error ? `<div class="full-width empty-products" role="alert"><h3>Products are unavailable right now.</h3><p>Check your connection and try again.</p><button class="button button-secondary" type="button" data-retry-products>Try again</button></div>` : `<div class="full-width empty-products"><h3>${query || category !== "all" ? "No matches yet." : "New work is on its way."}</h3><p>${query || category !== "all" ? "Try another search or category." : COPY.emptyProducts}</p>${query || category !== "all" ? `<button class="button button-secondary" type="button" data-reset-catalog>Show all products</button>` : ""}</div>`;
-  return `${header(session)}<main class="page catalog-page"><section class="catalog-intro"><span class="eyebrow">The marketplace</span><h1>Explore the collection<span class="heading-spark" aria-hidden="true">✳</span></h1><p>Explore guides, templates and prompts from independent creators.</p></section><form class="catalog-toolbar" data-catalog-form role="search"><label class="search-field"><span aria-hidden="true">⌕</span><input name="q" value="${escapeHtml(query)}" placeholder="Search guides, templates, prompts…" aria-label="Search products" /><button class="search-clear" type="button" data-clear-search aria-label="Clear search" ${query ? "" : "hidden"}>×</button></label><label class="visually-hidden" for="catalogCategory">Category</label><select id="catalogCategory" name="category">${categories.map((item) => `<option value="${escapeHtml(item)}" ${item === category ? "selected" : ""}>${escapeHtml(item === "all" ? "All categories" : item)}</option>`).join("")}</select><button class="button button-primary" type="submit">Find products</button></form><section class="catalog-results"><div class="results-meta" aria-live="polite"><span>${error ? "Could not load products" : `${products.length} ${products.length === 1 ? "find" : "finds"} for you`}</span><span>Preview before you purchase</span></div><div class="product-grid">${error ? empty : products.map(renderProductCard).join("") || empty}</div></section></main>${footer()}`;
+  const empty = error ? productsUnavailable() : `<div class="full-width empty-products"><h3>${query || category !== "all" ? "No matches yet." : "New work is on its way."}</h3><p>${query || category !== "all" ? "Try another search or category." : COPY.emptyProducts}</p>${query || category !== "all" ? `<button class="button button-secondary" type="button" data-reset-catalog>Show all products</button>` : ""}</div>`;
+  return `${header(session)}<main class="page catalog-page">${marketplaceHero()}<form class="catalog-toolbar" data-catalog-form role="search"><label class="search-field"><span aria-hidden="true">⌕</span><input name="q" value="${escapeHtml(query)}" placeholder="Search guides, templates, prompts…" aria-label="Search products" /><button class="search-clear" type="button" data-clear-search aria-label="Clear search" ${query ? "" : "hidden"}>×</button></label><label class="visually-hidden" for="catalogCategory">Category</label><select id="catalogCategory" name="category">${categories.map((item) => `<option value="${escapeHtml(item)}" ${item === category ? "selected" : ""}>${escapeHtml(item === "all" ? "All categories" : item)}</option>`).join("")}</select><button class="button button-primary" type="submit">Find products</button></form><section class="catalog-results"><div class="results-meta" aria-live="polite"><span>${error ? "Could not load products" : `${products.length} ${products.length === 1 ? "product" : "products"}`}</span></div><div class="product-grid">${error ? empty : products.map(renderProductCard).join("") || empty}</div></section></main>${footer()}`;
 }
 
 export function catalogLoading({ session }) {
-  return `${header(session)}<main class="page catalog-page" aria-busy="true"><section class="catalog-intro"><span class="eyebrow">DigiSutra collection</span><h1>Finding useful work<span class="heading-spark" aria-hidden="true">✳</span></h1><p>Guides, templates and resources from independent makers.</p></section><section class="catalog-results" aria-label="Loading products"><div class="results-meta"><span>Loading products…</span></div><div class="product-grid">${Array.from({ length: 4 }, () => `<div class="product-skeleton" aria-hidden="true"><div class="skeleton-cover"></div><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>`).join("")}</div></section></main>${footer()}`;
+  return `${header(session)}<main class="page catalog-page" aria-busy="true">${marketplaceHero()}
+    <section class="catalog-results" aria-label="Loading products"><p class="results-meta" role="status">Loading products…</p><div class="product-grid">${productSkeletons()}</div></section>
+  </main>${footer()}`;
 }
 
 export function detail({ session, product }) {
@@ -60,7 +111,7 @@ export function detail({ session, product }) {
     </section></main>${footer()}`;
 }
 
-export function auth({ mode = "login" }) { mode = mode === "signup" ? "signup" : "login"; return `<main class="auth-page"><a class="wordmark auth-wordmark" href="${ROUTES.home}" data-link><span class="seal"><span>DS</span></span><span><strong>${APP.name}</strong><small>Digital products marketplace</small></span></a><section class="auth-layout"><div class="auth-message"><span class="eyebrow">Welcome to DigiSutra</span><h1>Your home for premium digital work.</h1><p>${COPY.authBody}</p><div class="auth-benefits"><span>⌁ Instant access to purchases</span><span>◇ Secure payments and private delivery</span><span>✦ Thoughtful products from real creators</span></div></div><div class="auth-card"><div class="auth-card-heading"><span class="eyebrow">Your account</span><h2>${mode === "login" ? "Welcome back" : "Create your account"}</h2><p>${mode === "login" ? "Sign in to continue to your library." : "Start discovering useful digital products."}</p></div><div class="auth-tabs"><button class="tab ${mode === "login" ? "active" : ""}" aria-pressed="${mode === "login"}" data-auth-mode="login">Sign in</button><button class="tab ${mode === "signup" ? "active" : ""}" aria-pressed="${mode === "signup"}" data-auth-mode="signup">Create account</button></div><form novalidate data-auth-form data-mode="${mode}">${mode === "signup" ? `<div class="form-row"><label>First name<input name="first_name" required /></label><label>Last name<input name="last_name" /></label></div>` : ""}<label>Username<input name="username" autocomplete="username" required /></label>${mode === "signup" ? `<label>Email<input name="email" type="email" required /></label>` : ""}<label>Password<input id="authPassword" name="password" type="password" autocomplete="${mode === "signup" ? "new-password" : "current-password"}" required /></label><button type="button" class="button button-ghost" data-toggle-password aria-controls="authPassword" aria-pressed="false">Show password</button><p class="form-error" data-form-error></p><button class="button button-primary button-wide" type="submit">${mode === "login" ? "Sign in securely" : "Create customer account"} <span>→</span></button></form><p class="form-note">Public accounts begin as customers. Seller access is reviewed separately.</p></div></section></main>`; }
+export function auth({ mode = "login" }) { mode = mode === "signup" ? "signup" : "login"; return `<main class="auth-page"><a class="wordmark auth-wordmark" href="${ROUTES.home}" data-link><strong>${APP.name}<span aria-hidden="true">✱</span></strong></a><section class="auth-layout"><div class="auth-message"><span class="eyebrow">Welcome to DigiSutra</span><h1>Your home for premium digital work.</h1><p>${COPY.authBody}</p><div class="auth-benefits"><span>⌁ Instant access to purchases</span><span>◇ Secure payments and private delivery</span><span>✦ Thoughtful products from real creators</span></div></div><div class="auth-card"><div class="auth-card-heading"><span class="eyebrow">Your account</span><h2>${mode === "login" ? "Welcome back" : "Create your account"}</h2><p>${mode === "login" ? "Sign in to continue to your library." : "Start discovering useful digital products."}</p></div><div class="auth-tabs"><button class="tab ${mode === "login" ? "active" : ""}" aria-pressed="${mode === "login"}" data-auth-mode="login">Sign in</button><button class="tab ${mode === "signup" ? "active" : ""}" aria-pressed="${mode === "signup"}" data-auth-mode="signup">Create account</button></div><form novalidate data-auth-form data-mode="${mode}">${mode === "signup" ? `<div class="form-row"><label>First name<input name="first_name" required /></label><label>Last name<input name="last_name" /></label></div>` : ""}<label>Username<input name="username" autocomplete="username" required /></label>${mode === "signup" ? `<label>Email<input name="email" type="email" required /></label>` : ""}<label>Password<input id="authPassword" name="password" type="password" autocomplete="${mode === "signup" ? "new-password" : "current-password"}" required /></label><button type="button" class="button button-ghost" data-toggle-password aria-controls="authPassword" aria-pressed="false">Show password</button><p class="form-error" data-form-error></p><button class="button button-primary button-wide" type="submit">${mode === "login" ? "Sign in securely" : "Create customer account"} <span>→</span></button></form><p class="form-note">Public accounts begin as customers. Seller access is reviewed separately.</p></div></section></main>`; }
 
 export function library({ session, purchases }) {
   const rows = purchases.map((item) => {

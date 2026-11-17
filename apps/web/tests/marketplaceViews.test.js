@@ -11,6 +11,7 @@ import {
   detail,
   home,
   library,
+  publicPage,
   seller,
   sellerApplication,
   sellerPayouts,
@@ -36,7 +37,7 @@ const product = {
 
 test("customer pages render their primary interaction hooks", () => {
   const homepage = home({ session: customer, products: [product] });
-  assert.ok(homepage.includes("Good resources.<br /><em>Great head starts"));
+  assert.match(homepage, /Discover digital products from independent creators/);
   assert.match(homepage, /data-home-search/);
   assert.match(homepage, /class="mobile-nav"/);
   assert.doesNotMatch(homepage, />Categories<\/a>/);
@@ -68,7 +69,7 @@ test("catalogue provides clear, reset, retry and stable loading states", () => {
   assert.match(failed, /data-retry-products/);
   assert.doesNotMatch(failed, /upstream failed/);
   assert.match(catalogLoading({ session: customer }), /aria-busy="true"/);
-  assert.match(home({ session: customer, products: [], loading: true }), /Loading featured products/);
+  assert.match(home({ session: customer, products: [], loading: true }), /Loading products/);
 });
 
 test("library only enables verified paid downloads", () => {
@@ -125,24 +126,41 @@ test("authentication mode cannot inject markup", () => {
 });
 
 
-test("home spotlight links to a real product and escapes listing content", () => {
-  const item = { ...product, title: '<img src=x onerror="bad()">', uuid: "product/one", image_uri: "https://example.com/preview.png" };
+test("home links real listing previews and escapes listing content", () => {
+  const item = { ...product, uuid: "product/one", title: "<script>bad</script>", image_uri: "/preview.png" };
   const document = new JSDOM(home({ session: null, products: [item] })).window.document;
-  const spotlight = document.querySelector(".hero-spotlight");
-  assert.equal(spotlight.getAttribute("href"), "/products/product%2Fone");
-  assert.equal(spotlight.querySelector("img").getAttribute("src"), item.image_uri);
-  assert.equal(spotlight.querySelector(".spotlight-caption > span").textContent, item.title);
-  assert.equal(document.querySelectorAll("[onerror]").length, 0);
+  const card = document.querySelector(".product-card-link");
+  assert.equal(card.getAttribute("href"), "/products/product%2Fone");
+  assert.equal(card.querySelector("img").getAttribute("src"), item.image_uri);
+  assert.equal(card.querySelector("h3").textContent, item.title);
+  assert.match(card.querySelector(".product-card-footer strong").textContent, /^₹/);
+  assert.equal(document.querySelector("script"), null);
 });
 
-test("empty and loading home spotlights do not invent purchasable listings", () => {
-  for (const loading of [false, true]) {
-    const document = new JSDOM(home({ session: null, products: [], loading })).window.document;
-    assert.equal(document.querySelector("a.hero-spotlight"), null);
-    assert.ok(document.querySelector(".spotlight-placeholder"));
-    assert.equal(document.querySelectorAll("[data-buy-product]").length, 0);
-    assert.equal(document.querySelectorAll(".product-card").length, 0);
+test("empty, loading, and failed home pages do not invent listings", () => {
+  for (const options of [{}, { loading: true }, { error: "Offline" }]) {
+    const document = new JSDOM(home({ session: null, products: [], ...options })).window.document;
+    assert.equal(document.querySelector(".product-card-link"), null);
+    assert.ok(document.querySelector(".public-hero"));
+    if (options.error) assert.ok(document.querySelector("[data-retry-products]"));
   }
+});
+
+test("public pages provide real destinations, filtered articles and a pricing FAQ", () => {
+  const blog = new JSDOM(publicPage({ session: null, path: "/blog", filter: "selling" })).window.document;
+  assert.equal(blog.querySelectorAll(".editorial-card").length, 2);
+  assert.equal(blog.querySelector(".site-nav [href='/features']").textContent, "Features");
+  assert.equal(blog.querySelector(".header-sell").getAttribute("href"), "/become-seller");
+
+  const slug = blog.querySelector(".editorial-card a").getAttribute("href").split("/").pop();
+  const article = new JSDOM(publicPage({ session: null, path: "article", slug })).window.document;
+  assert.equal(article.querySelector("h1").textContent, "Create your first digital product");
+  assert.equal(article.querySelectorAll(".blog-article section").length, 3);
+  assert.match(publicPage({ session: null, path: "article", slug: "missing" }), /Article not found/);
+
+  const pricing = new JSDOM(publicPage({ session: null, path: "/pricing" })).window.document;
+  assert.equal(pricing.querySelectorAll(".pricing-faq details").length, 2);
+  assert.match(pricing.querySelector(".pricing-panels").textContent, /Rates to be announced/);
 });
 
 test("product details keep the full description and one purchase action", () => {
