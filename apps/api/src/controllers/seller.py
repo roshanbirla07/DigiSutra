@@ -10,7 +10,9 @@ from utils.user import schema_validation
 
 
 def _response(payload, status=200):
-    return Response(response=json.dumps(payload), status=status, mimetype="application/json")
+    response = Response(response=json.dumps(payload), status=status, mimetype="application/json")
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 class SellerApplicationCollection(View):
@@ -23,7 +25,7 @@ class SellerApplicationCollection(View):
         try:
             if request.method == "GET":
                 application = serializer.get_my_application()
-                return _response(serializer.serialize_application(application) if application else {"application": None})
+                return _response(serializer.serialize_application(application) if application else {"application": None, "upi_onboarding_enabled": serializer.upi_onboarding_enabled()})
             application = serializer.save_draft(request.get_json(silent=True) or {})
             return _response(serializer.serialize_application(application), 200)
         except Exception as exc:
@@ -66,7 +68,6 @@ class AdminSellerApplicationCollection(View):
         try:
             applications = SellerApplicationSerializer.list_applications(request.args.get("status"))
             response = _response([SellerApplicationSerializer.serialize_application_summary(item) for item in applications])
-            response.headers["Cache-Control"] = "no-store"
             return response
         except Exception as exc:
             logging.error("event=%s error_type=%s", 'Seller application list error', type(exc).__name__)
@@ -81,7 +82,6 @@ class AdminSellerApplicationDetail(View):
         try:
             application = SellerApplicationSerializer._get_owned(application_uuid)
             response = _response(SellerApplicationSerializer.serialize_application(application))
-            response.headers["Cache-Control"] = "no-store"
             logging.info("event=admin_seller_application_detail application_uuid=%s", application_uuid)
             return response
         except Exception as exc:

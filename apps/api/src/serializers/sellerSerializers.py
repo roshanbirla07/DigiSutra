@@ -6,6 +6,7 @@ from flask import g
 from werkzeug.exceptions import HTTPException
 
 from configuration.db_routing import db, session_rollback
+from configuration.variables import ENABLE_SELLER_UPI_ONBOARDING
 from models.seller import SellerApplication, SellerProfile
 from utils.constants import USER_TYPE
 
@@ -38,6 +39,8 @@ class SellerApplicationSerializer(object):
     PROVIDER_STATUSES = {"not_started", "created", "under_review", "activated", "needs_clarification", "suspended"}
     FUND_ACCOUNT_STATUSES = {"not_started", "pending", "validated", "failed"}
     BUSINESS_TYPES = {"individual", "proprietorship", "partnership", "llp", "private_limited", "public_limited", "trust", "ngo", "society"}
+    BANK_FIELDS = ("bank_account_holder_name", "bank_account_last4", "bank_ifsc")
+    UPI_ID_PATTERN = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9._+-]*@[a-zA-Z0-9][a-zA-Z0-9.-]*")
     EDITABLE_FIELDS = {
         "store_name",
         "store_description",
@@ -52,13 +55,17 @@ class SellerApplicationSerializer(object):
         "gstin",
         "country",
         "phone_number",
-        "bank_account_holder_name",
-        "bank_account_last4",
-        "bank_ifsc",
+        *BANK_FIELDS,
+        "payout_destination",
+        "upi_id",
         "kyc_document_type",
         "kyc_document_reference",
         "terms_accepted",
     }
+
+    @staticmethod
+    def upi_onboarding_enabled():
+        return ENABLE_SELLER_UPI_ONBOARDING is True
 
     @staticmethod
     def _user():
@@ -96,6 +103,9 @@ class SellerApplicationSerializer(object):
             "gstin": application.gstin,
             "country": application.country,
             "phone_number": application.phone_number,
+            "payout_destination": application.payout_destination,
+            "upi_id": application.upi_id,
+            "upi_onboarding_enabled": cls.upi_onboarding_enabled(),
             "bank_account_holder_name": application.bank_account_holder_name,
             "bank_account_last4": application.bank_account_last4,
             "bank_ifsc": application.bank_ifsc,
@@ -177,9 +187,6 @@ class SellerApplicationSerializer(object):
                 "legal_name": "Legal name is required",
                 "business_type": "Business type is required",
                 "pan_number": "PAN is required",
-                "bank_account_holder_name": "Bank account holder name is required",
-                "bank_account_last4": "Bank account last 4 digits are required",
-                "bank_ifsc": "Bank IFSC is required",
             }
             for field, message in required.items():
                 if not str(values.get(field) or "").strip():
@@ -193,12 +200,7 @@ class SellerApplicationSerializer(object):
             gstin = str(values.get("gstin") or "")
             if gstin and not re.match(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$", gstin):
                 raise SellerApplicationInputError("GSTIN format is invalid")
-            bank_last4 = str(values.get("bank_account_last4") or "")
-            if not re.match(r"^[0-9]{4}$", bank_last4):
-                raise SellerApplicationInputError("Bank account last 4 digits are invalid")
-            bank_ifsc = str(values.get("bank_ifsc") or "")
-            if not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", bank_ifsc):
-                raise SellerApplicationInputError("Bank IFSC format is invalid")
+            cls._validate_payout_destination(values)
             if values.get("terms_accepted") is not True:
                 raise SellerApplicationInputError("Seller terms must be accepted")
 
@@ -206,11 +208,49 @@ class SellerApplicationSerializer(object):
             raise SellerApplicationInputError("Store name is too long")
         return values
 
+    @classmethod
+    def _validate_payout_destination(cls, values):
+        method = values.get("payout_destination", "bank_account")
+        if method == "upi":
+            if not cls.upi_onboarding_enabled():
+                raise SellerApplicationInputError("UPI payouts are unavailable. Choose a bank account.")
+            upi_id = values.get("upi_id") or ""
+            if not cls.UPI_ID_PATTERN.fullmatch(upi_id):
+                raise SellerApplicationInputError("Enter a valid UPI ID, such as name@bank")
+            return
+        if method != "bank_account":
+            raise SellerApplicationInputError("Choose a valid payout destination")
+        if not values.get("bank_account_holder_name"):
+            raise SellerApplicationInputError("Bank account holder name is required")
+        if not re.fullmatch(r"[0-9]{4}", values.get("bank_account_last4") or ""):
+            raise SellerApplicationInputError("Enter the last 4 digits of the bank account")
+        if not re.fullmatch(r"[A-Z]{4}0[A-Z0-9]{6}", values.get("bank_ifsc") or ""):
+            raise SellerApplicationInputError("Enter a valid bank IFSC")
+
+    @classmethod
+    def _apply_application_fields(cls, application, values):
+        method = values.get("payout_destination", application.payout_destination or "bank_account")
+        if method == "upi":
+            if not cls.upi_onboarding_enabled():
+                raise SellerApplicationInputError("UPI payouts are unavailable. Choose a bank account.")
+            values.update(dict.fromkeys(cls.BANK_FIELDS))
+        elif method == "bank_account":
+            values["upi_id"] = None
+        else:
+            raise SellerApplicationInputError("Choose a valid payout destination")
+        values["payout_destination"] = method
+        destination_fields = (*cls.BANK_FIELDS, "payout_destination", "upi_id")
+        if any(field in values and values[field] != getattr(application, field) for field in destination_fields):
+            application.fund_account_status = "not_started"
+        for field, value in values.items():
+            setattr(application, field, value)
+
     @staticmethod
     def _normalize_review_payload(payload):
         payload = payload or {}
         return {
             "note": str(payload.get("note") or "").strip() or None,
+            "verified_upi_id": str(payload.get("verified_upi_id") or "").strip() or None,
             "provider": str(payload.get("provider") or "manual").strip().lower() or "manual",
             "provider_account_id": str(payload.get("provider_account_id") or "").strip() or None,
             "provider_account_status": str(payload.get("provider_account_status") or "").strip().lower() or None,
@@ -218,9 +258,11 @@ class SellerApplicationSerializer(object):
         }
 
     @classmethod
-    def _get_owned(cls, application_uuid=None):
+    def _get_owned(cls, application_uuid=None, *, for_update=False):
         user = cls._user()
         query = SellerApplication.query
+        if for_update:
+            query = query.populate_existing().with_for_update()
         if application_uuid:
             application = query.filter_by(uuid=application_uuid).first()
             if not application:
@@ -258,7 +300,7 @@ class SellerApplicationSerializer(object):
         user = cls._user()
         if user.user_type != USER_TYPE.CUSTOMER.value:
             raise SellerApplicationInputError("Only customers can apply to become sellers")
-        application = cls._get_owned()
+        application = cls._get_owned(for_update=True)
         if application and application.status not in {"draft", "needs_information", "kyc_failed", "rejected"}:
             raise SellerApplicationInputError("This application cannot be edited in its current state")
         values = cls._validate_fields(payload)
@@ -273,8 +315,7 @@ class SellerApplicationSerializer(object):
                 fund_account_status="not_started",
             )
             db.session.add(application)
-        for field, value in values.items():
-            setattr(application, field, value)
+        cls._apply_application_fields(application, values)
         db.session.commit()
         return application
 
@@ -284,7 +325,7 @@ class SellerApplicationSerializer(object):
         user = cls._user()
         if user.user_type != USER_TYPE.CUSTOMER.value:
             raise SellerApplicationInputError("Only customers can apply to become sellers")
-        application = cls._get_owned()
+        application = cls._get_owned(for_update=True)
         if not application:
             application = SellerApplication(
                 uuid=f"seller-application::{uuid.uuid4()}",
@@ -299,14 +340,14 @@ class SellerApplicationSerializer(object):
         if application.status not in {"draft", "needs_information", "kyc_failed", "rejected"}:
             raise SellerApplicationInputError("This application cannot be submitted in its current state")
         values = cls._validate_fields(payload, require_submit=False)
-        for field, value in values.items():
-            setattr(application, field, value)
+        cls._apply_application_fields(application, values)
         cls._validate_fields({field: getattr(application, field) for field in cls.EDITABLE_FIELDS}, require_submit=True)
         application.status = "kyc_pending"
         application.kyc_status = "pending"
         application.provider = application.provider or "manual"
         application.provider_account_status = application.provider_account_status or "not_started"
-        application.fund_account_status = application.fund_account_status or "pending"
+        if application.fund_account_status in {None, "not_started", "failed"}:
+            application.fund_account_status = "pending"
         application.submitted_on = datetime.datetime.utcnow()
         application.review_note = None
         application.kyc_review_note = None
@@ -316,7 +357,7 @@ class SellerApplicationSerializer(object):
     @classmethod
     @session_rollback(db)
     def withdraw(cls, application_uuid):
-        application = cls._get_owned(application_uuid)
+        application = cls._get_owned(application_uuid, for_update=True)
         if application.status not in {"submitted", "under_review", "kyc_pending", "kyc_in_review", "needs_information"}:
             raise SellerApplicationInputError("This application cannot be withdrawn in its current state")
         application.status = "withdrawn"
@@ -327,7 +368,7 @@ class SellerApplicationSerializer(object):
     @session_rollback(db)
     def request_information(cls, application_uuid, note):
         admin = cls._require_admin()
-        application = cls._get_owned(application_uuid)
+        application = cls._get_owned(application_uuid, for_update=True)
         if application.status not in {"submitted", "under_review", "kyc_pending", "kyc_in_review", "kyc_failed"}:
             raise SellerApplicationInputError("This application is not awaiting review")
         note = str(note or "").strip()
@@ -347,7 +388,7 @@ class SellerApplicationSerializer(object):
     @session_rollback(db)
     def reject(cls, application_uuid, note):
         admin = cls._require_admin()
-        application = cls._get_owned(application_uuid)
+        application = cls._get_owned(application_uuid, for_update=True)
         if application.status not in {"submitted", "under_review", "kyc_pending", "kyc_in_review", "kyc_failed", "needs_information"}:
             raise SellerApplicationInputError("This application is not awaiting review")
         note = str(note or "").strip()
@@ -367,7 +408,7 @@ class SellerApplicationSerializer(object):
     @session_rollback(db)
     def start_kyc_review(cls, application_uuid, payload=None):
         admin = cls._require_admin()
-        application = cls._get_owned(application_uuid)
+        application = cls._get_owned(application_uuid, for_update=True)
         if application.status not in {"kyc_pending", "submitted", "under_review"}:
             raise SellerApplicationInputError("This application is not ready for KYC review")
         review = cls._normalize_review_payload(payload)
@@ -389,10 +430,17 @@ class SellerApplicationSerializer(object):
     @session_rollback(db)
     def verify_kyc(cls, application_uuid, payload=None):
         admin = cls._require_admin()
-        application = cls._get_owned(application_uuid)
+        application = cls._get_owned(application_uuid, for_update=True)
         if application.status not in {"kyc_pending", "kyc_in_review", "kyc_failed"}:
             raise SellerApplicationInputError("This application is not ready for KYC verification")
         review = cls._normalize_review_payload(payload)
+        expected_upi_id = application.upi_id if application.payout_destination == "upi" else None
+        if review["verified_upi_id"] != expected_upi_id:
+            raise SellerApplicationInputError("Reload the application and review the current payout destination")
+        if application.payout_destination == "upi":
+            cls._validate_payout_destination({"payout_destination": "upi", "upi_id": application.upi_id})
+            if not review["note"]:
+                raise SellerApplicationInputError("Record the UPI holder-name verification in the review note")
         provider_status = review["provider_account_status"] or application.provider_account_status or "activated"
         fund_status = review["fund_account_status"] or application.fund_account_status or "validated"
         if provider_status not in cls.PROVIDER_STATUSES:
@@ -421,7 +469,7 @@ class SellerApplicationSerializer(object):
     @session_rollback(db)
     def fail_kyc(cls, application_uuid, payload=None):
         admin = cls._require_admin()
-        application = cls._get_owned(application_uuid)
+        application = cls._get_owned(application_uuid, for_update=True)
         if application.status not in {"kyc_pending", "kyc_in_review", "kyc_failed"}:
             raise SellerApplicationInputError("This application is not in KYC review")
         review = cls._normalize_review_payload(payload)
@@ -445,11 +493,13 @@ class SellerApplicationSerializer(object):
     @session_rollback(db)
     def approve(cls, application_uuid, note=None):
         admin = cls._require_admin()
-        application = cls._get_owned(application_uuid)
+        application = cls._get_owned(application_uuid, for_update=True)
         if application.status != "kyc_verified" or application.kyc_status != "verified":
             raise SellerApplicationInputError("KYC must be verified before seller approval")
         if application.fund_account_status != "validated":
             raise SellerApplicationInputError("Fund account must be validated before seller approval")
+        if application.payout_destination == "upi" and not cls.upi_onboarding_enabled():
+            raise SellerApplicationInputError("UPI payouts are unavailable for new sellers")
         user = application.applicant
         if not user or user.user_type != USER_TYPE.CUSTOMER.value:
             raise SellerApplicationInputError("Only customer accounts can be promoted")

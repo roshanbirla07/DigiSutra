@@ -142,6 +142,21 @@ test("seller onboarding asks for supporting details only on follow-up or saved a
   assert.equal(saved.querySelector("[name=business_address]").value, "Saved address");
 });
 
+test("seller applications show only the available payout choices and preserve a saved UPI ID", () => {
+  const bankOnly = new JSDOM(sellerApplication({ session: customer, application: {} })).window.document;
+  assert.equal(bankOnly.querySelector("[data-payout-destination]"), null);
+  assert.equal(bankOnly.querySelector("[name=upi_id]"), null);
+
+  const upiApp = new JSDOM(sellerApplication({
+    session: customer,
+    application: { status: "draft", upi_onboarding_enabled: true, payout_destination: "upi", upi_id: "demo@bank" },
+  })).window.document;
+  assert.equal(upiApp.querySelector("[data-payout-destination]:checked").value, "upi");
+  assert.equal(upiApp.querySelector("[name=upi_id]").value, "demo@bank");
+  assert.equal(upiApp.querySelector("[name=bank_ifsc]").disabled, true);
+  assert.equal(upiApp.querySelector('[data-payout-fields="bank_account"]').hidden, true);
+});
+
 test("authentication mode cannot inject markup", () => {
   const html = auth({ mode: 'login"><img src=x onerror=alert(1)>' });
   assert.match(html, /data-auth-form data-mode="login"/);

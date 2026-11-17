@@ -112,6 +112,8 @@ SellerApplicationSchema = {
     'gstin': {'type': 'string', 'maxlength': 15, 'nullable': True, 'required': False},
     'country': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},
     'phone_number': {'type': 'string', 'maxlength': 30, 'nullable': True, 'required': False},
+    'payout_destination': {'type': 'string', 'allowed': ['bank_account', 'upi'], 'required': False},
+    'upi_id': {'type': 'string', 'maxlength': 255, 'nullable': True, 'required': False},
     'bank_account_holder_name': {'type': 'string', 'maxlength': 120, 'nullable': True, 'required': False},
     'bank_account_last4': {'type': 'string', 'maxlength': 4, 'nullable': True, 'required': False},
     'bank_ifsc': {'type': 'string', 'maxlength': 11, 'nullable': True, 'required': False},
@@ -121,6 +123,7 @@ SellerApplicationSchema = {
 }
 
 SellerApplicationReviewSchema = {
+    'verified_upi_id': {'type': 'string', 'maxlength': 255, 'required': False},
     'note': {'type': 'string', 'maxlength': 5000, 'nullable': True, 'required': False},
     'provider': {'type': 'string', 'maxlength': 50, 'nullable': True, 'required': False},
     'provider_account_id': {'type': 'string', 'maxlength': 100, 'nullable': True, 'required': False},

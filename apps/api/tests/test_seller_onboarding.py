@@ -1,6 +1,8 @@
 import os
 import sys
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
@@ -91,6 +93,53 @@ class SellerOnboardingValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(SellerApplicationInputError, "IFSC"):
             SellerApplicationSerializer._validate_fields(payload, require_submit=True)
 
+    def test_upi_submission_requires_enabled_onboarding_and_valid_address(self):
+        payload = self.valid_payload()
+        for field in SellerApplicationSerializer.BANK_FIELDS:
+            payload.pop(field)
+        payload.update(payout_destination="upi", upi_id="demo@bank")
+
+        with self.assertRaisesRegex(SellerApplicationInputError, "UPI payouts are unavailable"):
+            SellerApplicationSerializer._validate_fields(payload, require_submit=True)
+
+        with patch("serializers.sellerSerializers.ENABLE_SELLER_UPI_ONBOARDING", True):
+            self.assertEqual(
+                SellerApplicationSerializer._validate_fields(payload, require_submit=True)["upi_id"],
+                "demo@bank",
+            )
+            payload["upi_id"] = "invalid"
+            with self.assertRaisesRegex(SellerApplicationInputError, "valid UPI ID"):
+                SellerApplicationSerializer._validate_fields(payload, require_submit=True)
+
+    @patch("serializers.sellerSerializers.ENABLE_SELLER_UPI_ONBOARDING", True)
+    def test_changing_destination_clears_old_details_and_resets_verification(self):
+        serializer = SellerApplicationSerializer
+        application = SimpleNamespace(
+            payout_destination="bank_account", upi_id=None, fund_account_status="validated",
+            bank_account_holder_name="Example", bank_account_last4="1234", bank_ifsc="HDFC0123456",
+        )
+        serializer._apply_application_fields(application, {"payout_destination": "upi", "upi_id": "demo@bank"})
+        self.assertEqual(application.upi_id, "demo@bank")
+        self.assertTrue(all(getattr(application, field) is None for field in serializer.BANK_FIELDS))
+        self.assertEqual(application.fund_account_status, "not_started")
+
+        serializer._apply_application_fields(application, {"payout_destination": "bank_account", "bank_account_last4": "5678"})
+        self.assertIsNone(application.upi_id)
+        self.assertEqual(application.bank_account_last4, "5678")
+
+    @patch("serializers.sellerSerializers.ENABLE_SELLER_UPI_ONBOARDING", True)
+    def test_admin_must_record_upi_holder_name_verification(self):
+        serializer = SellerApplicationSerializer
+        application = SimpleNamespace(status="kyc_in_review", payout_destination="upi", upi_id="demo@bank")
+        with patch.object(serializer, "_require_admin"), patch.object(serializer, "_get_owned", return_value=application):
+            with self.assertRaisesRegex(SellerApplicationInputError, "holder-name verification"):
+                serializer.verify_kyc.__wrapped__(serializer, "application::1", {"verified_upi_id": "demo@bank"})
+            with self.assertRaisesRegex(SellerApplicationInputError, "current payout destination"):
+                serializer.verify_kyc.__wrapped__(serializer, "application::1", {
+                    "verified_upi_id": "old@bank", "note": "Matched the holder name",
+                })
+        self.assertEqual(application.status, "kyc_in_review")
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -111,5 +160,5 @@ class SellerApplicationSummaryTests(unittest.TestCase):
         application.created_on = None
         summary = SellerApplicationSerializer.serialize_application_summary(application)
         self.assertEqual(summary["store_name"], "Example store")
-        for field in ("pan_number", "gstin", "business_address", "phone_number", "bank_ifsc", "kyc_document_reference", "provider_account_id"):
+        for field in ("pan_number", "gstin", "business_address", "phone_number", "bank_ifsc", "kyc_document_reference", "provider_account_id", "upi_id"):
             self.assertNotIn(field, summary)
