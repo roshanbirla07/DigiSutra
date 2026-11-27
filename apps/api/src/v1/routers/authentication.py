@@ -1,4 +1,4 @@
-from controllers.user import SignUp, Login, UserList
+from controllers.user import SignUp, Login, GoogleLogin, UserList
 from v1.routers.products import ProductRoutes
 from v1.routers.assets import AssetRoutes
 from v1.routers.ledger import LedgerRoutes
@@ -26,6 +26,9 @@ class AuthenticationRoutes(object):
                         methods=['GET'],
                         endpoint='should_be_v1_only_user_list'
                         )
+        v1.add_url_rule('users/login/google/',
+                        view_func=GoogleLogin.as_view('google_login'),
+                        methods=['GET', 'POST'])
         ProductRoutes.router()
         AssetRoutes.router()
         LedgerRoutes.router()

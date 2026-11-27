@@ -40,7 +40,8 @@ function submit(form, submitter = form.querySelector('button[type="submit"]')) {
 
 test("late catalog response cannot replace a newer sign-in route", async () => {
   let release;
-  const env = setup("/catalog", null, () => new Promise((resolve) => { release = resolve; }));
+  const env = setup("/catalog", null, ({ path }) => path === "/v1/users/login/google/"
+    ? {} : new Promise((resolve) => { release = resolve; }));
   try {
     env.root.querySelector('a[href="/auth"]').click();
     await until(() => env.root.querySelector("[data-auth-form]"));
@@ -124,7 +125,7 @@ test("form errors are field-associated, focused and block invalid auth requests"
     assert.equal(input.getAttribute("aria-invalid"), "true");
     assert.ok(document.getElementById(input.getAttribute("aria-describedby")));
     assert.equal(document.activeElement, input);
-    assert.equal(env.calls.length, 0);
+    assert.equal(env.calls.filter((call) => call.method === "POST").length, 0);
     const toggle = env.root.querySelector("[data-toggle-password]"); toggle.click();
     assert.equal(form.elements.password.type, "text");
     assert.equal(toggle.getAttribute("aria-pressed"), "true");
@@ -241,5 +242,48 @@ test("payment popup cannot be duplicated and server status restores a paid purch
     await until(() => window.location.pathname === "/library");
     await until(() => env.root.querySelector("h1")?.textContent === "Library");
     assert.equal(env.calls.filter((call) => call.path === "/v1/ledger/orders/").length, 1);
+  } finally { env.close(); }
+});
+
+test("Google sign-in creates a session and preserves the return destination", async () => {
+  let options;
+  const env = setup("/auth?returnTo=%2Flibrary", null, ({ path, method }) => {
+    if (path === "/v1/users/login/google/") return method === "POST" ? customer : { client_id: "google-client" };
+    return [];
+  });
+  window.google = { accounts: { id: {
+    initialize: (value) => { options = value; },
+    renderButton: (container) => { container.textContent = "Continue with Google"; },
+  } } };
+  try {
+    await env.init;
+    await until(() => options);
+    assert.equal(options.client_id, "google-client");
+    assert.match(env.root.querySelector("[data-google-login]").textContent, /Continue with Google/);
+    await options.callback({ credential: "google-id-token" });
+    await until(() => window.location.pathname === "/library");
+    assert.equal(JSON.parse(localStorage.getItem("digisutra_session")).token, customer.token);
+    const call = env.calls.find((item) => item.path === "/v1/users/login/google/" && item.method === "POST");
+    assert.deepEqual(JSON.parse(call.body), { credential: "google-id-token" });
+  } finally { env.close(); }
+});
+
+test("rejected Google login displays the error and retains the return destination", async () => {
+  let options;
+  const env = setup("/auth?returnTo=%2Flibrary", null, ({ path, method }) => {
+    if (path === "/v1/users/login/google/") return method === "POST"
+      ? { status: 401, data: { error: "Google email must be verified" } } : { client_id: "google-client" };
+    return [];
+  });
+  window.google = { accounts: { id: {
+    initialize: (value) => { options = value; }, renderButton: () => {},
+  } } };
+  try {
+    await env.init;
+    await until(() => options);
+    await options.callback({ credential: "invalid" });
+    assert.equal(window.location.pathname + window.location.search, "/auth?returnTo=%2Flibrary");
+    assert.match(env.root.querySelector("[data-form-error]").textContent, /must be verified/);
+    assert.equal(localStorage.getItem("digisutra_session"), null);
   } finally { env.close(); }
 });

@@ -12,6 +12,7 @@ export function createApp() {
   let dirty = false;
   let previewGeneration = 0;
   let razorpayScript = null;
+  let googleScript = null;
   let paymentInstance = null;
   let historyIndex = window.history.state?.uiIndex || 0;
   let restoredHistory = null;
@@ -144,6 +145,7 @@ export function createApp() {
     }
     if (current.name === ROUTES.auth) {
       display(view.auth({ mode: new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login" }));
+      void renderGoogleLogin(generation);
       return;
     }
     if (current.name === ROUTES.home || current.name === ROUTES.catalog) {
@@ -225,6 +227,48 @@ export function createApp() {
       display(view.pageState({ session: state.session, title: error.status === 403 ? "Access denied" : "Could not load this workspace", message: error.message, retry: error.status !== 403 }));
     }
   }
+  async function renderGoogleLogin(generation) {
+    const container = root.querySelector("[data-google-login]");
+    const form = root.querySelector("[data-auth-form]");
+    const returnTo = safeReturnPath(new URLSearchParams(window.location.search).get("returnTo"), window.location.origin);
+    try {
+      const { client_id: clientId } = await api.request(API_PATHS.googleLogin);
+      if (!clientId || generation !== renderGeneration) return;
+      if (!window.google?.accounts?.id) {
+        googleScript ||= new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://accounts.google.com/gsi/client";
+          script.async = true;
+          script.onload = resolve;
+          script.onerror = () => { script.remove(); googleScript = null; reject(new Error("Could not load Google sign-in. Please retry.")); };
+          document.head.append(script);
+        });
+        await googleScript;
+      }
+      if (generation !== renderGeneration) return;
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async ({ credential }) => {
+          if (generation !== renderGeneration) return;
+          try {
+            const session = await api.request(API_PATHS.googleLogin, {
+              method: "POST", body: JSON.stringify({ credential }),
+            });
+            if (generation !== renderGeneration) return;
+            setSession(session);
+            dirty = false;
+            navigate(returnTo || (session.user_type === APP.roles.customer ? ROUTES.settings : ROUTES.seller), true, true);
+          } catch (error) {
+            if (form.isConnected) formError(form, error.message);
+          }
+        },
+      });
+      window.google.accounts.id.renderButton(container, { theme: "outline", size: "large", text: "continue_with" });
+    } catch (error) {
+      if (generation === renderGeneration) formError(form, error.message);
+    }
+  }
+
   async function submitAuth(form) {
     if (!validateForm(form)) return;
     const active = renderGeneration;

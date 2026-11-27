@@ -66,3 +66,22 @@ Rules:
 - Do not calculate fees, taxes, balances, refunds, payouts, or order states in
   the browser.
 - Escape API-provided values before inserting them into HTML.
+
+## Google sign-in
+
+Set `CLIENT_ID` in `apps/api/src/configuration/instance_config.py` to a
+Google OAuth **Web application** client ID, then restart the API. In the Google
+Cloud console, add the frontend origin (for example `http://localhost:3000`)
+to the client's **Authorized JavaScript origins** and configure the consent
+screen/test users. Production origins must use HTTPS. No client secret or
+redirect URI is needed for this popup-based Google Identity Services flow.
+`CLIENT_SECRET` is included in the backend configuration example for naming
+consistency, but this flow does not use it and it can remain empty.
+See [Google's setup guide](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid).
+
+The sign-in and create-account screens show Google's button when configured.
+The API verifies Google's ID token and issues the existing DigiSutra session.
+New Google users are customers; returning users are identified by Google's
+stable subject ID. Existing password accounts with the same email must continue
+using their password; automatic account linking is intentionally unsupported.
+No database migration or additional Python dependency is required.
