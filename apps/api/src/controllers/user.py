@@ -1,9 +1,10 @@
 import logging
 import json
-from flask import g, request, Response
+from flask import g, request, Response, jsonify
 from flask.views import View
 from serializers.userSerializers import UserSerializer
-from utils.auth import require_auth
+from utils.auth import AuthError, create_access_token, require_auth
+from utils.google_auth import google_client_id, google_user, verify_google_token
 from utils.constants import USER_TYPE
 from utils.user import schema_validation
 
@@ -84,6 +85,27 @@ def serialize_user(user):
         'created_on': user.created_on.isoformat() if user.created_on else None,
         'modified_on': user.modified_on.isoformat() if user.modified_on else None,
     }
+
+
+class GoogleLogin(View):
+    methods = ['GET', 'POST']
+
+    def dispatch_request(self):
+        client_id = google_client_id()
+        if request.method == 'GET':
+            return jsonify({'client_id': client_id})
+        if not client_id:
+            return jsonify({'error': 'Google sign-in is not configured'}), 503
+        data = request.get_json(silent=True)
+        credential = data.get('credential') if isinstance(data, dict) else None
+        if not isinstance(credential, str) or not credential:
+            return jsonify({'error': 'Google credential is required'}), 400
+        try:
+            user = google_user(verify_google_token(credential))
+            token = create_access_token(user)
+        except AuthError as exc:
+            return jsonify({'error': exc.description}), 401
+        return jsonify({**serialize_user(user), 'token': token})
 
 
 class UserList(View):
